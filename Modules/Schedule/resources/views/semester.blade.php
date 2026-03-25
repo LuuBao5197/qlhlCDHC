@@ -1,40 +1,28 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lịch Huấn Luyện - Kỳ Học</title>
+@extends('layouts.dashboard')
+@section('title')
+    Lich Huấn Luyện - Kỳ Học
+@endsection
+@section('content')
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
+        .schedule-page
+        {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
         }
 
-        .container {
+        .schedule-page .container {
             max-width: 1400px;
-            margin: 0 auto;
+            margin: auto auto;
             background: white;
             border-radius: 8px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            padding: 30px;
+            padding: 15px;
         }
 
-        .header {
+        .schedule-page .header {
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 4px solid #667eea;
-            padding-bottom: 20px;
         }
 
-        .header h1 {
+        .schedule-page .header h1 {
             font-size: 28px;
             color: #2c3e50;
             margin-bottom: 10px;
@@ -43,14 +31,14 @@
             font-weight: 700;
         }
 
-        .header-info {
+        .schedule-page .header-info {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
 
-        .info-box {
+        .schedule-page .info-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 15px;
@@ -58,7 +46,7 @@
             text-align: center;
         }
 
-        .info-label {
+        .schedule-page .info-label {
             font-size: 12px;
             text-transform: uppercase;
             opacity: 0.9;
@@ -66,12 +54,12 @@
             font-weight: 600;
         }
 
-        .info-value {
+        .schedule-page .info-value {
             font-size: 20px;
             font-weight: 700;
         }
 
-        .calendar-wrapper {
+        .schedule-page .calendar-wrapper {
             overflow-x: auto;
             border: 2px solid #ecf0f1;
             border-radius: 6px;
@@ -119,29 +107,47 @@
             min-width: 60px;
         }
 
+        .calendar td.slot-cell,
+        .calendar td.empty-slot-cell {
+            padding: 4px;
+        }
+
         .subject-cell {
             background: #f8f9fa;
             border: 1px solid #ddd;
             padding: 8px;
-            cursor: pointer;
+            cursor: default;
             transition: all 0.3s ease;
             position: relative;
             min-height: 40px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 4px;
             font-weight: 500;
+            width: 100%;
+            height: 100%;
         }
 
         .subject-cell:hover {
             background: #e8f4f8;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-            transform: scale(1.02);
         }
 
         .subject-code {
             color: #2c3e50;
             font-weight: 700;
+        }
+
+        .subject-content {
+            color: #7f8c8d;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        .empty-slot {
+            min-height: 40px;
         }
 
         .date-header {
@@ -228,7 +234,7 @@
             font-size: 13px;
         }
 
-        .schedule-section {
+        schedule-section {
             margin-bottom: 40px;
         }
 
@@ -265,103 +271,271 @@
             body {
                 background: white;
             }
+
             .container {
                 box-shadow: none;
                 padding: 0;
             }
         }
     </style>
-</head>
-<body>
+    <div class="schedule-page">
+        <div class="container">
+            <div class="header">
+                <h1>📅 Lịch Huấn Luyện</h1>
 
-<div class="container">
-    <div class="header">
-        <h1>📅 Lịch Huấn Luyện</h1>
-
-        @if($plan && count($dates) > 0)
-            <div class="header-info">
-                <div class="info-box">
-                    <div class="info-label">Kỳ Học</div>
-                    <div class="info-value">HK {{ $plan->semester }}</div>
-                </div>
-                <div class="info-box">
-                    <div class="info-label">Năm Học</div>
-                    <div class="info-value">{{ $plan->year }}</div>
-                </div>
-                <div class="info-box">
-                    <div class="info-label">Lớp Học</div>
-                    <div class="info-value">{{ $className }}</div>
-                </div>
-                <div class="info-box">
-                    <div class="info-label">Tổng Buổi Học</div>
-                    <div class="info-value">{{ count($scheduleCalendar) }}</div>
-                </div>
+                @if ($plan && count($dates) > 0)
+                    <div class="header-info">
+                        <div class="info-box">
+                            <div class="info-label">Kỳ Học</div>
+                            <div class="info-value">HK {{ $plan->semester }}</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">Năm Học</div>
+                            <div class="info-value">{{ $plan->year }}</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">Lớp Học</div>
+                            <div class="info-value">{{ $className }}</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">Tổng Buổi Học</div>
+                            <div class="info-value">{{ count($scheduleCalendar) }}</div>
+                        </div>
+                    </div>
+                @endif
             </div>
-        @endif
+
+            @if ($plan && count($dates) > 0)
+                @php
+                    $dateKeys = array_keys($dates);
+                    $slotMatches = function ($firstSlot, $secondSlot) {
+                        if (!$firstSlot || !$secondSlot) {
+                            return false;
+                        }
+
+                        return ($firstSlot['subject'] ?? null) === ($secondSlot['subject'] ?? null)
+                            && ($firstSlot['content'] ?? null) === ($secondSlot['content'] ?? null);
+                    };
+
+                    $buildMergedRows = function (array $periods) use ($dateKeys, $scheduleCalendar, $slotMatches) {
+                        $periods = array_values($periods);
+                        $dateCount = count($dateKeys);
+                        $periodCount = count($periods);
+                        $covered = [];
+                        $rows = [];
+
+                        foreach ($periods as $rowIndex => $period) {
+                            $cells = [];
+
+                            for ($columnIndex = 0; $columnIndex < $dateCount; $columnIndex++) {
+                                if (!empty($covered[$rowIndex][$columnIndex])) {
+                                    continue;
+                                }
+
+                                $dateKey = $dateKeys[$columnIndex];
+                                $slot = $scheduleCalendar[$dateKey][$period] ?? null;
+
+                                if (!$slot) {
+                                    $cells[] = ['type' => 'empty'];
+                                    continue;
+                                }
+
+                                $maxWidth = 1;
+
+                                for ($nextColumn = $columnIndex + 1; $nextColumn < $dateCount; $nextColumn++) {
+                                    if (!empty($covered[$rowIndex][$nextColumn])) {
+                                        break;
+                                    }
+
+                                    $candidateSlot = $scheduleCalendar[$dateKeys[$nextColumn]][$period] ?? null;
+
+                                    if (!$slotMatches($slot, $candidateSlot)) {
+                                        break;
+                                    }
+
+                                    $maxWidth++;
+                                }
+
+                                $bestWidth = 1;
+                                $bestHeight = 1;
+                                $bestArea = 1;
+
+                                for ($width = $maxWidth; $width >= 1; $width--) {
+                                    $height = 1;
+
+                                    for ($nextRow = $rowIndex + 1; $nextRow < $periodCount; $nextRow++) {
+                                        $canExpand = true;
+
+                                        for ($nextColumn = $columnIndex; $nextColumn < $columnIndex + $width; $nextColumn++) {
+                                            if (!empty($covered[$nextRow][$nextColumn])) {
+                                                $canExpand = false;
+                                                break;
+                                            }
+
+                                            $candidateSlot = $scheduleCalendar[$dateKeys[$nextColumn]][$periods[$nextRow]] ?? null;
+
+                                            if (!$slotMatches($slot, $candidateSlot)) {
+                                                $canExpand = false;
+                                                break;
+                                            }
+                                        }
+
+                                        if (!$canExpand) {
+                                            break;
+                                        }
+
+                                        $height++;
+                                    }
+
+                                    $area = $width * $height;
+
+                                    if ($area > $bestArea || ($area === $bestArea && $width > $bestWidth)) {
+                                        $bestWidth = $width;
+                                        $bestHeight = $height;
+                                        $bestArea = $area;
+                                    }
+                                }
+
+                                for ($markRow = $rowIndex; $markRow < $rowIndex + $bestHeight; $markRow++) {
+                                    for ($markColumn = $columnIndex; $markColumn < $columnIndex + $bestWidth; $markColumn++) {
+                                        $covered[$markRow][$markColumn] = true;
+                                    }
+                                }
+
+                                $cells[] = [
+                                    'type' => 'slot',
+                                    'slot' => $slot,
+                                    'rowspan' => $bestHeight,
+                                    'colspan' => $bestWidth,
+                                ];
+                            }
+
+                            $rows[] = [
+                                'period' => $period,
+                                'cells' => $cells,
+                            ];
+                        }
+
+                        return $rows;
+                    };
+
+                    $morningPeriods = [1, 2, 3, 4, 5];
+                    $afternoonPeriods = [6, 7, 8, 9];
+                    $morningRows = $buildMergedRows($morningPeriods);
+                    $afternoonRows = $buildMergedRows($afternoonPeriods);
+                @endphp
+                <div class="calendar-wrapper">
+                    <!-- Morning Schedule (Periods 1-5) -->
+                    <div class="schedule-section">
+                        <h2 class="section-title">☀️ BUỔI SÁNG (Tiết 1-5)</h2>
+                        <table class="calendar">
+                            <thead>
+                                <tr>
+                                    <th class="period">Tiết</th>
+                                    @foreach ($dates as $dateStr => $date)
+                                        <th>
+                                            <div class="date-header">
+                                                <div class="date-number">{{ $date->format('d') }}</div>
+                                                <div class="date-month">Tháng {{ $date->format('m') }}</div>
+                                                <div class="day-of-week">{{ $date->locale('vi')->shortDayName }}</div>
+                                            </div>
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($morningRows as $row)
+                                    <tr>
+                                        <td class="period morning-period">{{ $row['period'] }}</td>
+                                        @foreach ($row['cells'] as $cell)
+                                            @if ($cell['type'] === 'slot')
+                                                <td class="slot-cell" @if ($cell['rowspan'] > 1) rowspan="{{ $cell['rowspan'] }}" @endif
+                                                    @if ($cell['colspan'] > 1) colspan="{{ $cell['colspan'] }}" @endif>
+                                                    <div class="subject-cell">
+                                                        <span class="subject-code">{{ $cell['slot']['subject'] }}</span>
+                                                        {{-- @if (!empty($cell['slot']['content']))
+                                                            <span class="subject-content">{{ $cell['slot']['content'] }}</span>
+                                                        @endif --}}
+                                                    </div>
+                                                </td>
+                                            @else
+                                                <td class="empty-slot-cell">
+                                                    <div class="empty-slot"></div>
+                                                </td>
+                                            @endif
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Afternoon Schedule (Periods 6-9) -->
+                    <div class="schedule-section">
+                        <h2 class="section-title">🌤️ BUỔI CHIỀU (Tiết 6-9)</h2>
+                        <table class="calendar">
+                            <thead>
+                                <tr>
+                                    <th class="period">Tiết</th>
+                                    @foreach ($dates as $dateStr => $date)
+                                        <th>
+                                            <div class="date-header">
+                                                <div class="date-number">{{ $date->format('d') }}</div>
+                                                <div class="date-month">Tháng {{ $date->format('m') }}</div>
+                                                <div class="day-of-week">{{ $date->locale('vi')->shortDayName }}</div>
+                                            </div>
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($afternoonRows as $row)
+                                    <tr>
+                                        <td class="period afternoon-period">{{ $row['period'] }}</td>
+                                        @foreach ($row['cells'] as $cell)
+                                            @if ($cell['type'] === 'slot')
+                                                <td class="slot-cell" @if ($cell['rowspan'] > 1) rowspan="{{ $cell['rowspan'] }}" @endif
+                                                    @if ($cell['colspan'] > 1) colspan="{{ $cell['colspan'] }}" @endif>
+                                                    <div class="subject-cell">
+                                                        <span class="subject-code">{{ $cell['slot']['subject'] }}</span>
+                                                        {{-- @if (!empty($cell['slot']['content']))
+                                                            <span class="subject-content">{{ $cell['slot']['content'] }}</span>
+                                                        @endif --}}
+                                                    </div>
+                                                </td>
+                                            @else
+                                                <td class="empty-slot-cell">
+                                                    <div class="empty-slot"></div>
+                                                </td>
+                                            @endif
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <h3>Chú Thích</h3>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <span class="legend-badge morning">1-5</span>
+                            <span class="legend-text">Tiết buổi sáng</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-badge afternoon">6-9</span>
+                            <span class="legend-text">Tiết buổi chiều</span>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="empty-state">
+                    <p>📭 Không có dữ liệu lịch huấn luyện cho kỳ học này.</p>
+                    <p style="font-size: 13px; color: #bdc3c7;">Vui lòng kiểm tra lại kỳ học, năm học hoặc lớp học.</p>
+                </div>
+            @endif
+        </div>
     </div>
 
-    @if($plan && count($dates) > 0)
-        @php
-            $periods = range(1, 9);
-        @endphp
-
-        <div class="calendar-wrapper">
-            <div class="schedule-section">
-                <h2 class="section-title">🗓️ Lịch Kỳ Học (Tiết 1-9)</h2>
-                <table class="calendar">
-                    <thead>
-                        <tr>
-                            <th>Tiết \ Ngày</th>
-                            @foreach ($dates as $date)
-                                <th>{{ $date->format('d/m') }}<br>{{ $date->locale('vi')->shortDayName }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($periods as $period)
-                            <tr>
-                                <td class="period">{{ $period }}</td>
-                                @foreach ($dates as $date)
-                                    @php
-                                        $dateKey = $date->format('Y-m-d');
-                                        $slot = $scheduleCalendar[$dateKey][$period] ?? null;
-                                    @endphp
-                                    <td>
-                                        @if($slot)
-                                            <strong>{{ $slot['subject'] }}</strong><br>
-                                            <small>{{ $slot['content'] ?? '' }}</small>
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                @endforeach
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="legend">
-            <h3>Chú Thích</h3>
-            <div class="legend-items">
-                <div class="legend-item">
-                    <span class="legend-badge morning">1-5</span>
-                    <span class="legend-text">Tiết buổi sáng</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-badge afternoon">6-9</span>
-                    <span class="legend-text">Tiết buổi chiều</span>
-                </div>
-            </div>
-        </div>
-    @else
-        <div class="empty-state">
-            <p>📭 Không có dữ liệu lịch huấn luyện cho kỳ học này.</p>
-            <p style="font-size: 13px; color: #bdc3c7;">Vui lòng kiểm tra lại kỳ học, năm học hoặc lớp học.</p>
-        </div>
-    @endif
-</div>
-
-</body>
-</html>
+@endsection

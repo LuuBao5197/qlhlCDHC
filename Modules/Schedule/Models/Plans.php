@@ -12,7 +12,8 @@ class Plans extends Model
         'name',
         'semester',
         'year',
-        'file_path'
+        'file_path',
+        'description'
     ];
 
     // 1 Plan có nhiều lịch tháng
