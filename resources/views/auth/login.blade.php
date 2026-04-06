@@ -26,19 +26,33 @@
             <div class="card col-lg-4 mx-auto">
               <div class="card-body px-5 py-5">
                 <h3 class="card-title text-left mb-3">Login</h3>
-                <form>
+                <form method="POST" action="{{ route('login.perform') }}">
+                  @csrf
+
+                  @if (
+                    $errors->any()
+                )
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                   <div class="form-group">
-                    <label>Username or email *</label>
-                    <input type="text" class="form-control p_input">
+                    <label>Email *</label>
+                    <input type="email" name="email" value="{{ old('email') }}" class="form-control p_input" required>
                   </div>
                   <div class="form-group">
                     <label>Password *</label>
-                    <input type="text" class="form-control p_input">
+                    <input type="password" name="password" class="form-control p_input" required>
                   </div>
                   <div class="form-group d-flex align-items-center justify-content-between">
                     <div class="form-check">
                       <label class="form-check-label">
-                        <input type="checkbox" class="form-check-input"> Remember me </label>
+                        <input type="checkbox" name="remember" class="form-check-input"> Remember me </label>
                     </div>
                     <a href="#" class="forgot-pass">Forgot password</a>
                   </div>
@@ -51,7 +65,7 @@
                     <button class="btn btn-google col">
                       <i class="mdi mdi-google-plus"></i> Google plus </button>
                   </div>
-                  <p class="sign-up">Don't have an Account?<a href="#"> Sign Up</a></p>
+                  <p class="sign-up">Don't have an Account? <a href="{{ route('register') }}">Sign Up</a></p>
                 </form>
               </div>
             </div>

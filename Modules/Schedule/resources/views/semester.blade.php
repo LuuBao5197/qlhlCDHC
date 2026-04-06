@@ -65,13 +65,13 @@
             border-radius: 6px;
         }
 
-        .calendar {
+        .schedule-page .calendar {
             width: 100%;
             border-collapse: collapse;
             background: white;
         }
 
-        .calendar th {
+        .schedule-page .calendar th {
             background: #f8f9fa;
             border: 1px solid #ddd;
             padding: 10px 8px;
@@ -82,13 +82,13 @@
             min-width: 70px;
         }
 
-        .calendar th.period {
+        .schedule-page .calendar th.period {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             min-width: 60px;
         }
 
-        .calendar td {
+        .schedule-page .calendar td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: center;
@@ -100,15 +100,15 @@
             background: white;
         }
 
-        .calendar td.period {
+        .schedule-page .calendar td.period {
             background: #f0f4ff;
             font-weight: 600;
             color: #667eea;
             min-width: 60px;
         }
 
-        .calendar td.slot-cell,
-        .calendar td.empty-slot-cell {
+        .schedule-page.calendar td.slot-cell,
+        .schedule-page .calendar td.empty-slot-cell {
             padding: 4px;
         }
 

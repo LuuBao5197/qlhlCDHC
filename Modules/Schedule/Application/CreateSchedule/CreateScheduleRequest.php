@@ -20,8 +20,9 @@ class CreateScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'semester' => 'required|integer|min:1|max:2',
-            'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
+            'start_date' => 'required|date|before:end_date',
+            'end_date' => 'required|date|after:start_date',
+            'class_name' => 'required|string|max:50',
             'description' => 'nullable|string|max:500',
         ];
     }
@@ -32,10 +33,15 @@ class CreateScheduleRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'semester.required' => 'Semester là bắt buộc.',
-            'semester.integer' => 'Semester phải là số nguyên.',
-            'year.required' => 'Năm là bắt buộc.',
-            'year.integer' => 'Năm phải là số nguyên.',
+            'start_date.required' => 'Ngày bắt đầu là bắt buộc.',
+            'start_date.date' => 'Ngày bắt đầu phải là ngày hợp lệ.',
+            'start_date.before' => 'Ngày bắt đầu phải trước ngày kết thúc.',
+            'end_date.required' => 'Ngày kết thúc là bắt buộc.',
+            'end_date.date' => 'Ngày kết thúc phải là ngày hợp lệ.',
+            'end_date.after' => 'Ngày kết thúc phải sau ngày bắt đầu.',
+            'class_name.required' => 'Tên lớp là bắt buộc.',
+            'class_name.string' => 'Tên lớp phải là chuỗi ký tự.',
+            'class_name.max' => 'Tên lớp không được vượt quá 50 ký tự.',
         ];
     }
 }
