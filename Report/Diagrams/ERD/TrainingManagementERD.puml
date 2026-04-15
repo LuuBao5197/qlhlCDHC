@@ -1,0 +1,238 @@
+﻿@startuml TrainingManagementERD
+title ERD - Training Schedule Management (Current Schema)
+
+left to right direction
+hide circle
+
+skinparam backgroundColor #FFFFFF
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam roundcorner 10
+skinparam packageStyle rectangle
+skinparam packageBorderColor #C5C5C5
+skinparam entity {
+  BackgroundColor #FFFFFF
+  BorderColor #334155
+  FontColor #111827
+}
+
+legend right
+  == Notation ==
+  * column : PK
+  + column : FK
+  <<UQ>>   : Unique key
+endlegend
+
+package "Master Data" #EAF4FF {
+  entity "departments" as departments {
+    * id : bigint
+    --
+    code : varchar <<UQ>>
+    name : varchar
+    status : varchar
+  }
+
+  entity "users" as users {
+    * id : bigint
+    --
+    + department_id : bigint?
+    email : varchar <<UQ>>
+    role : varchar
+    status : varchar
+    employee_code : varchar? <<UQ>>
+  }
+
+  entity "classes" as classes {
+    * id : bigint
+    --
+    + department_id : bigint?
+    code : varchar <<UQ>>
+    name : varchar
+    status : varchar
+  }
+
+  entity "students" as students {
+    * id : bigint
+    --
+    + class_id : bigint?
+    student_code : varchar <<UQ>>
+    name : varchar
+    status : varchar
+  }
+
+  entity "subjects" as subjects {
+    * id : bigint
+    --
+    + department_id : bigint?
+    code : varchar <<UQ>>
+    name : varchar
+    total_periods : int?
+  }
+
+  entity "subject_lessons" as subject_lessons {
+    * id : bigint
+    --
+    + subject_id : bigint
+    lesson_no : int
+    title : varchar
+  }
+
+  entity "rooms" as rooms {
+    * id : bigint
+    --
+    code : varchar <<UQ>>
+    name : varchar
+    status : varchar
+  }
+}
+
+package "Scheduling Core" #E8FFF3 {
+  entity "plans" as plans {
+    * id : bigint
+    --
+    semester : int
+    year : int
+    status : varchar
+    + created_by : bigint?
+    + submitted_by : bigint?
+  }
+
+  entity "monthly_schedules" as monthly_schedules {
+    * id : bigint
+    --
+    + plan_id : bigint
+    + department_id : bigint?
+    + class_id : bigint?
+    class_name : varchar
+    month : int
+    year : int
+    status : varchar
+    + created_by : bigint?
+    + approved_by : bigint?
+  }
+
+  entity "schedule_slots" as schedule_slots {
+    * id : bigint
+    --
+    + monthly_schedule_id : bigint
+    + class_id : bigint?
+    + teacher_id : bigint?
+    + subject_id : bigint?
+    + subject_lesson_id : bigint?
+    + room_id : bigint?
+    date : datetime
+    period_number : int?
+    slot_status : varchar
+  }
+}
+
+package "Workflow & Reporting" #FFF4E8 {
+  entity "approval_requests" as approval_requests {
+    * id : bigint
+    --
+    entity_type : varchar
+    entity_id : bigint
+    + submitted_by : bigint?
+    current_step : varchar
+    status : varchar
+  }
+
+  entity "approval_actions" as approval_actions {
+    * id : bigint
+    --
+    + approval_request_id : bigint
+    + acted_by : bigint?
+    step_code : varchar
+    action : varchar
+  }
+
+  entity "change_requests" as change_requests {
+    * id : bigint
+    --
+    + monthly_schedule_id : bigint
+    + schedule_slot_id : bigint?
+    + requested_by : bigint?
+    status : varchar
+  }
+
+  entity "daily_training_logs" as daily_training_logs {
+    * id : bigint
+    --
+    + schedule_slot_id : bigint
+    + teacher_id : bigint?
+    + checked_by : bigint?
+    result_status : varchar
+  }
+
+  entity "slot_evaluations" as slot_evaluations {
+    * id : bigint
+    --
+    + schedule_slot_id : bigint
+    + evaluator_id : bigint?
+    score : smallint?
+  }
+
+  entity "monthly_reports" as monthly_reports {
+    * id : bigint
+    --
+    + monthly_schedule_id : bigint
+    + created_by : bigint?
+    + approved_by : bigint?
+    status : varchar
+  }
+}
+
+' Master relationships
+departments ||--o{ users : department_id
+departments ||--o{ classes : department_id
+departments ||--o{ subjects : department_id
+classes ||--o{ students : class_id
+subjects ||--o{ subject_lessons : subject_id
+
+' Scheduling relationships
+users ||--o{ plans : created_by
+users ||--o{ plans : submitted_by
+plans ||--o{ monthly_schedules : plan_id
+users ||--o{ monthly_schedules : created_by
+users ||--o{ monthly_schedules : approved_by
+classes ||--o{ monthly_schedules : class_id
+departments ||--o{ monthly_schedules : department_id
+
+monthly_schedules ||--o{ schedule_slots : monthly_schedule_id
+classes ||--o{ schedule_slots : class_id
+users ||--o{ schedule_slots : teacher_id
+subjects ||--o{ schedule_slots : subject_id
+subject_lessons ||--o{ schedule_slots : subject_lesson_id
+rooms ||--o{ schedule_slots : room_id
+
+' Workflow relationships
+users ||--o{ approval_requests : submitted_by
+approval_requests ||--o{ approval_actions : approval_request_id
+users ||--o{ approval_actions : acted_by
+
+monthly_schedules ||--o{ change_requests : monthly_schedule_id
+schedule_slots ||--o{ change_requests : schedule_slot_id
+users ||--o{ change_requests : requested_by
+
+schedule_slots ||--o{ daily_training_logs : schedule_slot_id
+users ||--o{ daily_training_logs : teacher_id
+users ||--o{ daily_training_logs : checked_by
+
+schedule_slots ||--o{ slot_evaluations : schedule_slot_id
+users ||--o{ slot_evaluations : evaluator_id
+
+monthly_schedules ||--o{ monthly_reports : monthly_schedule_id
+users ||--o{ monthly_reports : created_by
+users ||--o{ monthly_reports : approved_by
+
+note right of approval_requests
+  Polymorphic target via entity_type + entity_id
+  Typical entities:
+  - plans
+  - monthly_schedules
+  - monthly_reports (future)
+end note
+
+@enduml

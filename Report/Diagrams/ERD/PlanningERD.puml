@@ -1,0 +1,62 @@
+@startuml Kế hoạch và thời khóa biểu ERD
+skinparam linetype ortho
+
+entity "plans" {
+    * id : bigint <<PK>>
+    --
+    name : varchar(255)
+    semester : int
+    year : int
+    status : varchar(255)
+}
+
+entity "monthly_schedules" {
+    * id : bigint <<PK>>
+    --
+    plan_id : bigint <<FK>>
+    department_id : bigint <<FK>>
+    month : int
+    year : int
+}
+
+entity "plan_templates" {
+    * id : bigint <<PK>>
+    plan_id : bigint <<FK>>
+    class_id : bigint <<FK>> ' Lớp được xác định từ Ma trận
+    subject_id : bigint <<FK>>
+    start_date : datetime
+    end_date : datetime
+    day_of_week : int
+}
+entity "schedule_slots" {
+    * id : bigint <<PK>>
+    --
+    monthly_schedule_id : bigint <<FK>>
+    subject_id : bigint <<FK>>
+    teacher_id : bigint <<FK>>
+    room_id : bigint <<FK>>
+    date : datetime
+    period : varchar(255)
+}
+
+entity "subjects" {
+    * id : bigint <<PK>>
+    --
+    code : varchar(255)
+    name : varchar(255)
+    total_periods : int
+}
+
+entity "subject_lessons" {
+    * id : bigint <<PK>>
+    --
+    subject_id : bigint <<FK>>
+    lesson_no : int
+    title : varchar(255)
+}
+
+plans ||--o{ monthly_schedules: "1 plan has many monthly schedules"
+plans ||--o{ plan_templates: "1 plan has many plan templates"
+monthly_schedules ||--o{ schedule_slots: "1 monthly schedule has many schedule slots"
+subjects ||--o{ subject_lessons: "1 subject has many lessons"
+ @enduml

@@ -1,0 +1,48 @@
+@startuml UsecasePhoHieuTruong
+' Cấu hình giao diện một chút cho đẹp
+skinparam actorStyle awesome
+left to right direction
+actor "Phó hiệu trưởng" as User
+rectangle "Hệ thống Quản lý lịch huấn luyện" {
+    usecase "Quản lý thông tin tài khoản" as UC1
+    usecase "Phê duyệt lịch huấn luyện học kỳ" as UC2
+    usecase "Phê duyệt lịch phân công giảng dạy \n của các khoa theo tháng" as UC3
+
+    note right of UC1
+        Phó hiệu trưởng có thể đăng nhập, đăng ký, sửa đổi thông tin tài khoản của mình.
+    end note
+    note right of UC2
+        Phó hiệu trưởng sẽ phê duyệt hoặc từ chối lịch huấn luyện học kỳ do phòng đào tạo trình duyệt.
+    end note
+    note right of UC3
+        Phó hiệu trưởng sẽ phê duyệt hoặc từ chối lịch phân công giảng dạy tháng của các khoa do phòng đào tạo trình duyệt.
+    end note
+
+    skinparam usecase {
+        BackgroundColor #c7e11a
+        BorderColor #2ec149
+        FontSize 13
+        FontColor #333333
+    }
+    skinparam note {
+        BackgroundColor #f9f9f9
+        BorderColor #cccccc
+        FontSize 12
+        FontColor #333333
+    }
+    skinparam actor {
+        BackgroundColor #3f9f50
+        BorderColor #cccccc
+        FontSize 13
+        FontColor #333333
+    }
+    ' Quan hệ giữa các Use Case
+    ' UC5 ..> UC6 : <<include>>
+    ' UC2 --|> UC3 : (kế thừa tính năng)
+    ' Quan hệ giữa Actor và Use Case
+    User -- UC1
+    User -- UC2
+    User -- UC3
+    ' Quan hệ với hệ thống bên thứ ba
+    ' UC5 -- PaymentGate
+}

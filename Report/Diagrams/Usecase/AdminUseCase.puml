@@ -1,0 +1,16 @@
+@startuml UsecaseAdmin
+left to right direction
+actor "Admin" as Admin
+usecase "Manage Users" as UC1
+usecase "Change Role for Users" as UC2
+
+Admin --> UC1
+Admin --> UC2
+
+note right of UC1
+Admin can create, edit, approve, reset password and block user accounts.
+end note
+note right of UC2
+Admin can change the role of users, such as promoting a user to a higher role or demoting them to a lower role.
+end note
+@enduml

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\ManagementController;
 
 Route::get('/', function () {
     return view('index.index');
@@ -23,6 +24,11 @@ Route::middleware('auth')->get('/home', function () {
 Route::middleware('auth')->get('/settings', function () {
     return view('settings.index');
 })->name('settings');
+
+// Management UI route
+Route::middleware(['auth', 'management.access'])
+    ->get('/management', [ManagementController::class, 'index'])
+    ->name('management.index');
 
 // Admin routes
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {

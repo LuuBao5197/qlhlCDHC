@@ -1,0 +1,31 @@
+@startuml ExcutionERD
+skinparam linetype ortho
+
+entity "schedule_slots" {
+  * id : bigint <<PK>>
+  --
+  (Dữ liệu từ bảng schedule_slots)
+}
+
+entity "daily_training_logs" {
+  * id : bigint <<PK>>
+  --
+  schedule_slot_id : bigint <<FK>>
+  teacher_id : bigint <<FK>>
+  actual_date : datetime
+  actual_content : text
+  result_status : varchar(255)
+}
+
+entity "slot_evaluations" {
+  * id : bigint <<PK>>
+  --
+  schedule_slot_id : bigint <<FK>>
+  evaluator_id : bigint <<FK>>
+  score : smallint
+  comment : text
+}
+
+schedule_slots ||--o| daily_training_logs
+schedule_slots ||--o{ slot_evaluations
+@enduml

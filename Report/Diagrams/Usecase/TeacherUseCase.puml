@@ -1,0 +1,60 @@
+@startuml UsecaseGiaoVien
+' Cấu hình giao diện một chút cho đẹp
+skinparam actorStyle awesome
+left to right direction
+
+actor "Giáo viên" as User
+rectangle "Hệ thống Quản lý lịch huấn luyện" {
+    usecase "Quản lý tài khoản" as UC1
+    usecase "Quản lý lịch giảng dạy" as UC2
+    usecase "Xem lịch phân công giảng dạy \n của khoa theo tháng" as UC3
+    usecase "Xem phiếu đề nghị thay đổi \n kế hoạch giảng dạy của khoa theo tháng" as UC4
+    usecase "Quản lý thông tin tiết học" as UC5
+    note right of UC1
+        Giáo viên có thể đăng nhập, đăng ký, sửa đổi thông tin tài khoản của mình.
+    end note
+    note right of UC2
+        Giáo viên có thể xem và quản lý lịch giảng dạy của mình theo ngày/tháng/năm/học kỳ/lớp học.
+    end note
+    note right of UC3
+        Giáo viên có thể xem lịch phân công giảng dạy của khoa mình theo tháng.
+    end note
+    note right of UC4
+        Giáo viên có thể xem phiếu đề nghị thay đổi kế hoạch giảng dạy của khoa mình theo tháng.
+    end note
+    note right of UC5
+        Giáo viên nhập đánh giá thông tin tiết học sau khi kết thúc tiết học.
+    end note
+    ' Quan hệ giữa các Use Case
+    ' UC5 ..> UC6 : <<include>>
+    ' UC2 --|> UC3 : (kế thừa tính năng)
+    ' Quan hệ giữa Actor và Use Case
+    User -- UC1
+    User -- UC2
+    User -- UC3
+    User -- UC4
+    User -- UC5
+
+    ' Quan hệ với hệ thống bên thứ ba
+    ' UC5 -- PaymentGate
+
+    skinparam usecase {
+        BackgroundColor #c7e11a
+        BorderColor #2ec149
+        FontSize 13
+        FontColor #333333
+    }
+    skinparam note {
+        BackgroundColor #f9f9f9
+        BorderColor #cccccc
+        FontSize 12
+        FontColor #333333
+    }
+    skinparam actor {
+        BackgroundColor #3f9f50
+        BorderColor #cccccc
+        FontSize 13
+        FontColor #333333
+    }
+}
+@enduml

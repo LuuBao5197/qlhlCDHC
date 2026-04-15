@@ -2,7 +2,16 @@
 
 namespace Modules\Schedule\Models;
 
+use Modules\Training\Models\ApprovalRequest;
+use Modules\Training\Models\ChangeRequest;
+use Modules\Training\Models\Department;
+use Modules\Training\Models\MonthlyReport;
+use Modules\Training\Models\TrainingClass;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class MonthlySchedule extends Model
 {
@@ -10,20 +19,66 @@ class MonthlySchedule extends Model
 
     protected $fillable = [
         'plan_id',
+        'department_id',
         'class_name',
+        'class_id',
         'month',
-        'year'
+        'year',
+        'created_by',
+        'status',
+        'submitted_at',
+        'approved_at',
+        'approved_by',
+        'rejection_reason',
     ];
 
-    // Thuộc về Plan
-    public function plan()
+    protected $casts = [
+        'submitted_at' => 'datetime',
+        'approved_at' => 'datetime',
+    ];
+
+    public function plan(): BelongsTo
     {
         return $this->belongsTo(Plans::class, 'plan_id');
     }
 
-    // 1 tháng có nhiều buổi học
-    public function scheduleSlots()
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function trainingClass(): BelongsTo
+    {
+        return $this->belongsTo(TrainingClass::class, 'class_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function scheduleSlots(): HasMany
     {
         return $this->hasMany(ScheduleSlot::class, 'monthly_schedule_id');
+    }
+
+    public function changeRequests(): HasMany
+    {
+        return $this->hasMany(ChangeRequest::class);
+    }
+
+    public function monthlyReports(): HasMany
+    {
+        return $this->hasMany(MonthlyReport::class);
+    }
+
+    public function approvalRequests(): MorphMany
+    {
+        return $this->morphMany(ApprovalRequest::class, 'entity', 'entity_type', 'entity_id');
     }
 }

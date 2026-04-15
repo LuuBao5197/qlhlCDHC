@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Modules\Schedule\Database\Seeders\ScheduleDatabaseSeeder;
+use Modules\Training\Database\Seeders\TrainingDatabaseSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,11 +17,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         $this->createSeedUsers();
 
-        $this->call(ScheduleDatabaseSeeder::class);
+        $this->call([
+            TrainingDatabaseSeeder::class,  // Run first to create subjects, classes, etc.
+            ScheduleDatabaseSeeder::class,  // Then create plans and templates
+        ]);
     }
 
     private function createSeedUsers(): void
@@ -83,4 +85,3 @@ class DatabaseSeeder extends Seeder
         }
     }
 }
-

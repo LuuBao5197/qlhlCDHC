@@ -1,0 +1,33 @@
+@startuml WorkflowERD
+title ERD - Workflow Management (Current Schema)
+skinparam linetype ortho
+
+entity "approval_requests" {
+  * id : bigint <<PK>>
+  --
+  entity_type : varchar(255)
+  entity_id : bigint
+  status : varchar(255)
+}
+
+entity "approval_actions" {
+  * id : bigint <<PK>>
+  --
+  approval_request_id : bigint <<FK>>
+  action : varchar(255)
+  acted_by : bigint <<FK>>
+  comment : text
+}
+
+entity "change_requests" {
+  * id : bigint <<PK>>
+  --
+  monthly_schedule_id : bigint <<FK>>
+  requested_by : bigint <<FK>>
+  old_payload : json
+  new_payload : json
+  status : varchar(255)
+}
+
+approval_requests ||--o{ approval_actions
+@enduml

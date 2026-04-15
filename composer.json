@@ -24,6 +24,10 @@
         "psr-4": {
             "App\\": "app/",
             "Modules\\": "Modules/",
+            "Modules\\Schedule\\Database\\Factories\\": "Modules/Schedule/database/factories/",
+            "Modules\\Schedule\\Database\\Seeders\\": "Modules/Schedule/database/seeders/",
+            "Modules\\Training\\Database\\Factories\\": "Modules/Training/database/factories/",
+            "Modules\\Training\\Database\\Seeders\\": "Modules/Training/database/seeders/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

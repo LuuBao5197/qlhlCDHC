@@ -1,0 +1,51 @@
+@startuml UsecaseStaffOfDepartment
+' Cấu hình giao diện một chút cho đẹp
+skinparam actorStyle awesome
+left to right direction
+actor "Cán bộ khoa" as User
+' actor "H" as PaymentGate <<Service>>
+rectangle "Hệ thống Quản lý lịch huấn luyện" {
+    usecase "Đăng ký tài khoản" as UC1
+    usecase "Đăng nhập" as UC2
+    usecase "Chỉnh sửa thông tin tài khoản" as UC3
+    usecase "Xem lịch huấn luyện" as UC4
+    usecase "Nhập lịch phân công giảng dạy \n của khoa theo tháng" as UC5
+    usecase "Tạo phiếu đề nghị thay đổi \n kế hoạch giảng dạy của khoa" as UC6
+    usecase "Quản lý thông tin giảng viên" as UC7
+    usecase "Quản lý thông tin môn học" as UC8
+    usecase "Quản lý lộ trình của môn học" as UC9
+
+
+    ' Ghi chú'
+    note right of UC5
+        Lịch phân công giảng dạy tháng sẽ được gửi đến phòng đào tạo để phê duyệt.
+    end note
+    note right of UC6
+        Lịch phân công giảng dạy của khoa theo tháng sẽ được gửi đến phòng đào tạo để phê duyệt.
+    end note
+    note right of UC7
+        Cán bộ khoa có thể thêm, sửa, xóa thông tin giảng viên thuộc khoa mình quản lý.
+    end note
+    note right of UC8
+        Cán bộ khoa có thể thêm, sửa, xóa thông tin môn học thuộc khoa mình quản lý.
+    end note
+    note right of UC9
+        Cán bộ khoa có thể thêm, sửa, xóa chi tiết các bài của môn học thuộc khoa mình quản lý.
+    end note
+    ' Quan hệ giữa các Use Case
+    ' UC5 ..> UC6 : <<include>>
+    ' UC2 --|> UC3 : (kế thừa tính năng)
+    ' Quan hệ giữa Actor và Use Case
+    User -- UC1
+    User -- UC2
+    User -- UC3
+    User -- UC4
+    User -- UC5
+    User -- UC6
+    User -- UC7
+    User -- UC8
+    User -- UC9
+    ' Quan hệ với hệ thống bên thứ ba
+    ' UC5 -- PaymentGate
+}
+@enduml

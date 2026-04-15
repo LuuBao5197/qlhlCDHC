@@ -1,0 +1,59 @@
+@startuml MasterDataERD
+title ERD - Master Data (Current Schema)
+skinparam linetype ortho
+
+entity "departments" {
+  * id : bigint <<PK>>
+  --
+  code : varchar(255)
+  name : varchar(255)
+  status : varchar(255)
+}
+
+entity "users" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  name : varchar(255)
+  email : varchar(255)
+  role : varchar(255)
+  employee_code : varchar(255)
+}
+
+entity "teachers" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  teacher_code : varchar(255)
+  name : varchar(255)
+}
+
+entity "classes" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  code : varchar(255)
+  name : varchar(255)
+}
+
+entity "students" {
+  * id : bigint <<PK>>
+  --
+  class_id : bigint <<FK>>
+  student_code : varchar(255)
+  name : varchar(255)
+}
+
+entity "rooms" {
+  * id : bigint <<PK>>
+  --
+  code : varchar(255)
+  name : varchar(255)
+  capacity : int
+}
+
+departments ||--o{ users
+departments ||--o{ teachers
+departments ||--o{ classes
+classes ||--o{ students
+@enduml
