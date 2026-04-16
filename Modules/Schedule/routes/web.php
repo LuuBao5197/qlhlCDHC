@@ -12,6 +12,8 @@ use Modules\Schedule\Application\ReviewMonthlySchedule\ReviewMonthlyScheduleCont
 use Modules\Schedule\Application\SubmitMonthlyScheduleToLeadership\SubmitMonthlyScheduleToLeadershipController;
 use Modules\Schedule\Application\SubmitMonthlyScheduleToTrainingOffice\SubmitMonthlyScheduleToTrainingOfficeController;
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
+use Modules\Schedule\Application\UpdateScheduleSemester\UpdateScheduleSemesterController;
+use Modules\Schedule\Application\DeleteScheduleSemester\DeleteScheduleSemesterController;
 use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\MonthlySchedule;
 
@@ -32,12 +34,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('schedule.show');
 
     // Update schedule
-    Route::get('/schedules/{id}/edit', [UpdateScheduleController::class, 'showForm'])
-        ->name('schedule.edit');
-    Route::put('/schedules/{id}', UpdateScheduleController::class)->name('schedule.update');
+    // Route::get('/schedules/{id}/edit', [UpdateScheduleController::class, 'showForm'])
+    //     ->name('schedule.edit');
+    // Route::put('/schedules/{id}', UpdateScheduleController::class)->name('schedule.update');
 
+    Route::get('/schedules/{id}/edit', [UpdateScheduleSemesterController::class, 'showForm'])
+        ->name('schedule.edit');
+    Route::put('/schedules/{id}', UpdateScheduleSemesterController::class)->name('schedule.update');
+
+    // Delete schedule semester
+    Route::delete('/schedules/{id}', DeleteScheduleSemesterController::class)->name('schedule.destroy');
     // Delete schedule
-    Route::delete('/schedules/{id}', DeleteScheduleController::class)->name('schedule.destroy');
+    // Route::delete('/schedules/{id}', DeleteScheduleController::class)->name('schedule.destroy');
     Route::post('/schedules/{id}/submit', SubmitSemesterPlanController::class)->name('schedule.submit');
 
     // Training office review flow

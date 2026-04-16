@@ -93,7 +93,8 @@
                                         <td>
                                             <div class="font-weight-bold">{{ $schedule->name }}</div>
                                             @if ($schedule->description)
-                                                <small class="text-muted">{{ \Illuminate\Support\Str::limit($schedule->description, 90) }}</small>
+                                                <small
+                                                    class="text-muted">{{ \Illuminate\Support\Str::limit($schedule->description, 90) }}</small>
                                             @endif
                                         </td>
                                         <td>HK {{ $schedule->semester }} / {{ $schedule->year }}</td>
@@ -102,23 +103,54 @@
                                         <td>{{ $schedule->submittedBy?->name ?? '-' }}</td>
                                         <td>{{ optional($schedule->submitted_at)->format('d/m/Y H:i') ?? '-' }}</td>
                                         <td>
-                                            <div class="d-flex flex-wrap">
+                                        <td>
+                                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                {{-- Edit Button --}}
+                                                @if (in_array($schedule->status, ['draft'], true))
+                                                    <a href="{{ route('schedule.edit', $schedule->id) }}"
+                                                        class="btn btn-sm btn-outline-warning">
+                                                        <i class="fas fa-edit"></i> Sua
+                                                    </a>
+                                                @endif
+
+                                                {{-- Delete Button --}}
+                                                @if (in_array($schedule->status, ['draft', 'returned'], true))
+                                                <form method="POST"
+                                                    action="{{ route('schedule.destroy', $schedule->id) }}"
+                                                    style="display: inline;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                        title="Xoa ke hoach"
+                                                        onclick="return confirm('Ban chac chan muon xoa ke hoach nay khong? Toan bo du lieu lien quan se bi xoa.');">
+                                                        <i class="fas fa-trash"></i> Xoa
+                                                    </button>
+                                                </form>
+                                                @endif
+
+                                                {{-- UC4 Submit --}}
                                                 @if ($canReviewWorkflow && in_array($schedule->status, ['draft', 'returned', 'rejected'], true))
-                                                    <form method="POST" action="{{ route('schedule.submit', $schedule->id) }}" class="mb-2">
+                                                    <form method="POST"
+                                                        action="{{ route('schedule.submit', $schedule->id) }}"
+                                                        style="flex: 1; min-width: 280px;">
                                                         @csrf
                                                         <div class="input-group input-group-sm">
-                                                            <input type="text" class="form-control" name="comment" placeholder="Ghi chu trinh duyet (optional)">
+                                                            <input type="text" class="form-control" name="comment"
+                                                                placeholder="Ghi chu trinh duyet (optional)">
                                                             <div class="input-group-append">
-                                                                <button type="submit" class="btn btn-primary">UC4 Trinh duyet</button>
+                                                                <button type="submit" class="btn btn-primary">UC4 Trinh
+                                                                    duyet</button>
                                                             </div>
                                                         </div>
                                                     </form>
                                                 @elseif (!$canReviewWorkflow)
-                                                    <span class="text-muted">Khong co quyen thao tac</span>
+                                                    <span class="text-muted text-nowrap">Khong co quyen thao tac</span>
                                                 @else
-                                                    <span class="text-muted">Khong co thao tac phu hop</span>
+                                                    <span class="text-muted text-nowrap">Khong co thao tac phu
+                                                        hop</span>
                                                 @endif
                                             </div>
+                                        </td>
                                         </td>
                                     </tr>
                                 @empty
@@ -172,7 +204,8 @@
                                         </td>
                                         <td>{{ $monthlySchedule->month }}/{{ $monthlySchedule->year }}</td>
                                         <td>{{ $monthlySchedule->plan?->name ?? '-' }}</td>
-                                        <td><span class="badge {{ $statusClass }}">{{ $monthlySchedule->status }}</span></td>
+                                        <td><span class="badge {{ $statusClass }}">{{ $monthlySchedule->status }}</span>
+                                        </td>
                                         <td>{{ $monthlySchedule->approvedBy?->name ?? '-' }}</td>
                                         <td>{{ $monthlySchedule->rejection_reason ?? '-' }}</td>
                                         <td>
@@ -180,18 +213,24 @@
                                                 <div class="d-flex flex-column">
                                                     @if ($canDepartmentAssign)
                                                         <div class="mb-2">
-                                                            <a href="{{ route('monthly-schedule.assignment', $monthlySchedule->id) }}" class="btn btn-sm btn-outline-info">
+                                                            <a href="{{ route('monthly-schedule.assignment', $monthlySchedule->id) }}"
+                                                                class="btn btn-sm btn-outline-info">
                                                                 Phan cong theo thang
                                                             </a>
                                                         </div>
 
                                                         @if (in_array($monthlySchedule->status, ['draft', 'returned', 'rejected', 'pending'], true))
-                                                            <form method="POST" action="{{ route('monthly-schedule.submit-training', $monthlySchedule->id) }}" class="mb-2">
+                                                            <form method="POST"
+                                                                action="{{ route('monthly-schedule.submit-training', $monthlySchedule->id) }}"
+                                                                class="mb-2">
                                                                 @csrf
                                                                 <div class="input-group input-group-sm">
-                                                                    <input type="text" class="form-control" name="comment" placeholder="Ghi chu gui PDT (optional)">
+                                                                    <input type="text" class="form-control"
+                                                                        name="comment"
+                                                                        placeholder="Ghi chu gui PDT (optional)">
                                                                     <div class="input-group-append">
-                                                                        <button type="submit" class="btn btn-primary">Gui PDT duyet</button>
+                                                                        <button type="submit" class="btn btn-primary">Gui
+                                                                            PDT duyet</button>
                                                                     </div>
                                                                 </div>
                                                             </form>
@@ -200,36 +239,49 @@
 
                                                     @if (in_array($monthlySchedule->status, ['pending', 'processing', 'submitted', 'returned'], true))
                                                         @if ($canReviewWorkflow)
-                                                            <form method="POST" action="{{ route('monthly-schedule.review', $monthlySchedule->id) }}" class="mb-2">
+                                                            <form method="POST"
+                                                                action="{{ route('monthly-schedule.review', $monthlySchedule->id) }}"
+                                                                class="mb-2">
                                                                 @csrf
                                                                 <input type="hidden" name="action" value="approve">
                                                                 <div class="input-group input-group-sm">
-                                                                    <input type="text" class="form-control" name="comment" placeholder="Nhan xet phe duyet (optional)">
+                                                                    <input type="text" class="form-control"
+                                                                        name="comment"
+                                                                        placeholder="Nhan xet phe duyet (optional)">
                                                                     <div class="input-group-append">
-                                                                        <button type="submit" class="btn btn-success">UC5 Phe duyet</button>
+                                                                        <button type="submit" class="btn btn-success">UC5
+                                                                            Phe duyet</button>
                                                                     </div>
                                                                 </div>
                                                             </form>
 
-                                                            <form method="POST" action="{{ route('monthly-schedule.review', $monthlySchedule->id) }}">
+                                                            <form method="POST"
+                                                                action="{{ route('monthly-schedule.review', $monthlySchedule->id) }}">
                                                                 @csrf
                                                                 <input type="hidden" name="action" value="reject">
                                                                 <div class="input-group input-group-sm">
-                                                                    <input type="text" class="form-control" name="reason" required placeholder="Ly do tu choi (required)">
+                                                                    <input type="text" class="form-control"
+                                                                        name="reason" required
+                                                                        placeholder="Ly do tu choi (required)">
                                                                     <div class="input-group-append">
-                                                                        <button type="submit" class="btn btn-danger">UC5 Tu choi</button>
+                                                                        <button type="submit" class="btn btn-danger">UC5
+                                                                            Tu choi</button>
                                                                     </div>
                                                                 </div>
                                                             </form>
                                                         @endif
                                                     @elseif ($monthlySchedule->status === 'approved')
                                                         @if ($canReviewWorkflow)
-                                                            <form method="POST" action="{{ route('monthly-schedule.submit-leadership', $monthlySchedule->id) }}">
+                                                            <form method="POST"
+                                                                action="{{ route('monthly-schedule.submit-leadership', $monthlySchedule->id) }}">
                                                                 @csrf
                                                                 <div class="input-group input-group-sm">
-                                                                    <input type="text" class="form-control" name="comment" placeholder="Ghi chu trinh BGH (optional)">
+                                                                    <input type="text" class="form-control"
+                                                                        name="comment"
+                                                                        placeholder="Ghi chu trinh BGH (optional)">
                                                                     <div class="input-group-append">
-                                                                        <button type="submit" class="btn btn-primary">UC7 Trinh len BGH</button>
+                                                                        <button type="submit" class="btn btn-primary">UC7
+                                                                            Trinh len BGH</button>
                                                                     </div>
                                                                 </div>
                                                             </form>
@@ -292,7 +344,8 @@
                                             @endif
                                         </td>
                                         <td>{{ $changeRequest->requestedBy?->name ?? '-' }}</td>
-                                        <td><span class="badge {{ $statusClass }}">{{ $changeRequest->status }}</span></td>
+                                        <td><span class="badge {{ $statusClass }}">{{ $changeRequest->status }}</span>
+                                        </td>
                                         <td>{{ \Illuminate\Support\Str::limit($changeRequest->reason, 80) }}</td>
                                         <td>
                                             <details>
@@ -308,30 +361,40 @@
                                         <td>
                                             @if ($canReviewWorkflow && $changeRequest->status === 'pending')
                                                 <div class="d-flex flex-column">
-                                                    <form method="POST" action="{{ route('change-request.review', $changeRequest->id) }}" class="mb-2">
+                                                    <form method="POST"
+                                                        action="{{ route('change-request.review', $changeRequest->id) }}"
+                                                        class="mb-2">
                                                         @csrf
                                                         <input type="hidden" name="action" value="approve">
                                                         <div class="form-check mb-2">
-                                                            <input class="form-check-input" type="checkbox" name="apply_changes" value="1" checked id="apply-{{ $changeRequest->id }}">
-                                                            <label class="form-check-label" for="apply-{{ $changeRequest->id }}">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                name="apply_changes" value="1" checked
+                                                                id="apply-{{ $changeRequest->id }}">
+                                                            <label class="form-check-label"
+                                                                for="apply-{{ $changeRequest->id }}">
                                                                 Apply new_payload vao slot
                                                             </label>
                                                         </div>
                                                         <div class="input-group input-group-sm">
-                                                            <input type="text" class="form-control" name="comment" placeholder="Nhan xet phe duyet (optional)">
+                                                            <input type="text" class="form-control" name="comment"
+                                                                placeholder="Nhan xet phe duyet (optional)">
                                                             <div class="input-group-append">
-                                                                <button type="submit" class="btn btn-success">UC6 Phe duyet</button>
+                                                                <button type="submit" class="btn btn-success">UC6 Phe
+                                                                    duyet</button>
                                                             </div>
                                                         </div>
                                                     </form>
 
-                                                    <form method="POST" action="{{ route('change-request.review', $changeRequest->id) }}">
+                                                    <form method="POST"
+                                                        action="{{ route('change-request.review', $changeRequest->id) }}">
                                                         @csrf
                                                         <input type="hidden" name="action" value="reject">
                                                         <div class="input-group input-group-sm">
-                                                            <input type="text" class="form-control" name="reason" required placeholder="Ly do tu choi (required)">
+                                                            <input type="text" class="form-control" name="reason"
+                                                                required placeholder="Ly do tu choi (required)">
                                                             <div class="input-group-append">
-                                                                <button type="submit" class="btn btn-danger">UC6 Tu choi</button>
+                                                                <button type="submit" class="btn btn-danger">UC6 Tu
+                                                                    choi</button>
                                                             </div>
                                                         </div>
                                                     </form>
@@ -345,7 +408,8 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted py-4">Chua co phieu de nghi thay doi.</td>
+                                        <td colspan="7" class="text-center text-muted py-4">Chua co phieu de nghi thay
+                                            doi.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

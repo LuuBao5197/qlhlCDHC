@@ -1,11 +1,11 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Tao lich tong quat hoc ky')
+@section('title', 'Sua lich tong quat hoc ky')
 
 @section('content')
     @php
-        $selectedClassIds = collect(old('selected_class_ids', []))->map(fn($id) => (string) $id)->all();
-        $oldRules = old('class_tab_rules', []);
+        $selectedClassIds = collect(old('selected_class_ids', $selectedClassIds ?? []))->map(fn($id) => (string) $id)->all();
+        $oldRules = old('class_tab_rules', $oldRules ?? []);
         $oldExtraClass = old('class_name', '');
     @endphp
 
@@ -77,8 +77,8 @@
         <div class="col-12">
             <div class="box shadow-sm">
                 <div class="box-head">
-                    <h4 class="mb-2">Tao ke hoach va lich tong quat hoc ky</h4>
-                    <div>Moi lop can co it nhat mot rule hop le hoac mot file CSV.</div>
+                    <h4 class="mb-2">Sua ke hoach va lich tong quat hoc ky</h4>
+                    <div>Cap nhat ke hoach va lich cho lop. Moi lop can co it nhat mot rule hoac mot file CSV.</div>
                 </div>
 
                 <div class="box-body">
@@ -96,32 +96,34 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('schedule.store') }}" method="POST" enctype="multipart/form-data"
+                    <form action="{{ route('schedule.update', $plan->id) }}" method="POST" enctype="multipart/form-data"
                         id="scheduleForm">
                         @csrf
+                        @method('PUT')
 
                         <h5 class="mb-3">1. Thong tin hoc ky</h5>
                         <div class="row">
                             <div class="col-md-3">
                                 <label class="form-label">Hoc ky</label>
                                 <select name="semester" class="form-control" required>
-                                    <option value="1" {{ old('semester') == 1 ? 'selected' : '' }}>Hoc ky 1</option>
-                                    <option value="2" {{ old('semester') == 2 ? 'selected' : '' }}>Hoc ky 2</option>
+                                    <option value="1" {{ old('semester', $plan->semester) == 1 ? 'selected' : '' }}>Hoc ky 1</option>
+                                    <option value="2" {{ old('semester', $plan->semester) == 2 ? 'selected' : '' }}>Hoc ky 2</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Nam hoc</label>
                                 <input type="number" name="year" class="form-control"
-                                    value="{{ old('year', date('Y')) }}" required>
+                                    value="{{ old('year', $plan->year) }}" required>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Ngay bat dau</label>
                                 <input type="date" name="start_date" class="form-control"
-                                    value="{{ old('start_date') }}">
+                                    value="{{ old('start_date', $plan->effective_from?->toDateString()) }}">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Ngay ket thuc</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ old('end_date') }}">
+                                <input type="date" name="end_date" class="form-control"
+                                    value="{{ old('end_date', $plan->effective_to?->toDateString()) }}">
                             </div>
                         </div>
 
@@ -130,7 +132,6 @@
                                 <label class="form-label">Mon mac dinh</label>
                                 <input type="text" name="default_subject" class="form-control" list="subject-suggestions"
                                     value="{{ old('default_subject') }}">
-
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Noi dung mac dinh</label>
@@ -141,7 +142,7 @@
 
                         <div class="mt-3">
                             <label class="form-label">Mo ta ke hoach</label>
-                            <textarea name="description" rows="3" class="form-control">{{ old('description') }}</textarea>
+                            <textarea name="description" rows="3" class="form-control">{{ old('description', $plan->description) }}</textarea>
                         </div>
 
                         <hr class="my-4">
@@ -169,12 +170,6 @@
                                     @endforeach
                                 </div>
                             </div>
-                            {{-- <div class="col-lg-5 mt-3 mt-lg-0">
-                                <label class="form-label">Lop bo sung</label>
-                                <input type="text" name="class_name" id="extra_class_input" class="form-control"
-                                    value="{{ $oldExtraClass }}" placeholder="Nhap ma lop neu chua co trong danh sach">
-                                <small class="text-muted d-block mt-2">Neu form bi loi, file CSV can duoc chon lai.</small>
-                            </div> --}}
                         </div>
 
                         <hr class="my-4">
@@ -192,8 +187,9 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-end mt-4">
-                            <button type="submit" class="btn btn-primary px-4">Tao ke hoach</button>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ route('schedule.index') }}" class="btn btn-outline-secondary px-4">Huy</a>
+                            <button type="submit" class="btn btn-primary px-4">Cap nhat ke hoach</button>
                         </div>
                     </form>
                 </div>
@@ -216,28 +212,22 @@
             const content = document.getElementById('classTabContent');
             const emptyMsg = document.getElementById('noClassSelectedMsg');
             const filter = document.getElementById('classFilterInput');
-            const extraInput = document.getElementById('extra_class_input');
             const planStartInput = document.querySelector('input[name="start_date"]');
             const planEndInput = document.querySelector('input[name="end_date"]');
             const checkboxes = Array.from(document.querySelectorAll('.class-checkbox'));
             const form = document.getElementById('scheduleForm');
             const submitButton = form.querySelector('button[type="submit"]');
             const counters = {};
-            let extraKey = null;
 
             const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             const safe = (v) => String(v).replace(/[^A-Za-z0-9_-]/g, '_');
-            const norm = (v) => String(v || '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
             const tabId = (k) => `tab-${safe(k)}`;
             const paneId = (k) => `pane-${safe(k)}`;
             const rulesId = (k) => `rules-${safe(k)}`;
             const labelOf = (k) => {
                 const cb = checkboxes.find((item) => item.value === String(k));
-                if (cb) return cb.dataset.label;
-                if (String(k).startsWith('name:'))
-                    return `${extraInput.value.trim() || String(k).slice(5)} (bo sung)`;
-                return String(k);
+                return cb ? cb.dataset.label : String(k);
             };
 
             const activate = (k) => {
@@ -358,10 +348,10 @@
                                     hasConflict = true;
                                     appendRuleError(card,
                                         `Trung lich voi rule khac trong ${classLabel} tai ${dateKey}, tiet ${period}.`
-                                    );
+                                        );
                                     appendRuleError(slotOwners.get(slotKey),
                                         `Trung lich voi rule khac trong ${classLabel} tai ${dateKey}, tiet ${period}.`
-                                    );
+                                        );
                                 } else {
                                     slotOwners.set(slotKey, card);
                                 }
@@ -445,7 +435,7 @@
                                 <a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tai template</a>
                             </div>
                             <input type="file" name="import_file[${esc(k)}]" class="form-control form-control-sm">
-                            <small class="text-muted">Cot bat buoc: class_code, period_from, period_to, subject. Cot lua chon: date hoac start_date, end_date, weekdays.</small>
+                            <small class="text-muted">Cot bat buoc: class_code, date, period_from, period_to, subject.</small>
                         </div>
                         <div id="${rulesId(k)}"></div>
                     `;
@@ -478,14 +468,6 @@
                 checkboxes.forEach((cb) => cb.checked ? ensurePane(cb.value) : removePane(cb.value));
             };
 
-            const syncExtra = () => {
-                if (!extraInput) return; // Bỏ qua nếu element không tồn tại
-                const next = extraInput.value.trim() ? `name:${norm(extraInput.value)}` : null;
-                if (extraKey && extraKey !== next) removePane(extraKey);
-                if (next) ensurePane(next);
-                extraKey = next;
-            };
-
             filter.addEventListener('input', function() {
                 const q = this.value.trim().toLowerCase();
                 document.querySelectorAll('.class-item').forEach((item) => item.style.display = item.dataset
@@ -496,13 +478,6 @@
                 syncChecks();
                 if (this.checked) activate(this.value);
             }));
-
-            if (extraInput) {
-                extraInput.addEventListener('input', function() {
-                    syncExtra();
-                    if (extraKey) activate(extraKey);
-                });
-            }
 
             tabs.addEventListener('click', function(e) {
                 const btn = e.target.closest('[data-key]');
@@ -529,7 +504,6 @@
             });
 
             syncChecks();
-            if (extraInput) syncExtra();
             updateEmpty();
             validateRuleConflicts();
         });

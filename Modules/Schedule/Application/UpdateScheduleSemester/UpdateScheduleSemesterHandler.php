@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Schedule\Application\CreateScheduleSemester;
+namespace Modules\Schedule\Application\UpdateScheduleSemester;
 
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
@@ -16,35 +16,25 @@ use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingClass;
 
-class CreateScheduleSemesterHandler
+class UpdateScheduleSemesterHandler
 {
-    public function handle(CreateScheduleSemesterRequest $request)
+    public function handle(UpdateScheduleSemesterRequest $request, $id)
     {
+        $plan = Plans::findOrFail($id);
         $validated = $request->validated();
 
         $semester = (int) $validated['semester'];
         $year = (int) $validated['year'];
         $planStart = isset($validated['start_date'])
             ? Carbon::parse($validated['start_date'])->startOfDay()
-            : $this->defaultSemesterStart($semester, $year);
+            : ($plan->effective_from ? Carbon::parse($plan->effective_from) : $this->defaultSemesterStart($semester, $year));
         $planEnd = isset($validated['end_date'])
             ? Carbon::parse($validated['end_date'])->endOfDay()
-            : $this->defaultSemesterEnd($semester, $year);
+            : ($plan->effective_to ? Carbon::parse($plan->effective_to)->endOfDay() : $this->defaultSemesterEnd($semester, $year));
 
         if ($planEnd->lt($planStart)) {
             throw ValidationException::withMessages([
                 'end_date' => 'Ngay ket thuc hoc ky phai lon hon hoac bang ngay bat dau.',
-            ]);
-        }
-
-        $duplicatePlanExists = Plans::query()
-            ->where('semester', $semester)
-            ->where('year', $year)
-            ->exists();
-
-        if ($duplicatePlanExists) {
-            throw ValidationException::withMessages([
-                'semester' => 'Ke hoach hoc ky ' . $semester . ' nam ' . $year . ' da ton tai.',
             ]);
         }
 
@@ -75,14 +65,15 @@ class CreateScheduleSemesterHandler
 
         if ($templateEntries === []) {
             throw ValidationException::withMessages([
-                'class_tab_rules' => 'Khong co du lieu lich tong quat de tao ke hoach.',
+                'class_tab_rules' => 'Khong co du lieu lich tong quat de cap nhat ke hoach.',
             ]);
         }
 
         $this->validateTemplateEntries($templateEntries, $planStart, $planEnd);
 
-        $plan = DB::transaction(function () use (
+        $updatedPlan = DB::transaction(function () use (
             $request,
+            $plan,
             $semester,
             $year,
             $validated,
@@ -91,18 +82,26 @@ class CreateScheduleSemesterHandler
             $planEnd,
             $defaultContent
         ) {
-            $plan = Plans::query()->create([
+            // Update plan master record
+            $plan->update([
                 'name' => sprintf('Ke hoach hoc ky %d - %d', $semester, $year),
                 'semester' => $semester,
                 'year' => $year,
                 'description' => $validated['description'] ?? null,
                 'effective_from' => $planStart->toDateString(),
                 'effective_to' => $planEnd->toDateString(),
-                'status' => 'draft',
-                'current_step' => 'draft',
-                'created_by' => $request->user()?->id,
             ]);
 
+            // Delete old plan templates
+            PlanTemplates::where('plan_id', $plan->id)->delete();
+
+            // Delete old monthly schedules and slots
+            foreach ($plan->monthlySchedules as $monthly) {
+                ScheduleSlot::where('monthly_schedule_id', $monthly->id)->delete();
+            }
+            MonthlySchedule::where('plan_id', $plan->id)->delete();
+
+            // Create new templates
             $templateModels = [];
             foreach ($templateEntries as $entry) {
                 $templateModels[] = PlanTemplates::query()->create(
@@ -134,10 +133,10 @@ class CreateScheduleSemesterHandler
         $className = $firstClass ? $firstClass->code : null;
 
         return redirect()->route('schedule.semester.public', [
-            'semester' => $plan->semester,
-            'year' => $plan->year,
+            'semester' => $updatedPlan->semester,
+            'year' => $updatedPlan->year,
             'className' => $className,
-        ])->with('success', 'Da tao ke hoach hoc ky va lich tong quat thanh cong.');
+        ])->with('success', 'Da cap nhat ke hoach hoc ky va lich tong quat thanh cong.');
     }
 
     private function defaultSemesterStart(int $semester, int $year): Carbon
@@ -249,9 +248,8 @@ class CreateScheduleSemesterHandler
         return $rows;
     }
 
-
     private function parseImportFiles(
-        CreateScheduleSemesterRequest $request,
+        UpdateScheduleSemesterRequest $request,
         array $classMap,
         string $defaultSubject,
         string $defaultContent
@@ -424,6 +422,7 @@ class CreateScheduleSemesterHandler
 
         return $rows;
     }
+
     private function parseWeekdaysFromString(string $input): array
     {
         if (empty($input)) {
@@ -512,7 +511,6 @@ class CreateScheduleSemesterHandler
 
         return $subject->id;
     }
-
 
     private function validateTemplateEntries(array $entries, Carbon $planStart, Carbon $planEnd): void
     {
@@ -726,31 +724,5 @@ class CreateScheduleSemesterHandler
             $rule['subject'] ?? null,
             $rule['content'] ?? null,
         ])->contains(fn($value) => $value !== null && $value !== '');
-    }
-
-    private function dateRangesOverlap(array $first, array $second): bool
-    {
-        $firstStart = Carbon::parse($first['start_date'])->startOfDay();
-        $firstEnd = Carbon::parse($first['end_date'])->endOfDay();
-        $secondStart = Carbon::parse($second['start_date'])->startOfDay();
-        $secondEnd = Carbon::parse($second['end_date'])->endOfDay();
-
-        return $firstStart->lte($secondEnd) && $secondStart->lte($firstEnd);
-    }
-
-    private function weekdaysOverlap(array $first, array $second): bool
-    {
-        $firstDays = $this->normalizeWeekdays($first['days_of_week'] ?? []);
-        $secondDays = $this->normalizeWeekdays($second['days_of_week'] ?? []);
-
-        return array_intersect($firstDays, $secondDays) !== [];
-    }
-
-    private function periodsOverlap(array $first, array $second): bool
-    {
-        $firstPeriods = $this->parsePeriodRange((string) $first['period_range']);
-        $secondPeriods = $this->parsePeriodRange((string) $second['period_range']);
-
-        return array_intersect($firstPeriods, $secondPeriods) !== [];
     }
 }
