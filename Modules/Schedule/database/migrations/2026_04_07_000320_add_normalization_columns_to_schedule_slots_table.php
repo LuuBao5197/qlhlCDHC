@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('note')->nullable()->after('actual_content');
 
             $table->unique(
-                ['monthly_schedule_id', 'date', 'period_number'],
+                ['monthly_schedule_id', 'date', 'period_number','class_id'],
                 'schedule_slots_schedule_date_period_unique'
             );
             $table->index(['teacher_id', 'date'], 'schedule_slots_teacher_date_index');

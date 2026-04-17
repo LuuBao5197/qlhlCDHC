@@ -172,8 +172,17 @@
         <div class="col-12">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="mb-1">Lich phan cong giang day theo thang</h5>
-                    <small class="text-muted">Khoa phan cong lich thang, gui PDT duyet; PDT thuc hien UC5 va UC7.</small>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="mb-1">Lich phan cong giang day theo thang</h5>
+                            <small class="text-muted">Khoa phan cong lich thang, gui PDT duyet; PDT thuc hien UC5 va UC7.</small>
+                        </div>
+                        @if ($user && ($user->isTrainingOffice()|| $user->isAdmin()))
+                            <a href="{{ route('monthly-schedule.initialize.form') }}" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-plus"></i> Khoi tao lich thang
+                            </a>
+                        @endif
+                    </div>
 
                     <div class="table-responsive mt-3">
                         <table class="table table-bordered table-hover mb-0 align-middle">

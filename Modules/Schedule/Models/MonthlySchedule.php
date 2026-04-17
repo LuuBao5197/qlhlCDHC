@@ -1,10 +1,7 @@
 <?php
-
 namespace Modules\Schedule\Models;
-
 use Modules\Training\Models\ApprovalRequest;
 use Modules\Training\Models\ChangeRequest;
-use Modules\Training\Models\Department;
 use Modules\Training\Models\MonthlyReport;
 use Modules\Training\Models\TrainingClass;
 use App\Models\User;
@@ -19,9 +16,6 @@ class MonthlySchedule extends Model
 
     protected $fillable = [
         'plan_id',
-        'department_id',
-        'class_name',
-        'class_id',
         'month',
         'year',
         'created_by',
@@ -40,11 +34,6 @@ class MonthlySchedule extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plans::class, 'plan_id');
-    }
-
-    public function department(): BelongsTo
-    {
-        return $this->belongsTo(Department::class);
     }
 
     public function trainingClass(): BelongsTo

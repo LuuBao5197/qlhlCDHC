@@ -10,6 +10,7 @@ use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Training\Models\Room;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\SubjectLesson;
+use Modules\Training\Models\Teacher;
 
 class AssignMonthlyScheduleController extends Controller
 {
@@ -20,31 +21,50 @@ class AssignMonthlyScheduleController extends Controller
     /**
      * Show assignment form for one monthly schedule.
      */
+
     public function showForm(AssignMonthlyScheduleViewRequest $request, int $id)
     {
+        $user = $request->user();
+        $departmentId = $user?->department_id;
+
+        // Get subject IDs belonging to this department (for filtering slots)
+        $departmentSubjectIds = [];
+        if ($departmentId !== null) {
+            $departmentSubjectIds = Subject::where('department_id', $departmentId)
+                ->pluck('id')
+                ->all();
+        }
+
         $monthlySchedule = MonthlySchedule::query()
             ->with([
                 'plan',
-                'department',
-                'trainingClass.department',
-                'scheduleSlots' => function ($query): void {
+                'scheduleSlots' => function ($query) use ($departmentSubjectIds): void {
+                    // Only show slots whose subject belongs to this department
+                    if ($departmentSubjectIds !== []) {
+                        $query->whereIn('subject_id', $departmentSubjectIds);
+                    }
                     $query->orderBy('date')->orderBy('period_number');
                 },
+                'scheduleSlots.trainingClass',
             ])
             ->findOrFail($id);
 
-        $departmentId = $monthlySchedule->department_id
-            ?? $monthlySchedule->trainingClass?->department_id
-            ?? $request->user()?->department_id;
+        // $teachers = User::query()
+        //     ->where('role', User::ROLE_TEACHER)
+        //     ->when(
+        //         $departmentId !== null,
+        //         fn($query) => $query->where('department_id', $departmentId)
+        //     )
+        //     ->orderBy('name')
+        //     ->get();
 
-        $teachers = User::query()
-            ->where('role', User::ROLE_TEACHER)
-            ->when($departmentId !== null, fn ($query) => $query->where('department_id', $departmentId))
-            ->orderBy('name')
-            ->get();
+        $teachers = Teacher::query()->where('department_id', $departmentId)->orderBy('name')->get();
 
         $subjects = Subject::with('department')
-            ->when($departmentId !== null, fn ($query) => $query->where('department_id', $departmentId))
+            ->when(
+                $departmentId !== null,
+                fn($query) => $query->where('department_id', $departmentId)
+            )
             ->orderBy('code')
             ->get();
 
@@ -65,7 +85,7 @@ class AssignMonthlyScheduleController extends Controller
             'subjects' => $subjects,
             'subjectLessons' => $subjectLessons,
             'rooms' => $rooms,
-            'canSubmitToTrainingOffice' => $request->user()?->isDepartmentStaff() || $request->user()?->isAdmin(),
+            'canSubmitToTrainingOffice' => $user?->isDepartmentStaff() || $user?->isAdmin(),
         ]);
     }
 

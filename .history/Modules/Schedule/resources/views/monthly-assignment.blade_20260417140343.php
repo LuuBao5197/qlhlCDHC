@@ -20,47 +20,39 @@
 
     <div class="row mb-3">
         <div class="col-12">
-            <div class="card border-left-primary shadow-sm">
+            <div class="card">
                 <div class="card-body">
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                         <div>
-                            <h4 class="card-title mb-1 text-primary font-weight-bold">
-                                <i class="fas fa-chalkboard-teacher mr-2"></i>Phân công giảng dạy tháng {{ $monthlySchedule->month }}/{{ $monthlySchedule->year }}
-                            </h4>
-                            <p class="mb-0" style="color: #858796;">
-                                Kế hoạch: <strong class="text-dark">{{ $monthlySchedule->plan?->name ?? '-' }}</strong>
-                                <span class="mx-1">|</span>
-                                Khoa: <strong class="text-dark">{{ $subjects->first()?->department?->name ?? '-' }}</strong>
+                            <h4 class="card-title mb-1">Phan cong giang day theo thang</h4>
+                            <p class="text-muted mb-0">
+                                Ke hoach: <strong>{{ $monthlySchedule->plan?->name ?? '-' }}</strong> |
+                                Khoa: <strong>{{ $subjects->first()?->department?->name ?? '-' }}</strong> |
+                                Thang: <strong>{{ $monthlySchedule->month }}/{{ $monthlySchedule->year }}</strong>
                             </p>
                         </div>
                         <div class="mt-2 mt-lg-0">
-                            <span class="badge {{ $statusClass }} px-3 py-2" style="font-size: .85rem;">{{ ucfirst($monthlySchedule->status) }}</span>
+                            <span class="badge {{ $statusClass }} p-2">Status: {{ $monthlySchedule->status }}</span>
                         </div>
                     </div>
 
                     <div class="mt-3 d-flex flex-wrap">
-                        <a href="{{ route('schedule.index') }}" class="btn btn-outline-secondary btn-sm mr-2 mb-2">
-                            <i class="fas fa-arrow-left mr-1"></i>Quay lại
-                        </a>
+                        <a href="{{ route('schedule.index') }}" class="btn btn-outline-light btn-sm mr-2 mb-2">Quay lai danh sach</a>
 
                         @if ($canSubmitToTrainingOffice)
                             <form method="POST" action="{{ route('monthly-schedule.submit-training', $monthlySchedule->id) }}" class="mr-2 mb-2">
                                 @csrf
                                 <div class="input-group input-group-sm">
-                                    <input type="text" class="form-control" name="comment" placeholder="Ghi chú gửi duyệt (optional)">
+                                    <input type="text" class="form-control" name="comment" placeholder="Ghi chu gui duyet (optional)">
                                     <div class="input-group-append">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-paper-plane mr-1"></i>Gửi PDT duyệt
-                                        </button>
+                                        <button type="submit" class="btn btn-primary">Gui PDT duyet</button>
                                     </div>
                                 </div>
                             </form>
                         @endif
 
                         @if ($monthlySchedule->status === 'approved')
-                            <span class="text-success align-self-center mb-2">
-                                <i class="fas fa-check-circle mr-1"></i>Lịch này đã được phê duyệt.
-                            </span>
+                            <span class="text-success align-self-center mb-2">Lich nay da duoc phe duyet.</span>
                         @endif
                     </div>
                 </div>
@@ -69,23 +61,16 @@
     </div>
 
     @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show">
-            <i class="fas fa-check-circle mr-1"></i>{{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
-        </div>
+        <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
     @if (session('error'))
-        <div class="alert alert-danger alert-dismissible fade show">
-            <i class="fas fa-exclamation-circle mr-1"></i>{{ session('error') }}
-            <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
-        </div>
+        <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
     @if ($errors->any())
         <div class="alert alert-danger">
-            <strong><i class="fas fa-exclamation-triangle mr-1"></i>Có lỗi:</strong>
-            <ul class="mb-0 pl-3 mt-1">
+            <ul class="mb-0 pl-3">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -96,23 +81,30 @@
     @if ($subjects->isNotEmpty())
         <div class="row mb-3">
             <div class="col-12">
-                <div class="card border-left-info shadow-sm">
-                    <div class="card-body py-2">
-                        <div class="d-flex align-items-center cursor-pointer" data-toggle="collapse" data-target="#subjectListCollapse">
-                            <h6 class="mb-0 text-info font-weight-bold">
-                                <i class="fas fa-book mr-1"></i>Môn học khoa phụ trách ({{ $subjects->count() }} môn)
-                            </h6>
-                            <i class="fas fa-chevron-down ml-auto text-info"></i>
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Danh sách môn học của khoa phụ trách</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Mã môn</th>
+                                        <th>Tên môn</th>
+                                        <th>Khoa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($subjects as $subject)
+                                        <tr>
+                                            <td>{{ $subject->code }}</td>
+                                            <td>{{ $subject->name }}</td>
+                                            <td>{{ $subject->department?->name ?? '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="collapse mt-2" id="subjectListCollapse">
-                            <div class="d-flex flex-wrap">
-                                @foreach ($subjects as $subject)
-                                    <span class="badge badge-light border mr-2 mb-1 px-2 py-1" style="font-size: .8rem;">
-                                        <strong>{{ $subject->code }}</strong> — {{ $subject->name }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        </div>
+                        <p class="small text-muted mt-2 mb-0">Môn học ở bước này được lấy từ lịch tổng quát và chỉ hiển thị các môn của khoa chịu trách nhiệm.</p>
                     </div>
                 </div>
             </div>
@@ -121,17 +113,11 @@
 
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm">
+            <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0 text-dark font-weight-bold">
-                            <i class="fas fa-calendar-alt mr-1 text-primary"></i>Danh sách tiết học
-                        </h5>
-                        <div>
-                            <span class="badge badge-light border px-2 py-1 mr-1"><span class="period-dot period-morning-dot"></span> Sáng (T1-5)</span>
-                            <span class="badge badge-light border px-2 py-1 mr-1"><span class="period-dot period-afternoon-dot"></span> Chiều (T6-9)</span>
-                            <span class="badge badge-primary px-2 py-1">{{ $monthlySchedule->scheduleSlots->count() }} tiết</span>
-                        </div>
+                        <h5 class="mb-0">Danh sach tiet hoc can phan cong</h5>
+                        <small class="text-muted">Tong: {{ $monthlySchedule->scheduleSlots->count() }} tiet</small>
                     </div>
 
                     @php
@@ -146,10 +132,7 @@
                         @csrf
 
                         @if ($dateChunks->isEmpty())
-                            <div class="text-center py-5">
-                                <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
-                                <p class="text-muted">Không có tiết học nào để phân công.</p>
-                            </div>
+                            <div class="text-center text-muted py-4">Khong co tiet hoc nao de phan cong.</div>
                         @else
                             {{-- Tab navigation --}}
                             <ul class="nav nav-tabs flex-nowrap" id="scheduleTabs" role="tablist" style="overflow-x: auto;">
@@ -157,8 +140,7 @@
                                     @php
                                         $firstDate = \Carbon\Carbon::parse($chunk->first());
                                         $lastDate = \Carbon\Carbon::parse($chunk->last());
-                                        $tabLabel = $firstDate->format('d/m') . ' → ' . $lastDate->format('d/m');
-                                        $chunkSlotCount = $chunk->sum(fn($d) => $slotsByDate[$d]->count());
+                                        $tabLabel = $firstDate->format('d/m') . ' - ' . $lastDate->format('d/m');
                                     @endphp
                                     <li class="nav-item" role="presentation">
                                         <a class="nav-link text-nowrap {{ $chunkIdx === 0 ? 'active' : '' }}"
@@ -167,7 +149,6 @@
                                            href="#tab-{{ $chunkIdx }}"
                                            role="tab">
                                             {{ $tabLabel }}
-                                            <span class="badge badge-pill {{ $chunkIdx === 0 ? 'badge-light' : 'badge-secondary' }} ml-1">{{ $chunkSlotCount }}</span>
                                         </a>
                                     </li>
                                 @endforeach
@@ -187,28 +168,27 @@
                                             @endphp
 
                                             <div class="mb-4">
-                                                <div class="date-header d-flex justify-content-between align-items-center">
+                                                <h6 class="bg-light p-2 rounded d-flex justify-content-between align-items-center">
                                                     <span>
-                                                        <i class="fas fa-calendar-day mr-2"></i>
-                                                        <strong>{{ $dateObj->format('d/m/Y') }}</strong>
-                                                        <span class="ml-1">({{ $dayName }})</span>
+                                                        <i class="fas fa-calendar-day mr-1"></i>
+                                                        {{ $dateObj->format('d/m/Y') }} ({{ $dayName }})
                                                     </span>
-                                                    <span class="badge">{{ $dateSlots->count() }} tiết</span>
-                                                </div>
+                                                    <span class="badge badge-secondary">{{ $dateSlots->count() }} tiết</span>
+                                                </h6>
 
                                                 <div class="table-responsive">
-                                                    <table class="table table-bordered table-sm table-hover align-middle mb-0 slot-table">
-                                                        <thead>
+                                                    <table class="table table-bordered table-sm table-hover align-middle mb-0">
+                                                        <thead class="thead-light">
                                                             <tr>
-                                                                <th style="width: 55px;">Tiết</th>
-                                                                <th style="min-width: 90px;">Lớp</th>
-                                                                <th style="min-width: 170px;">Giảng viên</th>
-                                                                <th style="min-width: 140px;">Môn học</th>
-                                                                <th style="min-width: 150px;">Bài học</th>
-                                                                <th style="min-width: 100px;">Phòng</th>
-                                                                <th style="min-width: 150px;">Nội dung</th>
-                                                                <th style="min-width: 130px;">Ghi chú</th>
-                                                                <th style="width: 105px;">Trạng thái</th>
+                                                                <th style="width: 60px;">Tiết</th>
+                                                                <th style="min-width: 120px;">Lớp</th>
+                                                                <th style="min-width: 180px;">Giảng viên</th>
+                                                                <th style="min-width: 160px;">Môn học</th>
+                                                                <th style="min-width: 160px;">Bài học</th>
+                                                                <th style="min-width: 130px;">Phòng</th>
+                                                                <th style="min-width: 160px;">Nội dung</th>
+                                                                <th style="min-width: 140px;">Ghi chú</th>
+                                                                <th style="width: 110px;">Trạng thái</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -216,19 +196,18 @@
                                                                 @php
                                                                     $idx = $flatIndex++;
                                                                     $oldSlot = $oldSlots[$idx] ?? null;
-                                                                    $hasTeacher = !empty($oldSlot['teacher_id'] ?? $slot->teacher_id);
-                                                                    $rowClass = $hasTeacher ? 'slot-assigned' : 'slot-unassigned';
                                                                 @endphp
-                                                                <tr class="{{ $rowClass }}">
-                                                                    <td class="text-center">
-                                                                        <span class="period-badge {{ $slot->period_number <= 5 ? 'period-morning' : 'period-afternoon' }}">
-                                                                            {{ $slot->period_number }}
-                                                                        </span>
+                                                                <tr>
+                                                                    <td class="text-center font-weight-bold">
+                                                                        {{ $slot->period_number }}
+                                                                        @if ($slot->period_number <= 5)
+                                                                            <div><small class="text-success">S</small></div>
+                                                                        @else
+                                                                            <div><small class="text-warning">C</small></div>
+                                                                        @endif
                                                                         <input type="hidden" name="slots[{{ $idx }}][id]" value="{{ $slot->id }}">
                                                                     </td>
-                                                                    <td class="text-center">
-                                                                        <span class="class-pill">{{ $slot->trainingClass?->code ?? '-' }}</span>
-                                                                    </td>
+                                                                    <td>{{ $slot->trainingClass?->code ?? '-' }}</td>
                                                                     <td>
                                                                         <select name="slots[{{ $idx }}][teacher_id]" class="form-control form-control-sm">
                                                                             <option value="">-- Chọn GV --</option>
@@ -249,7 +228,7 @@
                                                                                 : ($slot->subject ?? '--');
                                                                         @endphp
                                                                         <input type="hidden" name="slots[{{ $idx }}][subject_id]" value="{{ $selectedSubjectId }}">
-                                                                        <div class="font-weight-bold" style="font-size: .82rem;">{{ $subjectLabel }}</div>
+                                                                        <div>{{ $subjectLabel }}</div>
                                                                     </td>
                                                                     <td>
                                                                         @php
@@ -306,12 +285,10 @@
                             </div>
                         @endif
 
-                        <div class="mt-3 d-flex flex-wrap align-items-center">
-                            <button type="submit" class="btn btn-success mr-2 mb-2">
-                                <i class="fas fa-save mr-1"></i>Lưu phân công
-                            </button>
+                        <div class="mt-3 d-flex flex-wrap">
+                            <button type="submit" class="btn btn-success mr-2 mb-2">Luu phan cong</button>
                             @if ($canSubmitToTrainingOffice)
-                                <small class="text-muted mb-2">Sau khi lưu, bấm "Gửi PDT duyệt" ở trên để trình lịch tháng.</small>
+                                <small class="text-muted align-self-center mb-2">Sau khi luu, bam "Gui PDT duyet" o tren de trinh lich thang.</small>
                             @endif
                         </div>
                     </form>
@@ -321,96 +298,9 @@
     </div>
 
     <style>
-        /* Tabs */
-        .nav-tabs { border-bottom: 2px solid #4e73df; }
-        .nav-tabs .nav-link {
-            padding: .55rem 1rem;
-            font-size: .85rem;
-            color: #858796;
-            border: 1px solid transparent;
-            transition: all .2s;
-        }
-        .nav-tabs .nav-link:hover { color: #4e73df; background: #f0f3ff; }
-        .nav-tabs .nav-link.active {
-            font-weight: 700;
-            color: #fff;
-            background: #4e73df;
-            border-color: #4e73df;
-            border-radius: .35rem .35rem 0 0;
-        }
+        .nav-tabs { border-bottom: 2px solid #dee2e6; }
+        .nav-tabs .nav-link { padding: .5rem 1rem; font-size: .875rem; }
+        .nav-tabs .nav-link.active { font-weight: 600; border-bottom: 2px solid #007bff; }
         .tab-content { background: transparent; }
-
-        /* Date header */
-        .date-header {
-            background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
-            color: #fff;
-            padding: .5rem .85rem;
-            border-radius: .35rem;
-            margin-bottom: .5rem;
-            font-size: .9rem;
-        }
-        .date-header .badge { background: rgba(255,255,255,.2); color: #fff; }
-
-        /* Table head */
-        .slot-table thead th {
-            background: #f8f9fc;
-            color: #4e73df;
-            font-weight: 600;
-            font-size: .78rem;
-            text-transform: uppercase;
-            letter-spacing: .03em;
-            border-bottom: 2px solid #4e73df;
-            vertical-align: middle;
-        }
-        .slot-table tbody tr:hover { background: #eaecf4 !important; }
-
-        /* Period badge (circle) */
-        .period-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px; height: 32px;
-            border-radius: 50%;
-            font-weight: 700;
-            font-size: .85rem;
-        }
-        .period-morning { background: #d4edda; color: #155724; }
-        .period-afternoon { background: #fff3cd; color: #856404; }
-
-        /* Legend dots */
-        .period-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
-        .period-morning-dot { background: #28a745; }
-        .period-afternoon-dot { background: #ffc107; }
-
-        /* Class code pill */
-        .class-pill {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: .78rem;
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        /* Row tint: assigned vs unassigned */
-        .slot-assigned { background: #f0fff4 !important; }
-        .slot-unassigned { background: #fffcf0 !important; }
-
-        /* Form controls inside table */
-        .slot-table select, .slot-table input[type="text"] {
-            border: 1px solid #d1d3e2;
-            border-radius: .25rem;
-            font-size: .82rem;
-            transition: border-color .15s;
-        }
-        .slot-table select:focus, .slot-table input[type="text"]:focus {
-            border-color: #4e73df;
-            box-shadow: 0 0 0 .15rem rgba(78,115,223,.25);
-        }
-
-        /* Card accent */
-        .border-left-primary { border-left: .25rem solid #4e73df !important; }
-        .border-left-info { border-left: .25rem solid #36b9cc !important; }
     </style>
 @endsection

@@ -17,10 +17,9 @@ class TrainingClass extends Model
     protected $table = 'classes';
 
     protected $fillable = [
-        'department_id',
         'code',
         'name',
-        'course_year',
+        'description',
         'status',
     ];
 

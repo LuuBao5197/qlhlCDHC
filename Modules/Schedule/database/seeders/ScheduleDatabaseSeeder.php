@@ -29,6 +29,8 @@ class ScheduleDatabaseSeeder extends Seeder
             'semester' => 1,
             'year' => 2026,
             'file_path' => 'plans/hk1_2026.pdf',
+            'effective_from' => Carbon::create(2026, 1, 1),
+            'effective_to' => Carbon::create(2026, 7, 30),
         ]);
 
         $departments = [
@@ -49,15 +51,7 @@ class ScheduleDatabaseSeeder extends Seeder
                 ]
             );
 
-            foreach ($months as $month) {
-                MonthlySchedule::create([
-                    'plan_id' => $plan->id,
-                    'department_id' => $department->id,
-                    'class_name' => $departmentData['code'],
-                    'month' => $month,
-                    'year' => 2026,
-                ]);
-            }
+
         }
 
         // Call seeder to create plan templates

@@ -17,8 +17,8 @@ return new class extends Migration
             $table->timestamp('submitted_at')->nullable()->after('submitted_by');
             $table->string('status')->default('draft')->after('submitted_at')->index();
             $table->string('current_step')->default('draft')->after('status')->index();
-            $table->date('effective_from')->nullable()->after('current_step');
-            $table->date('effective_to')->nullable()->after('effective_from');
+            $table->date('effective_from')->default(now())->after('current_step');
+            $table->date('effective_to')->default(now())->after('effective_from');
             $table->unsignedInteger('approved_version')->default(1)->after('effective_to');
 
             // A unique constraint for (semester, year) is intentionally deferred.

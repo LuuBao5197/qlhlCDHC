@@ -22,7 +22,7 @@ class GetScheduleHandler
             ->withQueryString();
 
         $monthlySchedules = MonthlySchedule::query()
-            ->with(['plan', 'department', 'trainingClass', 'createdBy', 'approvedBy'])
+            ->with(['plan', 'createdBy', 'approvedBy'])
             ->orderByDesc('year')
             ->orderByDesc('month')
             ->orderByDesc('id')

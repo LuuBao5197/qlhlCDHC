@@ -14,6 +14,7 @@ use Modules\Schedule\Application\SubmitMonthlyScheduleToTrainingOffice\SubmitMon
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
 use Modules\Schedule\Application\UpdateScheduleSemester\UpdateScheduleSemesterController;
 use Modules\Schedule\Application\DeleteScheduleSemester\DeleteScheduleSemesterController;
+use Modules\Schedule\Application\InitializeMonthlySchedule\InitializeMonthlyScheduleController;
 use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\MonthlySchedule;
 
@@ -66,6 +67,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Semester schedule
     Route::get('/semester/{semester?}/{year?}/{className?}', GetScheduleSemesterController::class)
         ->name('schedule.semester');
+
+    // Initialize monthly schedule
+    Route::get('/monthly-schedules/initialize', [InitializeMonthlyScheduleController::class, 'showForm'])
+        ->name('monthly-schedule.initialize.form');
+    Route::post('/monthly-schedules/initialize', InitializeMonthlyScheduleController::class)
+        ->name('monthly-schedule.initialize');
 });
 
 Route::get('/schedule', function () {
