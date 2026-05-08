@@ -130,6 +130,7 @@ class UpdateScheduleSemesterRequest extends FormRequest
                 $hasMeaningfulRule = false;
                 $hasImportFile = array_key_exists((string) $classKey, $importFiles)
                     && $importFiles[(string) $classKey] !== null;
+                $seenSlots = [];
 
                 if (!is_array($classRules)) {
                     $validator->errors()->add(
@@ -154,15 +155,18 @@ class UpdateScheduleSemesterRequest extends FormRequest
 
                     $hasMeaningfulRule = true;
                     $ruleNumber = $index + 1;
+                    $hasRuleError = false;
 
                     $startDate = $rule['start_date'] ?? null;
                     $endDate = $rule['end_date'] ?? null;
                     if (!$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
+                        $hasRuleError = true;
                         $validator->errors()->add(
                             'class_tab_rules',
                             "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai co ngay bat dau va ngay ket thuc hop le."
                         );
                     } elseif (Carbon::parse($endDate)->lt(Carbon::parse($startDate))) {
+                        $hasRuleError = true;
                         $validator->errors()->add(
                             'class_tab_rules',
                             "Dong quy tac #{$ruleNumber} cua lop '{$label}' co ngay ket thuc nho hon ngay bat dau."
@@ -171,6 +175,7 @@ class UpdateScheduleSemesterRequest extends FormRequest
 
                     $weekdays = $this->normalizeWeekdays($rule['weekdays'] ?? []);
                     if ($weekdays === []) {
+                        $hasRuleError = true;
                         $validator->errors()->add(
                             'class_tab_rules',
                             "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai chon it nhat mot thu hoc."
@@ -180,15 +185,44 @@ class UpdateScheduleSemesterRequest extends FormRequest
                     $periodFrom = $this->parsePeriodValue($rule['period_from'] ?? null);
                     $periodTo = $this->parsePeriodValue($rule['period_to'] ?? null);
                     if ($periodFrom === null || $periodTo === null) {
+                        $hasRuleError = true;
                         $validator->errors()->add(
                             'class_tab_rules',
                             "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap tiet tu 1 den 9."
                         );
                     } elseif ($periodTo < $periodFrom) {
+                        $hasRuleError = true;
                         $validator->errors()->add(
                             'class_tab_rules',
                             "Dong quy tac #{$ruleNumber} cua lop '{$label}' co tiet ket thuc nho hon tiet bat dau."
                         );
+                    }
+
+                    if ($hasRuleError) {
+                        continue;
+                    }
+
+                    $start = Carbon::parse((string) $startDate)->startOfDay();
+                    $end = Carbon::parse((string) $endDate)->endOfDay();
+
+                    for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                        $dayOfWeek = $date->dayOfWeekIso + 1;
+                        if (!in_array($dayOfWeek, $weekdays, true)) {
+                            continue;
+                        }
+
+                        for ($period = $periodFrom; $period <= $periodTo; $period++) {
+                            $slotKey = implode('|', [$date->toDateString(), $period]);
+                            if (isset($seenSlots[$slotKey])) {
+                                $firstRuleNumber = $seenSlots[$slotKey] + 1;
+                                $validator->errors()->add(
+                                    'class_tab_rules',
+                                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' bi trung tiet voi dong #{$firstRuleNumber} ({$date->toDateString()}, tiet {$period})."
+                                );
+                            } else {
+                                $seenSlots[$slotKey] = $index;
+                            }
+                        }
                     }
                 }
 

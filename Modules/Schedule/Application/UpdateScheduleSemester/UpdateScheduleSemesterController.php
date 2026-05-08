@@ -28,7 +28,7 @@ class UpdateScheduleSemesterController extends Controller
             ->get(['id', 'code', 'name']);
 
         $subjectSuggestions = $subjects
-            ->map(fn (Subject $subject) => [
+            ->map(fn(Subject $subject) => [
                 'code' => $subject->code,
                 'name' => $subject->name,
             ])
@@ -76,9 +76,37 @@ class UpdateScheduleSemesterController extends Controller
 
         foreach ($templates as $template) {
             $classId = (string) $template->class_id;
-
             if (!isset($rulesByClass[$classId])) {
                 $rulesByClass[$classId] = [];
+            }
+
+            $weekdaysRaw = $template->days_of_week;
+
+            // days_of_week có thể là array cast sẵn, hoặc chuỗi JSON từ dữ liệu cũ
+            if (is_string($weekdaysRaw)) {
+                $decoded = json_decode($weekdaysRaw, true);
+                $weekdaysRaw = is_array($decoded) ? $decoded : [];
+            }
+
+            if (!is_array($weekdaysRaw)) {
+                $weekdaysRaw = [];
+            }
+
+            $weekdays = collect($weekdaysRaw)
+                ->filter(fn($day) => is_numeric($day))
+                ->map(fn($day) => (int) $day)
+                ->filter(fn(int $day) => $day >= 2 && $day <= 8)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            // Fallback về day_of_week nếu days_of_week rỗng
+            if ($weekdays === [] && is_numeric($template->day_of_week)) {
+                $dow = (int) $template->day_of_week;
+                if ($dow >= 2 && $dow <= 8) {
+                    $weekdays = [$dow];
+                }
             }
 
             $rulesByClass[$classId][] = [
@@ -88,9 +116,7 @@ class UpdateScheduleSemesterController extends Controller
                 'period_to' => $this->getPeriodTo($template->period_range),
                 'subject' => $template->subjects?->code ?? '',
                 'content' => $template->description ?? '',
-                'weekdays' => is_array($template->days_of_week)
-                    ? $template->days_of_week
-                    : [$template->day_of_week],
+                'weekdays' => $weekdays,
             ];
         }
 

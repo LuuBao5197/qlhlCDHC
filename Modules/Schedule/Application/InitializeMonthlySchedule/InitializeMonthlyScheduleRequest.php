@@ -1,6 +1,9 @@
 <?php
 namespace Modules\Schedule\Application\InitializeMonthlySchedule;
+
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\ValidationException;
 
 class InitializeMonthlyScheduleRequest extends FormRequest
 {
@@ -29,15 +32,31 @@ class InitializeMonthlyScheduleRequest extends FormRequest
     {
         $data = parent::validated($key, $default);
 
-        // Validate: Can only initialize future months (not current or past)
-        $today = \Carbon\Carbon::today();
-        $nextMonth = $today->copy()->addMonth()->month;
-        $nextYear = $today->copy()->addMonth()->year;
+        $today = Carbon::today();
+        $selectedDate = Carbon::create($data['year'], $data['month'], 1)->startOfMonth();
 
-        $selectedDate = \Carbon\Carbon::create($data['year'], $data['month'], 1);
-        if ($selectedDate->lt($today->copy()->addMonth()->startOfMonth())) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'month' => "Chi co the khoi tao nam va cac thang sau. Hien tai la {$today->format('d/m/Y')}.",
+        $strictNextMonthOnly = (bool) config('schedule.initialize_monthly_schedule.strict_next_month_only', true);
+        $allowCurrentMonthForTest = (bool) config('schedule.initialize_monthly_schedule.allow_current_month_in_test', false);
+
+        $currentMonthStart = $today->copy()->startOfMonth();
+        $nextMonthStart = $today->copy()->addMonth()->startOfMonth();
+
+        // Production mode: only exactly next month is allowed.
+        if ($strictNextMonthOnly) {
+            if (! $selectedDate->equalTo($nextMonthStart)) {
+                throw ValidationException::withMessages([
+                    'month' => "Chi duoc khoi tao dung thang ke tiep. Hom nay {$today->format('d/m/Y')}, thang hop le la {$nextMonthStart->format('m/Y')}.",
+                ]);
+            }
+
+            return $data;
+        }
+
+        // Test mode: allow from current or next month based on config.
+        $minimumAllowedDate = $allowCurrentMonthForTest ? $currentMonthStart : $nextMonthStart;
+        if ($selectedDate->lt($minimumAllowedDate)) {
+            throw ValidationException::withMessages([
+                'month' => "Thang hop le phai tu {$minimumAllowedDate->format('m/Y')} tro di. Hom nay {$today->format('d/m/Y')}.",
             ]);
         }
 

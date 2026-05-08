@@ -29,6 +29,9 @@ class ChangeRequestFactory extends Factory
             'old_payload' => ['subject' => 'Old subject', 'room_id' => null],
             'new_payload' => ['subject' => 'New subject', 'room_id' => null],
             'status' => fake()->randomElement(['pending', 'approved', 'rejected', 'resolved']),
+            'apply_mode' => fake()->randomElement(['all_or_none', 'best_effort']),
+            'apply_changes' => fake()->boolean(80),
+            'apply_summary' => null,
             'submitted_at' => now(),
             'resolved_at' => fake()->boolean(35) ? now()->addDay() : null,
         ];

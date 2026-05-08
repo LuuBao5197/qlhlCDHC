@@ -3,6 +3,16 @@
 @section('title', 'Admin Panel - User Management')
 
 @section('content')
+    @php
+        $roleLabels = [
+            \App\Models\User::ROLE_TEACHER => 'Giáo viên',
+            \App\Models\User::ROLE_DEPARTMENT_STAFF => 'Nhân viên khoa',
+            \App\Models\User::ROLE_TRAINING_OFFICE => 'Nhân viên phòng đào tạo',
+            \App\Models\User::ROLE_LEADERSHIP => 'Ban giám hiệu',
+            \App\Models\User::ROLE_STUDENT => 'Học viên',
+            \App\Models\User::ROLE_ADMIN => 'Quản trị viên',
+        ];
+    @endphp
     <div class="row">
         <div class="col-md-12">
             <div class="card">
@@ -15,6 +25,22 @@
                         </div>
                     @endif
 
+                    @if(session('error'))
+                        <div class="alert alert-danger">
+                            {{ session('error') }}
+                        </div>
+                    @endif
+
+                    @if($errors->any())
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <!-- Pending Users -->
                     <div class="mt-4">
                         <h5>Pending Approval ({{ $pendingUsers->total() }})</h5>
@@ -24,6 +50,8 @@
                                     <tr>
                                         <th>Name</th>
                                         <th>Email</th>
+                                        <th>Vai trò đăng ký</th>
+                                        <th>Khoa đăng ký</th>
                                         <th>Registered</th>
                                         <th>Actions</th>
                                     </tr>
@@ -33,20 +61,12 @@
                                         <tr>
                                             <td>{{ $user->name }}</td>
                                             <td>{{ $user->email }}</td>
+                                            <td>{{ $roleLabels[$user->requested_role] ?? '-' }}</td>
+                                            <td>{{ $user->requestedDepartment?->name ?? '-' }}</td>
                                             <td>{{ $user->created_at->format('d/m/Y H:i') }}</td>
                                             <td>
                                                 <form method="POST" action="{{ route('admin.users.approve', $user->id) }}" class="d-inline">
                                                     @csrf
-                                                    <div class="form-group mb-2">
-                                                        <select name="role" class="form-control form-control-sm" required>
-                                                            <option value="">Select Role</option>
-                                                            <option value="student">Student</option>
-                                                            <option value="teacher">Teacher</option>
-                                                            <option value="department_staff">Department Staff</option>
-                                                            <option value="training_office">Training Office</option>
-                                                            <option value="leadership">Leadership</option>
-                                                        </select>
-                                                    </div>
                                                     <button type="submit" class="btn btn-success btn-sm">Approve</button>
                                                 </form>
                                                 <form method="POST" action="{{ route('admin.users.reject', $user->id) }}" class="d-inline ml-2">
@@ -58,7 +78,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4" class="text-center">No pending users</td>
+                                            <td colspan="6" class="text-center">No pending users</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -76,6 +96,7 @@
                                     <tr>
                                         <th>Name</th>
                                         <th>Email</th>
+                                        <th>Department</th>
                                         <th>Role</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -86,30 +107,18 @@
                                         <tr>
                                             <td>{{ $user->name }}</td>
                                             <td>{{ $user->email }}</td>
-                                            <td>
-                                                <form method="POST" action="{{ route('admin.users.update-role', $user->id) }}" class="d-inline">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <select name="role" class="form-control form-control-sm" onchange="this.form.submit()">
-                                                        <option value="student" {{ $user->role == 'student' ? 'selected' : '' }}>Student</option>
-                                                        <option value="teacher" {{ $user->role == 'teacher' ? 'selected' : '' }}>Teacher</option>
-                                                        <option value="department_staff" {{ $user->role == 'department_staff' ? 'selected' : '' }}>Department Staff</option>
-                                                        <option value="training_office" {{ $user->role == 'training_office' ? 'selected' : '' }}>Training Office</option>
-                                                        <option value="leadership" {{ $user->role == 'leadership' ? 'selected' : '' }}>Leadership</option>
-                                                        <option value="admin" {{ $user->role == 'admin' ? 'selected' : '' }}>Admin</option>
-                                                    </select>
-                                                </form>
-                                            </td>
+                                            <td>{{ $user->department?->name ?? '-' }}</td>
+                                            <td>{{ $roleLabels[$user->role] ?? $user->role }}</td>
                                             <td>
                                                 <span class="badge badge-success">{{ ucfirst($user->status) }}</span>
                                             </td>
                                             <td>
-                                                <!-- Additional actions can be added here -->
+                                                -
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center">No approved users</td>
+                                            <td colspan="6" class="text-center">No approved users</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

@@ -3,6 +3,7 @@ namespace Modules\Schedule\Application\InitializeMonthlySchedule;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\PlanTemplates;
@@ -16,8 +17,10 @@ class InitializeMonthlyScheduleHandler
         $targetMonth = (int) $validated['month'];
         $targetYear = (int) $validated['year'];
         $targetDate = Carbon::create($targetYear, $targetMonth, 1);
+        $targetMonthStart = $targetDate->copy()->startOfMonth();
+        $targetMonthEnd = $targetDate->copy()->endOfMonth();
 
-        return DB::transaction(function () use ($targetMonth, $targetYear, $targetDate, $request) {
+        return DB::transaction(function () use ($targetMonth, $targetYear, $targetDate, $targetMonthStart, $targetMonthEnd, $request) {
             $plans = Plans::query()
                 ->whereIn('status', ['draft', 'submitted', 'approved'])
                 ->whereNotNull('effective_from')
@@ -27,6 +30,8 @@ class InitializeMonthlyScheduleHandler
             $createdCount = 0;
             $slotCount = 0;
             $monthlyScheduleIds = [];
+            $eligiblePlans = 0;
+            $plansWithTemplates = 0;
 
             foreach ($plans as $plan) {
                 $planStart = Carbon::parse($plan->effective_from)->startOfMonth();
@@ -36,13 +41,33 @@ class InitializeMonthlyScheduleHandler
                     continue;
                 }
 
-                $templates = PlanTemplates::where('plan_id', $plan->id)
+                $eligiblePlans++;
+
+                $templates = PlanTemplates::query()
+                    ->where('plan_id', $plan->id)
+                    ->where(function ($query) use ($targetMonthStart, $targetMonthEnd) {
+                        $query
+                            // If template has date bounds, only apply when it overlaps target month.
+                            ->where(function ($q) use ($targetMonthStart, $targetMonthEnd) {
+                                $q->whereNotNull('start_date')
+                                    ->whereNotNull('end_date')
+                                    ->whereDate('start_date', '<=', $targetMonthEnd->toDateString())
+                                    ->whereDate('end_date', '>=', $targetMonthStart->toDateString());
+                            })
+                            // Backward compatibility for old templates without explicit date range.
+                            ->orWhere(function ($q) {
+                                $q->whereNull('start_date')
+                                    ->whereNull('end_date');
+                            });
+                    })
                     ->with(['subjects'])
                     ->get();
 
                 if ($templates->isEmpty()) {
                     continue;
                 }
+
+                $plansWithTemplates++;
 
                 // One MonthlySchedule per plan+month+year (class distinction is at ScheduleSlot level)
                 $monthlySchedule = MonthlySchedule::query()
@@ -65,6 +90,18 @@ class InitializeMonthlyScheduleHandler
                 $monthlyScheduleIds[] = $monthlySchedule->id;
 
                 $slotCount += $this->createScheduleSlots($monthlySchedule, $templates, $targetMonth, $targetYear);
+            }
+
+            if ($eligiblePlans === 0) {
+                throw ValidationException::withMessages([
+                    'month' => "Khong co ke hoach hoc ky nao hieu luc trong thang {$targetMonth}/{$targetYear}.",
+                ]);
+            }
+
+            if ($plansWithTemplates === 0) {
+                throw ValidationException::withMessages([
+                    'month' => "Khong co mau lich hoc (plan_templates) hieu luc cho thang {$targetMonth}/{$targetYear}. Vui long tao mau truoc khi khoi tao lich thang.",
+                ]);
             }
 
             return [
@@ -90,6 +127,8 @@ class InitializeMonthlyScheduleHandler
 
         foreach ($templates as $template) {
             $classId = $template->class_id;
+            $templateStart = $template->start_date ? Carbon::parse($template->start_date)->startOfDay() : null;
+            $templateEnd = $template->end_date ? Carbon::parse($template->end_date)->endOfDay() : null;
 
             $daysOfWeek = is_array($template->days_of_week)
                 ? $template->days_of_week
@@ -104,6 +143,10 @@ class InitializeMonthlyScheduleHandler
             $periods = range($periodStart, $periodEnd);
 
             for ($date = $monthStart->copy(); $date->lte($monthEnd); $date->addDay()) {
+                if (($templateStart && $date->lt($templateStart)) || ($templateEnd && $date->gt($templateEnd))) {
+                    continue;
+                }
+
                 $dotw = $date->dayOfWeekIso;
                 if (!in_array($dotw, $daysOfWeek, true)) {
                     continue;

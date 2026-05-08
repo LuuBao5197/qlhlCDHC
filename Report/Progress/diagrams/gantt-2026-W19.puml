@@ -1,0 +1,20 @@
+@startgantt
+Project starts the 2026-05-04
+printscale weekly
+saturday are closed
+sunday are closed
+
+[Master Data] lasts 4 days
+[Tao/Sua lich hoc ky] lasts 4 days
+[Khoi tao lich thang] lasts 2 days
+[Phan cong lich theo thang] lasts 3 days
+[Danh gia sau giang day] lasts 5 days
+
+[Master Data] starts the 2026-05-04
+[Tao/Sua lich hoc ky] starts the 2026-05-04
+[Khoi tao lich thang] starts the 2026-05-06
+[Phan cong lich theo thang] starts the 2026-05-06
+[Danh gia sau giang day] starts the 2026-05-08
+
+[Milestone W19 baseline] happens at 2026-05-10
+@endgantt

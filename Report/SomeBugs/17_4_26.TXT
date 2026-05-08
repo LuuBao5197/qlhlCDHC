@@ -1,2 +1,0 @@
-Plans không được để null effective_from and effective_to
-

@@ -27,6 +27,7 @@ class ReviewChangeRequestRequest extends FormRequest
             'reason' => ['nullable', 'string', 'max:1000', 'required_if:action,reject'],
             'comment' => ['nullable', 'string', 'max:1000'],
             'apply_changes' => ['nullable', 'boolean'],
+            'apply_mode' => ['nullable', 'string', Rule::in(['all_or_none', 'best_effort'])],
         ];
     }
 }

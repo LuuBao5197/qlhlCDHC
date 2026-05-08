@@ -159,7 +159,7 @@
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list" aria-labelledby="profileDropdown">
           <h6 class="p-3 mb-0">Profile</h6>
           <div class="dropdown-divider"></div>
-          <a class="dropdown-item preview-item">
+          {{-- <a class="dropdown-item preview-item">
             <div class="preview-thumbnail">
               <div class="preview-icon bg-dark rounded-circle">
                 <i class="mdi mdi-settings text-success"></i>
@@ -168,9 +168,9 @@
             <div class="preview-item-content">
               <p class="preview-subject mb-1">Settings</p>
             </div>
-          </a>
+          </a> --}}
           <div class="dropdown-divider"></div>
-          @if(auth()->user()->isAdmin())
+          @if(auth()?->user()?->isAdmin())
             <a class="dropdown-item preview-item" href="{{ route('admin.index') }}">
               <div class="preview-thumbnail">
                 <div class="preview-icon bg-dark rounded-circle">
@@ -183,16 +183,6 @@
             </a>
             <div class="dropdown-divider"></div>
           @endif
-          <a class="dropdown-item preview-item" href="{{ route('settings') }}">
-            <div class="preview-thumbnail">
-              <div class="preview-icon bg-dark rounded-circle">
-                <i class="mdi mdi-settings text-success"></i>
-              </div>
-            </div>
-            <div class="preview-item-content">
-              <p class="preview-subject mb-1">Settings</p>
-            </div>
-          </a>
           <div class="dropdown-divider"></div>
           <form method="POST" action="{{ route('logout') }}" class="m-0">
             @csrf

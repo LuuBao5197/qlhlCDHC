@@ -8,6 +8,11 @@ use Modules\Training\Application\Management\SubjectLessons\ManageSubjectLessonsC
 use Modules\Training\Application\Management\Subjects\ManageSubjectsController;
 use Modules\Training\Application\Management\Teachers\ManageTeachersController;
 use Modules\Training\Application\Management\TrainingClasses\ManageTrainingClassesController;
+use Modules\Training\Application\TeacherEvaluation\GetTeacherDailyLog\GetTeacherDailyLogController;
+use Modules\Training\Application\TeacherEvaluation\GetTeacherDailyLog\GetTeacherDailyLogEditController;
+use Modules\Training\Application\TeacherEvaluation\GetTeacherSlotEvaluation\GetTeacherSlotEvaluationController;
+use Modules\Training\Application\TeacherEvaluation\SubmitDailyLog\SubmitDailyLogController;
+use Modules\Training\Application\TeacherEvaluation\SubmitTeacherSlotEvaluation\SubmitTeacherSlotEvaluationController;
 
 Route::middleware(['auth', 'management.access'])->prefix('management')->name('management.')->group(function () {
     Route::apiResource('departments', ManageDepartmentsController::class);
@@ -17,4 +22,45 @@ Route::middleware(['auth', 'management.access'])->prefix('management')->name('ma
     Route::apiResource('subjects', ManageSubjectsController::class);
     Route::apiResource('subject-lessons', ManageSubjectLessonsController::class);
     Route::apiResource('students', ManageStudentsController::class);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Duty Log Routes — Nhật ký trực ban huấn luyện
+|--------------------------------------------------------------------------
+|
+| Nhân viên phòng đào tạo / trực ban ghi nhận toàn bộ tình hình trong ngày:
+|   - Quân số, vắng, nội dung từng tiết của tất cả lớp
+|   - Nhận xét tổng hợp hoạt động huấn luyện (Phần 2)
+| Truy cập: /duty-log?date=YYYY-MM-DD
+|
+*/
+Route::middleware(['auth'])->prefix('duty-log')->name('duty-log.')->group(function () {
+    // Trang xem nhật ký (chỉ đọc)
+    Route::get('/', GetTeacherDailyLogController::class)
+        ->name('index');
+
+    // Trang nhập/chỉnh sửa nhận xét tổng hợp (phần 2)
+    Route::get('/edit', GetTeacherDailyLogEditController::class)
+        ->name('edit');
+
+    // Lưu nhận xét tổng hợp (phần 2)
+    Route::post('/submit', SubmitDailyLogController::class)
+        ->name('submit');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Teacher Slot Evaluation Routes — Đánh giá tiết học
+|--------------------------------------------------------------------------
+|
+| Chỉ giáo viên phụ trách tiết học mới được đánh giá tiết đó.
+|
+*/
+Route::middleware(['auth'])->prefix('teacher-slot-evaluations')->name('teacher-slot-evaluations.')->group(function () {
+    Route::get('/', GetTeacherSlotEvaluationController::class)
+        ->name('index');
+
+    Route::post('/submit', SubmitTeacherSlotEvaluationController::class)
+        ->name('submit');
 });

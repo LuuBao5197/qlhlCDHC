@@ -35,5 +35,4 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [App\Http\Controllers\Admin\AdminController::class, 'index'])->name('index');
     Route::post('/users/{id}/approve', [App\Http\Controllers\Admin\AdminController::class, 'approve'])->name('users.approve');
     Route::post('/users/{id}/reject', [App\Http\Controllers\Admin\AdminController::class, 'reject'])->name('users.reject');
-    Route::put('/users/{id}/role', [App\Http\Controllers\Admin\AdminController::class, 'updateRole'])->name('users.update-role');
 });

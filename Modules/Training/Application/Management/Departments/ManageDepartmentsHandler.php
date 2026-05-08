@@ -16,7 +16,7 @@ class ManageDepartmentsHandler extends CrudHandler
 
     protected function relationships(): array
     {
-        return ['trainingClasses', 'subjects'];
+        return ['subjects'];
     }
 
     protected function searchColumns(): array

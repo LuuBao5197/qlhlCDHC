@@ -158,12 +158,10 @@
                     columns: [
                         { key: 'code', label: 'Ma lop' },
                         { key: 'name', label: 'Ten lop' },
-                        { key: 'department.name', label: 'Department' },
                         { key: 'course_year', label: 'Khoa' },
                         { key: 'status', label: 'Trang thai' }
                     ],
                     fields: [
-                        { key: 'department_id', label: 'Department', type: 'select', lookup: 'departments' },
                         { key: 'code', label: 'Ma lop', type: 'text', required: true },
                         { key: 'name', label: 'Ten lop', type: 'text', required: true },
                         { key: 'course_year', label: 'Khoa', type: 'number' },

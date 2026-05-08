@@ -7,6 +7,7 @@ use Modules\Schedule\Application\CreateScheduleSemester\CreateScheduleSemesterCo
 use Modules\Schedule\Application\UpdateSchedule\UpdateScheduleController;
 use Modules\Schedule\Application\DeleteSchedule\DeleteScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleController;
+use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestController;
 use Modules\Schedule\Application\ReviewChangeRequest\ReviewChangeRequestController;
 use Modules\Schedule\Application\ReviewMonthlySchedule\ReviewMonthlyScheduleController;
 use Modules\Schedule\Application\SubmitMonthlyScheduleToLeadership\SubmitMonthlyScheduleToLeadershipController;
@@ -63,6 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('monthly-schedule.submit-leadership');
     Route::post('/change-requests/{id}/review', ReviewChangeRequestController::class)
         ->name('change-request.review');
+    Route::post('/change-requests', CreateChangeRequestController::class)
+        ->name('change-request.store');
 
     // Semester schedule
     Route::get('/semester/{semester?}/{year?}/{className?}', GetScheduleSemesterController::class)

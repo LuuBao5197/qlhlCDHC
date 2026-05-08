@@ -33,31 +33,31 @@ class PlanTemplateSeeder extends Seeder
             [
                 'name' => 'Pattern 1',
                 'schedules' => [
-                    ['subjects' => [0], 'days' => [2, 4, 6], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 0],       // Môn 1: Thứ 2,4,6 Sáng tiết 1-5
-                    ['subjects' => [1], 'days' => [3, 5], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 0],         // Môn 2: Thứ 3,5 Sáng tiết 1-5
-                    ['subjects' => [2], 'days' => [2], 'session' => 'Chiều', 'period' => '6-9', 'date_offset' => 0],          // Môn 3: Thứ 2 Chiều tiết 6-9
-                    ['subjects' => [3], 'days' => [3], 'session' => 'Chiều', 'period' => '6-9', 'date_offset' => 0],          // Môn 4: Thứ 3 Chiều tiết 6-9
-                    ['subjects' => [4], 'days' => [4], 'session' => 'Chiều', 'period' => '6-9', 'date_offset' => 0],          // Môn 5: Thứ 4 Chiều tiết 6-9
+                    ['subjects' => [0], 'days' => [2, 4, 6], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 0],     // Mon 1: Thu 2,4,6 Sang tiet 1-5
+                    ['subjects' => [1], 'days' => [3, 5], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 0],       // Mon 2: Thu 3,5 Sang tiet 1-5
+                    ['subjects' => [2], 'days' => [2], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 0],         // Mon 3: Thu 2 Chieu tiet 6-9
+                    ['subjects' => [3], 'days' => [3], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 0],         // Mon 4: Thu 3 Chieu tiet 6-9
+                    ['subjects' => [4], 'days' => [4], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 0],         // Mon 5: Thu 4 Chieu tiet 6-9
                 ]
             ],
             [
                 'name' => 'Pattern 2',
                 'schedules' => [
-                    ['subjects' => [0], 'days' => [2, 3], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 14],        // Môn 1: Thứ 2,3 Sáng tiết 1-5
-                    ['subjects' => [1], 'days' => [4, 5], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 14],        // Môn 2: Thứ 4,5 Sáng tiết 1-5
-                    ['subjects' => [2], 'days' => [6], 'session' => 'Chiều', 'period' => '6-9', 'date_offset' => 14],          // Môn 3: Thứ 6 Chiều tiết 6-9
-                    ['subjects' => [3], 'days' => [7], 'session' => 'Chiều', 'period' => '6-9', 'date_offset' => 14],          // Môn 4: Thứ 7 Chiều tiết 6-9
-                    ['subjects' => [4], 'days' => [2, 4], 'session' => 'Chiều', 'period' => '1-5', 'date_offset' => 14],       // Môn 5: Thứ 2,4 Chiều tiết 1-5
+                    ['subjects' => [0], 'days' => [2, 3], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 14],      // Mon 1: Thu 2,3 Sang tiet 1-5
+                    ['subjects' => [1], 'days' => [4, 5], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 14],      // Mon 2: Thu 4,5 Sang tiet 1-5
+                    ['subjects' => [2], 'days' => [6], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 14],        // Mon 3: Thu 6 Chieu tiet 6-9
+                    ['subjects' => [3], 'days' => [7], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 14],        // Mon 4: Thu 7 Chieu tiet 6-9
+                    ['subjects' => [4], 'days' => [2, 4], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 14],      // Mon 5: Thu 2,4 Chieu tiet 6-9
                 ]
             ],
             [
                 'name' => 'Pattern 3',
                 'schedules' => [
-                    ['subjects' => [0], 'days' => [2, 5], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 28],        // Môn 1: Thứ 2,5 Sáng tiết 1-5
-                    ['subjects' => [1], 'days' => [3, 4], 'session' => 'Chiều', 'period' => '6-9', 'date_offset' => 28],       // Môn 2: Thứ 3,4 Chiều tiết 6-9
-                    ['subjects' => [2], 'days' => [6], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 28],           // Môn 3: Thứ 6 Sáng tiết 1-5
-                    ['subjects' => [3], 'days' => [7], 'session' => 'Sáng', 'period' => '1-5', 'date_offset' => 28],           // Môn 4: Thứ 7 Sáng tiết 1-5
-                    ['subjects' => [4], 'days' => [3, 5], 'session' => 'Sáng', 'period' => '6-9', 'date_offset' => 28],        // Môn 5: Thứ 3,5 Sáng tiết 6-9
+                    ['subjects' => [0], 'days' => [2, 5], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 28],      // Mon 1: Thu 2,5 Sang tiet 1-5
+                    ['subjects' => [1], 'days' => [3, 4], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 28],     // Mon 2: Thu 3,4 Chieu tiet 6-9
+                    ['subjects' => [2], 'days' => [6], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 28],         // Mon 3: Thu 6 Sang tiet 1-5
+                    ['subjects' => [3], 'days' => [7], 'session' => 'Sang', 'period' => '1-5', 'date_offset' => 28],         // Mon 4: Thu 7 Sang tiet 1-5
+                    ['subjects' => [4], 'days' => [2, 7], 'session' => 'Chieu', 'period' => '6-9', 'date_offset' => 28],     // Mon 5: Thu 2,7 Chieu tiet 6-9
                 ]
             ]
         ];

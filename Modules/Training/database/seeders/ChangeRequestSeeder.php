@@ -15,8 +15,9 @@ class ChangeRequestSeeder extends Seeder
 
         MonthlySchedule::query()->with('scheduleSlots')->take(2)->get()->each(function (MonthlySchedule $monthlySchedule) use ($requestedBy) {
             $slot = $monthlySchedule->scheduleSlots->first();
+            $secondSlot = $monthlySchedule->scheduleSlots->skip(1)->first();
 
-            ChangeRequest::updateOrCreate(
+            $changeRequest = ChangeRequest::updateOrCreate(
                 [
                     'monthly_schedule_id' => $monthlySchedule->id,
                     'schedule_slot_id' => $slot?->id,
@@ -27,10 +28,34 @@ class ChangeRequestSeeder extends Seeder
                     'old_payload' => ['subject' => $slot?->subject, 'room_id' => $slot?->room_id],
                     'new_payload' => ['subject' => $slot?->subject, 'room_id' => $slot?->room_id],
                     'status' => 'pending',
+                    'apply_mode' => 'all_or_none',
+                    'apply_changes' => true,
+                    'apply_summary' => null,
                     'submitted_at' => now(),
                     'resolved_at' => null,
                 ]
             );
+
+            $changeRequest->changeRequestItems()->delete();
+
+            collect([$slot, $secondSlot])
+                ->filter()
+                ->each(function ($targetSlot) use ($changeRequest): void {
+                    $changeRequest->changeRequestItems()->create([
+                        'schedule_slot_id' => $targetSlot->id,
+                        'old_payload' => [
+                            'room_id' => $targetSlot->room_id,
+                            'content' => $targetSlot->content,
+                        ],
+                        'new_payload' => [
+                            'room_id' => $targetSlot->room_id,
+                            'content' => $targetSlot->content,
+                        ],
+                        'apply_status' => null,
+                        'apply_error' => null,
+                        'applied_at' => null,
+                    ]);
+                });
         });
     }
 }

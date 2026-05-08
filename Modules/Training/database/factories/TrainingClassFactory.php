@@ -2,7 +2,6 @@
 
 namespace Modules\Training\Database\Factories;
 
-use Modules\Training\Models\Department;
 use Modules\Training\Models\TrainingClass;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,7 +18,6 @@ class TrainingClassFactory extends Factory
     public function definition(): array
     {
         return [
-            'department_id' => Department::factory(),
             'code' => fake()->unique()->bothify('CLS-##??'),
             'name' => 'Lop ' . fake()->unique()->bothify('##??'),
             'course_year' => fake()->numberBetween(2023, 2030),

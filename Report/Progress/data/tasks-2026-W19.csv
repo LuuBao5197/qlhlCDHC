@@ -1,0 +1,8 @@
+task_id,module,title,owner,status,estimate_hours,spent_hours,start_date,due_date
+TRN-MD-01,Training,Master Data CRUD baseline,Team,Done,16,18,2026-05-04,2026-05-07
+SCH-SEM-01,Schedule,Tao lich hoc ky,Team,Done,10,10,2026-05-04,2026-05-06
+SCH-SEM-02,Schedule,Sua lich hoc ky,Team,Done,8,9,2026-05-05,2026-05-07
+SCH-MON-01,Schedule,Khoi tao lich thang,Team,Done,6,6,2026-05-06,2026-05-07
+SCH-MON-02,Schedule,Phan cong lich theo thang,Team,Done,10,11,2026-05-06,2026-05-09
+TRN-EVAL-01,Training,Hoan thien danh gia sau giang day,Team,InProgress,14,6,2026-05-08,2026-05-14
+TRN-EVAL-02,Training,Hardening validation va error handling,Team,InProgress,8,3,2026-05-09,2026-05-14

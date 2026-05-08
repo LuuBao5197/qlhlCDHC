@@ -20,8 +20,8 @@ class DatabaseSeeder extends Seeder
         $this->createSeedUsers();
 
         $this->call([
-            TrainingDatabaseSeeder::class,  // Run first to create subjects, classes, etc.
-            ScheduleDatabaseSeeder::class,  // Then create plans and templates
+            // TrainingDatabaseSeeder::class,  // Run first to create subjects, classes, etc.
+            // ScheduleDatabaseSeeder::class,  // Then create plans and templates
         ]);
     }
 

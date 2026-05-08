@@ -5,6 +5,9 @@ namespace Modules\Schedule\Application\GetSchedule;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\ChangeRequest;
+use Modules\Training\Models\Room;
+use Modules\Training\Models\SubjectLesson;
+use Modules\Training\Models\Teacher;
 
 class GetScheduleHandler
 {
@@ -22,7 +25,17 @@ class GetScheduleHandler
             ->withQueryString();
 
         $monthlySchedules = MonthlySchedule::query()
-            ->with(['plan', 'createdBy', 'approvedBy'])
+            ->with([
+                'plan',
+                'createdBy',
+                'approvedBy',
+                'scheduleSlots' => static function ($query): void {
+                    $query
+                        ->with(['trainingClass', 'room', 'subjectModel', 'teacher', 'subjectLesson'])
+                        ->orderBy('date')
+                        ->orderBy('period_number');
+                },
+            ])
             ->orderByDesc('year')
             ->orderByDesc('month')
             ->orderByDesc('id')
@@ -30,16 +43,67 @@ class GetScheduleHandler
             ->get();
 
         $changeRequests = ChangeRequest::query()
-            ->with(['monthlySchedule.plan', 'scheduleSlot', 'requestedBy'])
+            ->with([
+                'monthlySchedule.plan',
+                'scheduleSlot.trainingClass',
+                'scheduleSlot.teacher',
+                'scheduleSlot.subjectModel',
+                'scheduleSlot.subjectLesson.subject',
+                'scheduleSlot.room',
+                'requestedBy.department',
+                'changeRequestItems.scheduleSlot.trainingClass',
+                'changeRequestItems.scheduleSlot.teacher',
+                'changeRequestItems.scheduleSlot.subjectModel',
+                'changeRequestItems.scheduleSlot.subjectLesson.subject',
+                'changeRequestItems.scheduleSlot.room',
+            ])
             ->orderByDesc('submitted_at')
             ->orderByDesc('id')
             ->limit(20)
             ->get();
 
+        $rooms = Room::query()
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
+
+        // $teachers = User::query()
+        //     ->where('role', User::ROLE_TEACHER)
+        //     ->orderBy('name')
+        //     ->get(['id', 'name', 'employee_code']);
+
+        $authUser = $request->user();
+        $departmentId = $authUser?->department_id;
+
+        $teachersQuery = Teacher::query()
+            ->orderBy('name');
+
+        if ($authUser?->isDepartmentStaff() && $departmentId) {
+            $teachersQuery->where('department_id', $departmentId);
+        }
+
+        $teachers = $teachersQuery
+            ->select(['id', 'name', 'teacher_code as employee_code', 'department_id'])
+            ->get();
+
+        // Unfiltered lookup for rendering labels in review tables (before/after change payload).
+        $teacherLookup = Teacher::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'teacher_code']);
+
+        $subjectLessons = SubjectLesson::query()
+            ->with(['subject:id,code,name'])
+            ->orderBy('subject_id')
+            ->orderBy('lesson_no')
+            ->get(['id', 'subject_id', 'lesson_no', 'title']);
+
         return view('schedule::index', [
             'schedules' => $schedules,
             'monthlySchedules' => $monthlySchedules,
             'changeRequests' => $changeRequests,
+            'rooms' => $rooms,
+            'teachers' => $teachers,
+            'teacherLookup' => $teacherLookup,
+            'subjectLessons' => $subjectLessons,
         ]);
     }
 }

@@ -1,0 +1,5 @@
+bug_id,severity,area,title,status,opened_date,closed_date,owner
+BUG-241,High,Training Management,Unknown column classes.department_id,Closed,2026-05-04,2026-05-04,Team
+BUG-242,Medium,Schedule Seeder,Template overlap causes validation conflict,Closed,2026-05-04,2026-05-04,Team
+BUG-243,Medium,Training Classes UI,department_id field stale in form,Closed,2026-05-04,2026-05-04,Team
+BUG-244,Low,Evaluation Flow,Edge-case validation message mismatch,Open,2026-05-04,,Team

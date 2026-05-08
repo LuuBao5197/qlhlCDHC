@@ -5,9 +5,11 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Modules\Training\Models\Department;
+use Modules\Training\Models\Teacher;
 
 class User extends Authenticatable
 {
@@ -50,8 +52,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'requested_role',
         'status',
         'department_id',
+        'requested_department_id',
         'employee_code',
         'phone',
     ];
@@ -79,6 +83,16 @@ class User extends Authenticatable
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function requestedDepartment(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'requested_department_id');
+    }
+
+    public function teacher(): HasOne
+    {
+        return $this->hasOne(Teacher::class);
     }
 
     public function isRole(string $role): bool

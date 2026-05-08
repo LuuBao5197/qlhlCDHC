@@ -3,13 +3,14 @@
 namespace Modules\Schedule\Models;
 
 use Modules\Training\Models\ChangeRequest;
+use Modules\Training\Models\ChangeRequestItem;
 use Modules\Training\Models\DailyTrainingLog;
 use Modules\Training\Models\Room;
 use Modules\Training\Models\SlotEvaluation;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\SubjectLesson;
+use Modules\Training\Models\Teacher;
 use Modules\Training\Models\TrainingClass;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -52,7 +53,7 @@ class ScheduleSlot extends Model
 
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'teacher_id');
+        return $this->belongsTo(Teacher::class, 'teacher_id');
     }
 
     public function subjectModel(): BelongsTo
@@ -83,5 +84,10 @@ class ScheduleSlot extends Model
     public function changeRequests(): HasMany
     {
         return $this->hasMany(ChangeRequest::class);
+    }
+
+    public function changeRequestItems(): HasMany
+    {
+        return $this->hasMany(ChangeRequestItem::class);
     }
 }

@@ -36,12 +36,18 @@ class TeacherSeeder extends Seeder
             ->each(function (User $user) use ($defaultDepartment): void {
                 $teacherCode = $user->employee_code ?: 'GV-' . str_pad((string) $user->id, 4, '0', STR_PAD_LEFT);
 
+                Teacher::query()
+                    ->where('user_id', $user->id)
+                    ->where('teacher_code', '!=', $teacherCode)
+                    ->update(['user_id' => null]);
+
                 Teacher::updateOrCreate(
                     ['teacher_code' => $teacherCode],
                     [
                         'name' => $user->name,
                         'status' => $user->isApproved() ? 'active' : 'inactive',
                         'department_id' => $user->department_id ?? $defaultDepartment?->id,
+                        'user_id' => $user->id,
                     ]
                 );
             });

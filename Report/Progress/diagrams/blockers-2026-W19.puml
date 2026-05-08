@@ -1,0 +1,12 @@
+@startmindmap 
+* Week 2026-W19 Blockers
+** Resolved
+*** classes.department_id mismatch after schema change
+*** stale validation in training management handlers
+** Monitoring
+*** regression risk after FK removal
+*** seed-data consistency after schedule updates
+** Next mitigation
+*** smoke test critical flows
+*** add focused regression checks
+@endmindmap

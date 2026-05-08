@@ -2,6 +2,7 @@
 namespace Modules\Schedule\Application\InitializeMonthlySchedule;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\Plans;
 
 class InitializeMonthlyScheduleController extends Controller
@@ -26,6 +27,8 @@ class InitializeMonthlyScheduleController extends Controller
             return redirect()->route('schedule.index')
 
                 ->with('success', "Da khoi tao {$result['created_schedules']} lich thang thanh cong.");
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }

@@ -4,7 +4,9 @@
 
 @section('content')
     @php
-        $selectedClassIds = collect(old('selected_class_ids', $selectedClassIds ?? []))->map(fn($id) => (string) $id)->all();
+        $selectedClassIds = collect(old('selected_class_ids', $selectedClassIds ?? []))
+            ->map(fn($id) => (string) $id)
+            ->all();
         $oldRules = old('class_tab_rules', $oldRules ?? []);
         $oldExtraClass = old('class_name', '');
     @endphp
@@ -71,6 +73,14 @@
             border-radius: 999px;
             background: #fff;
         }
+
+        .btn.btn-primary {
+            cursor: pointer;
+        }
+
+        .btn.btn-primary:disabled {
+            cursor: not-allowed;
+        }
     </style>
 
     <div class="row">
@@ -106,8 +116,10 @@
                             <div class="col-md-3">
                                 <label class="form-label">Hoc ky</label>
                                 <select name="semester" class="form-control" required>
-                                    <option value="1" {{ old('semester', $plan->semester) == 1 ? 'selected' : '' }}>Hoc ky 1</option>
-                                    <option value="2" {{ old('semester', $plan->semester) == 2 ? 'selected' : '' }}>Hoc ky 2</option>
+                                    <option value="1" {{ old('semester', $plan->semester) == 1 ? 'selected' : '' }}>Hoc
+                                        ky 1</option>
+                                    <option value="2" {{ old('semester', $plan->semester) == 2 ? 'selected' : '' }}>Hoc
+                                        ky 2</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -207,6 +219,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const weekdayOptions = @json($weekdayOptions);
             const oldRules = @json($oldRules);
+            const serverErrors = @json($errors->all());
             const importUrl = @json(route('schedule.import-template'));
             const tabs = document.getElementById('classTabs');
             const content = document.getElementById('classTabContent');
@@ -217,6 +230,11 @@
             const checkboxes = Array.from(document.querySelectorAll('.class-checkbox'));
             const form = document.getElementById('scheduleForm');
             const submitButton = form.querySelector('button[type="submit"]');
+            const topActionBar = form.querySelector('.d-flex.justify-content-between.mt-4');
+            const validationAlert = document.createElement('div');
+            validationAlert.className = 'alert alert-danger d-none';
+            validationAlert.id = 'ruleValidationAlert';
+            form.insertBefore(validationAlert, topActionBar);
             const counters = {};
 
             const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -281,28 +299,58 @@
                 }
             };
 
-            const parseRule = (card) => {
+            const parseDateSafe = (value) => {
+                if (!value) return null;
+                const date = new Date(`${value}T00:00:00`);
+                return Number.isNaN(date.getTime()) ? null : date;
+            };
+
+            const validateRuleShape = (card) => {
                 const startDate = card.querySelector('input[name$="[start_date]"]')?.value || '';
                 const endDate = card.querySelector('input[name$="[end_date]"]')?.value || '';
-                const periodFrom = Number(card.querySelector('input[name$="[period_from]"]')?.value || '');
-                const periodTo = Number(card.querySelector('input[name$="[period_to]"]')?.value || '');
+                const periodFromValue = card.querySelector('input[name$="[period_from]"]')?.value || '';
+                const periodToValue = card.querySelector('input[name$="[period_to]"]')?.value || '';
+                const periodFrom = Number(periodFromValue);
+                const periodTo = Number(periodToValue);
                 const weekdays = Array.from(card.querySelectorAll('input[name*="[weekdays]"]:checked')).map((
                     input) => Number(input.value));
+                const errors = [];
+                const parsedStart = parseDateSafe(startDate);
+                const parsedEnd = parseDateSafe(endDate);
 
-                if (!startDate || !endDate || !periodFrom || !periodTo || weekdays.length === 0) {
-                    return null;
+                if (!parsedStart) errors.push('Thieu hoac sai ngay bat dau.');
+                if (!parsedEnd) errors.push('Thieu hoac sai ngay ket thuc.');
+
+                if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
+                    errors.push('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
                 }
 
-                if (periodFrom > periodTo) {
-                    return null;
+                if (!Number.isInteger(periodFrom) || periodFrom < 1 || periodFrom > 9) {
+                    errors.push('Tiet bat dau phai nam trong khoang 1-9.');
+                }
+
+                if (!Number.isInteger(periodTo) || periodTo < 1 || periodTo > 9) {
+                    errors.push('Tiet ket thuc phai nam trong khoang 1-9.');
+                }
+
+                if (Number.isInteger(periodFrom) && Number.isInteger(periodTo) && periodFrom > periodTo) {
+                    errors.push('Tiet ket thuc phai lon hon hoac bang tiet bat dau.');
+                }
+
+                if (weekdays.length === 0) {
+                    errors.push('Phai chon it nhat mot thu hoc.');
                 }
 
                 return {
-                    startDate,
-                    endDate,
-                    periodFrom,
-                    periodTo,
-                    weekdays
+                    valid: errors.length === 0,
+                    errors,
+                    data: {
+                        startDate,
+                        endDate,
+                        periodFrom,
+                        periodTo,
+                        weekdays
+                    }
                 };
             };
 
@@ -322,15 +370,26 @@
                 clearRuleErrors();
 
                 let hasConflict = false;
+                let hasInvalidRule = false;
+                let firstErrorPaneKey = null;
+                const summaryMessages = new Set();
                 content.querySelectorAll('.class-pane').forEach((pane) => {
                     const slotOwners = new Map();
                     const classLabel = pane.querySelector('h6')?.textContent || 'lop';
 
                     pane.querySelectorAll('.rule-card').forEach((card) => {
-                        const parsed = parseRule(card);
-                        if (!parsed) {
+                        const checked = validateRuleShape(card);
+                        if (!checked.valid) {
+                            hasInvalidRule = true;
+                            checked.errors.forEach((message) => appendRuleError(card, message));
+                            summaryMessages.add(`Co rule du lieu chua hop le trong ${classLabel}.`);
+                            if (!firstErrorPaneKey) {
+                                firstErrorPaneKey = pane.dataset.key;
+                            }
                             return;
                         }
+
+                        const parsed = checked.data;
 
                         const start = new Date(`${parsed.startDate}T00:00:00`);
                         const end = new Date(`${parsed.endDate}T00:00:00`);
@@ -346,12 +405,16 @@
                                 const slotKey = `${dateKey}|${period}`;
                                 if (slotOwners.has(slotKey)) {
                                     hasConflict = true;
+                                    summaryMessages.add(`Co rule bi trung lich trong ${classLabel}.`);
+                                    if (!firstErrorPaneKey) {
+                                        firstErrorPaneKey = pane.dataset.key;
+                                    }
                                     appendRuleError(card,
                                         `Trung lich voi rule khac trong ${classLabel} tai ${dateKey}, tiet ${period}.`
-                                        );
+                                    );
                                     appendRuleError(slotOwners.get(slotKey),
                                         `Trung lich voi rule khac trong ${classLabel} tai ${dateKey}, tiet ${period}.`
-                                        );
+                                    );
                                 } else {
                                     slotOwners.set(slotKey, card);
                                 }
@@ -360,8 +423,102 @@
                     });
                 });
 
-                submitButton.disabled = hasConflict;
-                return !hasConflict;
+                const hasErrors = hasConflict || hasInvalidRule;
+                submitButton.disabled = hasErrors;
+
+                if (hasErrors) {
+                    validationAlert.classList.remove('d-none');
+                    validationAlert.innerHTML = Array.from(summaryMessages)
+                        .map((message) => `<div>${esc(message)}</div>`)
+                        .join('');
+
+                    if (firstErrorPaneKey) {
+                        activate(firstErrorPaneKey);
+                    }
+                } else {
+                    validationAlert.classList.add('d-none');
+                    validationAlert.innerHTML = '';
+                }
+
+                return !hasErrors;
+            };
+
+            const resolveClassKeyFromServerLabel = (serverLabel) => {
+                const normalized = String(serverLabel ?? '').trim().toLowerCase();
+                if (!normalized) return null;
+
+                const match = checkboxes.find((cb) => {
+                    const code = String(cb.dataset.code ?? '').trim().toLowerCase();
+                    const label = String(cb.dataset.label ?? '').trim().toLowerCase();
+                    return code === normalized || label === normalized || label.startsWith(`${normalized} -`);
+                });
+
+                return match ? String(match.value) : null;
+            };
+
+            const applyServerRuleErrors = () => {
+                if (!Array.isArray(serverErrors) || serverErrors.length === 0) {
+                    return;
+                }
+
+                const summaryMessages = new Set();
+                const rulePattern = /^Dong quy tac #(\d+) cua lop '([^']+)'\s*(.*)$/i;
+                let hasMappedError = false;
+                let firstPaneKey = null;
+
+                serverErrors.forEach((message) => {
+                    const text = String(message ?? '').trim();
+                    if (!text) {
+                        return;
+                    }
+
+                    const matched = text.match(rulePattern);
+                    if (!matched) {
+                        summaryMessages.add(text);
+                        return;
+                    }
+
+                    const ruleIndex = Math.max(0, Number(matched[1]) - 1);
+                    const classLabel = matched[2];
+                    const detail = matched[3] ? matched[3].trim() : text;
+                    const classKey = resolveClassKeyFromServerLabel(classLabel);
+
+                    if (!classKey) {
+                        summaryMessages.add(text);
+                        return;
+                    }
+
+                    ensurePane(classKey);
+                    const pane = document.getElementById(paneId(classKey));
+                    const cards = pane ? Array.from(pane.querySelectorAll('.rule-card')) : [];
+                    const card = cards[ruleIndex] ?? null;
+
+                    if (!card) {
+                        summaryMessages.add(text);
+                        return;
+                    }
+
+                    appendRuleError(card, detail);
+                    hasMappedError = true;
+                    summaryMessages.add(`Co loi du lieu o lop ${labelOf(classKey)}.`);
+                    if (!firstPaneKey) {
+                        firstPaneKey = classKey;
+                    }
+                });
+
+                if (!hasMappedError && summaryMessages.size === 0) {
+                    return;
+                }
+
+                submitButton.disabled = true;
+                validationAlert.classList.remove('d-none');
+                validationAlert.innerHTML = Array.from(summaryMessages)
+                    .map((item) => `<div>${esc(item)}</div>`)
+                    .join('');
+
+                if (firstPaneKey) {
+                    activate(firstPaneKey);
+                }
             };
 
             const weekdayHtml = (k, i, picked) => weekdayOptions.map((d) => {
@@ -506,6 +663,9 @@
             syncChecks();
             updateEmpty();
             validateRuleConflicts();
+            applyServerRuleErrors();
         });
+
+
     </script>
 @endsection

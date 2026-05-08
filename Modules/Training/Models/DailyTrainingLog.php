@@ -18,9 +18,12 @@ class DailyTrainingLog extends Model
         'teacher_id',
         'actual_date',
         'actual_period_number',
+        'attendance_count',
+        'absent_count',
         'result_status',
         'actual_content',
         'issue_note',
+        'remarks',
         'checked_by',
         'checked_at',
     ];

@@ -16,6 +16,8 @@ class SlotEvaluation extends Model
     protected $fillable = [
         'schedule_slot_id',
         'evaluator_id',
+        'attendance_count',
+        'absent_count',
         'score',
         'comment',
     ];

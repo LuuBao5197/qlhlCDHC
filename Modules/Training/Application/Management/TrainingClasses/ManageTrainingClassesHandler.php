@@ -16,7 +16,7 @@ class ManageTrainingClassesHandler extends CrudHandler
 
     protected function relationships(): array
     {
-        return ['department', 'students'];
+        return ['students'];
     }
 
     protected function searchColumns(): array
@@ -27,7 +27,6 @@ class ManageTrainingClassesHandler extends CrudHandler
     protected function rules(Request $request, ?int $id = null): array
     {
         return [
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'code' => ['required', 'string', 'max:255', Rule::unique('classes', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:255', Rule::unique('classes', 'name')->ignore($id)],
             'course_year' => ['nullable', 'integer', 'min:2000', 'max:' . ((int) date('Y') + 10)],

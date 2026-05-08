@@ -29,6 +29,14 @@
                 <form method="POST" action="{{ route('register.perform') }}">
                   @csrf
 
+                  @php
+                    $roleLabels = [
+                      \App\Models\User::ROLE_TEACHER => 'Giáo viên',
+                      \App\Models\User::ROLE_DEPARTMENT_STAFF => 'Nhân viên khoa',
+                      \App\Models\User::ROLE_TRAINING_OFFICE => 'Nhân viên phòng đào tạo',
+                    ];
+                  @endphp
+
                   @if ($errors->any())
                       <div class="alert alert-danger">
                           <ul class="mb-0">
@@ -46,6 +54,39 @@
                   <div class="form-group">
                     <label>Email</label>
                     <input type="email" name="email" value="{{ old('email') }}" class="form-control p_input" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Vai trò đăng ký</label>
+                    <select id="registerRole" name="role" class="form-control p_input" required>
+                      <option value="">-- Chọn vai trò --</option>
+                      @foreach($roleLabels as $roleKey => $roleLabel)
+                        <option value="{{ $roleKey }}" {{ old('role') === $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
+                      @endforeach
+                    </select>
+                    <small class="text-muted">Chỉ được đăng ký: Giáo viên, Nhân viên khoa, Nhân viên phòng đào tạo.</small>
+                  </div>
+                  <div id="teacherCodeField" class="form-group">
+                    <label>Mã giáo viên</label>
+                    <input
+                      id="registerTeacherCode"
+                      type="text"
+                      name="employee_code"
+                      value="{{ old('employee_code') }}"
+                      class="form-control p_input"
+                      placeholder="Ví dụ: GV-0001"
+                    >
+                    <small class="text-muted">Bắt buộc với vai trò Giáo viên. Mỗi mã chỉ dùng cho một tài khoản.</small>
+                  </div>
+                  <div id="departmentField" class="form-group">
+                    <label>Khoa</label>
+                    <select id="registerDepartment" name="department_id" class="form-control p_input">
+                      <option value="">-- Chọn khoa (bắt buộc với Giáo viên/Nhân viên khoa) --</option>
+                      @foreach(($departments ?? collect()) as $department)
+                        <option value="{{ $department->id }}" {{ (string) old('department_id') === (string) $department->id ? 'selected' : '' }}>
+                          {{ $department->code }} - {{ $department->name }}
+                        </option>
+                      @endforeach
+                    </select>
                   </div>
                   <div class="form-group">
                     <label>Password</label>
@@ -95,6 +136,44 @@
     <script src="{{ asset('assets') }}/js/misc.js"></script>
     <script src="{{ asset('assets') }}/js/settings.js"></script>
     <script src="{{ asset('assets') }}/js/todolist.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var roleSelect = document.getElementById('registerRole');
+        var teacherCodeWrapper = document.getElementById('teacherCodeField');
+        var teacherCodeInput = document.getElementById('registerTeacherCode');
+        var departmentWrapper = document.getElementById('departmentField');
+        var departmentSelect = document.getElementById('registerDepartment');
+
+        if (!roleSelect || !teacherCodeWrapper || !teacherCodeInput || !departmentWrapper || !departmentSelect) {
+          return;
+        }
+
+        var rolesNeedDepartment = ['teacher', 'department_staff'];
+
+        var syncDepartmentField = function () {
+          var selectedRole = roleSelect.value;
+          var isTeacher = selectedRole === 'teacher';
+          var isRequired = rolesNeedDepartment.indexOf(selectedRole) !== -1;
+
+          teacherCodeWrapper.style.display = isTeacher ? '' : 'none';
+          teacherCodeInput.required = isTeacher;
+
+          if (!isTeacher) {
+            teacherCodeInput.value = '';
+          }
+
+          departmentWrapper.style.display = isRequired ? '' : 'none';
+          departmentSelect.required = isRequired;
+
+          if (!isRequired) {
+            departmentSelect.value = '';
+          }
+        };
+
+        roleSelect.addEventListener('change', syncDepartmentField);
+        syncDepartmentField();
+      });
+    </script>
     <!-- endinject -->
   </body>
 </html>
