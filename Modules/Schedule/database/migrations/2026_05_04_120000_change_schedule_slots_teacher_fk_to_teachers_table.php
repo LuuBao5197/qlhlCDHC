@@ -13,7 +13,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('schedule_slots', function (Blueprint $table) {
-            $table->dropForeign(['teacher_id']);
+            try {
+                $table->dropForeign(['teacher_id']);
+            } catch (\Exception $e) {
+            }
         });
 
         // Ensure existing values are valid for the new FK target.
@@ -36,7 +39,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('schedule_slots', function (Blueprint $table) {
-            $table->dropForeign(['teacher_id']);
+            try {
+                $table->dropForeign(['teacher_id']);
+            } catch (\Exception $e) {
+            }
         });
 
         // Ensure existing values are valid for rollback FK target.

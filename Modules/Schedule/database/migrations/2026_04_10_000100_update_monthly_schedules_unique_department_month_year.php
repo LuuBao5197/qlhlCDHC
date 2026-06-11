@@ -12,9 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('monthly_schedules', function (Blueprint $table) {
-            $table->dropForeign(['plan_id']);
-            $table->dropForeign(['class_id']);
-            $table->dropUnique('monthly_schedules_plan_class_month_year_unique');
+            try {
+                $table->dropForeign(['plan_id']);
+            } catch (\Exception $e) {
+            }
+
+            try {
+                $table->dropForeign(['class_id']);
+            } catch (\Exception $e) {
+            }
+
+            try {
+                $table->dropUnique('monthly_schedules_plan_class_month_year_unique');
+            } catch (\Exception $e) {
+            }
+
             $table->foreign('plan_id')->references('id')->on('plans')->cascadeOnDelete();
             $table->foreign('class_id')->references('id')->on('classes')->nullOnDelete();
             $table->unique(
@@ -30,9 +42,21 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('monthly_schedules', function (Blueprint $table) {
-            $table->dropForeign(['plan_id']);
-            $table->dropForeign(['class_id']);
-            $table->dropUnique('monthly_schedules_plan_department_month_year_unique');
+            try {
+                $table->dropForeign(['plan_id']);
+            } catch (\Exception $e) {
+            }
+
+            try {
+                $table->dropForeign(['class_id']);
+            } catch (\Exception $e) {
+            }
+
+            try {
+                $table->dropUnique('monthly_schedules_plan_department_month_year_unique');
+            } catch (\Exception $e) {
+            }
+
             $table->foreign('plan_id')->references('id')->on('plans')->cascadeOnDelete();
             $table->foreign('class_id')->references('id')->on('classes')->nullOnDelete();
             $table->unique(

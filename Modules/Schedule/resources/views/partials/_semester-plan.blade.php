@@ -7,7 +7,9 @@
                         <h5 class="mb-1">Ke hoach hoc ky</h5>
                         <small class="text-muted">Danh sach ke hoach hoc ky va thao tac UC4.</small>
                     </div>
-                    <a href="{{ route('schedule.create') }}" class="btn btn-sm btn-outline-primary">Tao ke hoach</a>
+                    @if ($canReviewWorkflow)
+                        <a href="{{ route('schedule.create') }}" class="btn btn-sm btn-outline-primary">Tao ke hoach</a>
+                    @endif
                 </div>
 
                 <div class="table-responsive">
@@ -45,7 +47,7 @@
                                     <td>
                                         <div class="d-flex flex-wrap gap-2 align-items-center">
                                             {{-- Edit Button --}}
-                                            @if (in_array($schedule->status, ['draft'], true))
+                                            @if ($canReviewWorkflow && in_array($schedule->status, ['draft'], true))
                                                 <a href="{{ route('schedule.edit', $schedule->id) }}"
                                                     class="btn btn-sm btn-outline-warning">
                                                     <i class="fas fa-edit"></i> Sua
@@ -53,7 +55,7 @@
                                             @endif
 
                                             {{-- Delete Button --}}
-                                            @if (in_array($schedule->status, ['draft', 'returned'], true))
+                                            @if ($canReviewWorkflow && in_array($schedule->status, ['draft', 'returned'], true))
                                                 <form method="POST"
                                                     action="{{ route('schedule.destroy', $schedule->id) }}"
                                                     style="display: inline;">

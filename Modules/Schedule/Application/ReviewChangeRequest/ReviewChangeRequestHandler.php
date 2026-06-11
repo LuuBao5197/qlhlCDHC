@@ -3,6 +3,7 @@
 namespace Modules\Schedule\Application\ReviewChangeRequest;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\ApprovalAction;
 use Modules\Training\Models\ApprovalRequest;
@@ -11,6 +12,13 @@ use Throwable;
 
 class ReviewChangeRequestHandler
 {
+    private const CHANGE_TYPE_HOLIDAY = 'holiday_reschedule';
+
+    /**
+     * @var array<int, array<int>>
+     */
+    private array $planMonthlyScheduleScopeCache = [];
+
     /**
      * Handle review for a schedule change request.
      */
@@ -38,6 +46,20 @@ class ReviewChangeRequestHandler
 
                 $now = now();
                 $actorId = $request->user()->id;
+
+                if (
+                    $isApproved
+                    && (string) ($changeRequest->change_type ?? 'general') === self::CHANGE_TYPE_HOLIDAY
+                    && $changeRequest->requested_by !== null
+                    && (int) $changeRequest->requested_by === (int) $actorId
+                ) {
+                    return [
+                        'ok' => false,
+                        'status' => 422,
+                        'message' => 'Khong duoc tu phe duyet phieu doi lich nghi le/tet do chinh ban tao.',
+                    ];
+                }
+
                 $applyChanges = (bool) ($validated['apply_changes'] ?? true);
                 $applyMode = (string) ($validated['apply_mode'] ?? $changeRequest->apply_mode ?? 'all_or_none');
                 $applySummary = null;
@@ -155,7 +177,8 @@ class ReviewChangeRequestHandler
     {
         $items = $changeRequest->changeRequestItems;
         $now = now();
-        $assignmentMap = [];
+        $teacherAssignmentMap = [];
+        $classAssignmentMap = [];
         $batchSlotIds = $items
             ->pluck('schedule_slot_id')
             ->filter(static fn($id) => is_numeric($id))
@@ -165,7 +188,14 @@ class ReviewChangeRequestHandler
 
         foreach ($items as $index => $item) {
             $payload = is_array($item->new_payload) ? $item->new_payload : null;
-            $error = $this->validateTeacherAssignment($item->scheduleSlot, $payload, $assignmentMap, $batchSlotIds);
+            $error = $this->validateClassScheduleCollision($item->scheduleSlot, $payload, $classAssignmentMap, $batchSlotIds);
+            if ($error !== null) {
+                throw new \RuntimeException(
+                    'Failed to validate item #' . ($index + 1) . ' in all_or_none mode. ' . $error
+                );
+            }
+
+            $error = $this->validateTeacherAssignment($item->scheduleSlot, $payload, $teacherAssignmentMap, $batchSlotIds);
             if ($error !== null) {
                 throw new \RuntimeException(
                     'Failed to validate item #' . ($index + 1) . ' in all_or_none mode. ' . $error
@@ -173,17 +203,39 @@ class ReviewChangeRequestHandler
             }
         }
 
-        foreach ($items as $index => $item) {
-            $isApplied = $this->applyPayloadToSlot(
-                $item->scheduleSlot,
-                is_array($item->new_payload) ? $item->new_payload : null
-            );
+        $pendingItems = $items->values();
+        $maxPasses = max(1, $pendingItems->count());
+        for ($pass = 0; $pass < $maxPasses && $pendingItems->isNotEmpty(); $pass++) {
+            $nextPendingItems = collect();
+            $progress = false;
 
-            if (! $isApplied) {
-                throw new \RuntimeException(
-                    'Failed to apply item #' . ($index + 1) . ' in all_or_none mode.'
+            foreach ($pendingItems as $item) {
+                $isApplied = $this->applyPayloadToSlot(
+                    $changeRequest,
+                    $item->scheduleSlot,
+                    is_array($item->new_payload) ? $item->new_payload : null,
+                    $batchSlotIds
                 );
+
+                if ($isApplied) {
+                    $progress = true;
+                    continue;
+                }
+
+                $nextPendingItems->push($item);
             }
+
+            if (! $progress) {
+                break;
+            }
+
+            $pendingItems = $nextPendingItems;
+        }
+
+        if ($pendingItems->isNotEmpty()) {
+            throw new \RuntimeException(
+                'Failed to apply ' . $pendingItems->count() . ' item(s) in all_or_none mode due to unresolved collisions.'
+            );
         }
 
         foreach ($items as $item) {
@@ -210,17 +262,19 @@ class ReviewChangeRequestHandler
         $applied = 0;
         $failed = 0;
         $errors = [];
-        $assignmentMap = [];
+        $teacherAssignmentMap = [];
+        $classAssignmentMap = [];
         $batchSlotIds = $items
             ->pluck('schedule_slot_id')
             ->filter(static fn($id) => is_numeric($id))
             ->map(static fn($id) => (int) $id)
             ->values()
             ->all();
+        $readyItems = collect();
 
         foreach ($items as $index => $item) {
             $payload = is_array($item->new_payload) ? $item->new_payload : null;
-            $error = $this->validateTeacherAssignment($item->scheduleSlot, $payload, $assignmentMap, $batchSlotIds);
+            $error = $this->validateClassScheduleCollision($item->scheduleSlot, $payload, $classAssignmentMap, $batchSlotIds);
             if ($error !== null) {
                 $failed++;
                 $errorMessage = 'Failed to validate item #' . ($index + 1) . ' in best_effort mode. ' . $error;
@@ -234,23 +288,70 @@ class ReviewChangeRequestHandler
                 continue;
             }
 
-            $isApplied = $this->applyPayloadToSlot(
-                $item->scheduleSlot,
-                $payload
-            );
+            $error = $this->validateTeacherAssignment($item->scheduleSlot, $payload, $teacherAssignmentMap, $batchSlotIds);
+            if ($error !== null) {
+                $failed++;
+                $errorMessage = 'Failed to validate item #' . ($index + 1) . ' in best_effort mode. ' . $error;
+                $errors[] = $errorMessage;
 
-            if ($isApplied) {
-                $applied++;
                 $item->update([
-                    'apply_status' => 'applied',
-                    'apply_error' => null,
-                    'applied_at' => $now,
+                    'apply_status' => 'failed',
+                    'apply_error' => $errorMessage,
+                    'applied_at' => null,
                 ]);
                 continue;
             }
 
+            $readyItems->push([
+                'index' => $index,
+                'item' => $item,
+                'payload' => $payload,
+            ]);
+        }
+
+        $pendingItems = $readyItems->values();
+        $maxPasses = max(1, $pendingItems->count());
+        for ($pass = 0; $pass < $maxPasses && $pendingItems->isNotEmpty(); $pass++) {
+            $nextPendingItems = collect();
+            $progress = false;
+
+            foreach ($pendingItems as $entry) {
+                $item = $entry['item'];
+                $payload = $entry['payload'];
+
+                $isApplied = $this->applyPayloadToSlot(
+                    $changeRequest,
+                    $item->scheduleSlot,
+                    $payload,
+                    $batchSlotIds
+                );
+
+                if ($isApplied) {
+                    $applied++;
+                    $progress = true;
+                    $item->update([
+                        'apply_status' => 'applied',
+                        'apply_error' => null,
+                        'applied_at' => $now,
+                    ]);
+                    continue;
+                }
+
+                $nextPendingItems->push($entry);
+            }
+
+            if (! $progress) {
+                break;
+            }
+
+            $pendingItems = $nextPendingItems;
+        }
+
+        foreach ($pendingItems as $entry) {
             $failed++;
-            $errorMessage = 'Failed to apply item #' . ($index + 1) . ' in best_effort mode.';
+            $index = (int) $entry['index'];
+            $item = $entry['item'];
+            $errorMessage = 'Failed to apply item #' . ($index + 1) . ' in best_effort mode due to unresolved collisions.';
             $errors[] = $errorMessage;
 
             $item->update([
@@ -272,21 +373,79 @@ class ReviewChangeRequestHandler
     private function applyNewPayloadToSlot(ChangeRequest $changeRequest): bool
     {
         return $this->applyPayloadToSlot(
+            $changeRequest,
             $changeRequest->scheduleSlot,
-            is_array($changeRequest->new_payload) ? $changeRequest->new_payload : null
+            is_array($changeRequest->new_payload) ? $changeRequest->new_payload : null,
+            []
         );
     }
 
-    private function applyPayloadToSlot(?ScheduleSlot $slot, ?array $payload): bool
+    /**
+     * @param array<int> $batchSlotIds
+     */
+    private function applyPayloadToSlot(
+        ChangeRequest $changeRequest,
+        ?ScheduleSlot $slot,
+        ?array $payload,
+        array $batchSlotIds = []
+    ): bool
     {
         if ($slot === null || $payload === null) {
             return false;
         }
 
-        $filteredPayload = $this->getAllowedSlotPayload($payload);
+        $filteredPayload = $this->getAllowedSlotPayload($payload, (string) ($changeRequest->change_type ?? 'general'));
 
         if ($filteredPayload === []) {
             return false;
+        }
+
+        $candidateDate = $this->resolveEffectiveDate($slot, $filteredPayload);
+        $candidatePeriodNumber = $this->resolveEffectivePeriodNumber($slot, $filteredPayload);
+
+        if ($candidateDate === null || $candidatePeriodNumber === null) {
+            return false;
+        }
+
+        $classId = $this->normalizeNullableNumber($slot->class_id);
+        if ($classId !== null) {
+            $planScopedMonthlyScheduleIds = $this->resolvePlanScopedMonthlyScheduleIds($slot);
+            $hasClassCollision = ScheduleSlot::query()
+                ->whereIn('monthly_schedule_id', $planScopedMonthlyScheduleIds)
+                ->where('class_id', $classId)
+                ->whereDate('date', $candidateDate)
+                ->where('period_number', $candidatePeriodNumber)
+                ->where('id', '!=', $slot->id)
+                ->when(
+                    $batchSlotIds !== [],
+                    static fn($query) => $query->whereNotIn('id', $batchSlotIds)
+                )
+                ->exists();
+
+            if ($hasClassCollision) {
+                return false;
+            }
+        }
+
+        $candidateTeacherId = array_key_exists('teacher_id', $filteredPayload)
+            ? $this->normalizeNullableNumber($filteredPayload['teacher_id'])
+            : $this->normalizeNullableNumber($slot->teacher_id);
+
+        if ($candidateTeacherId !== null) {
+            $hasTeacherCollision = ScheduleSlot::query()
+                ->where('teacher_id', $candidateTeacherId)
+                ->whereDate('date', $candidateDate)
+                ->where('period_number', $candidatePeriodNumber)
+                ->where('id', '!=', $slot->id)
+                ->when(
+                    $batchSlotIds !== [],
+                    static fn($query) => $query->whereNotIn('id', $batchSlotIds)
+                )
+                ->exists();
+
+            if ($hasTeacherCollision) {
+                return false;
+            }
         }
 
         try {
@@ -313,6 +472,12 @@ class ReviewChangeRequestHandler
             return 'Target slot is missing.';
         }
 
+        $effectiveDate = $this->resolveEffectiveDate($slot, $payload);
+        $effectivePeriodNumber = $this->resolveEffectivePeriodNumber($slot, $payload);
+        if ($effectiveDate === null || $effectivePeriodNumber === null) {
+            return 'Target date or period is invalid.';
+        }
+
         $candidateTeacherId = array_key_exists('teacher_id', $payload ?? [])
             ? $this->normalizeNullableNumber($payload['teacher_id'])
             : $this->normalizeNullableNumber($slot->teacher_id);
@@ -321,13 +486,7 @@ class ReviewChangeRequestHandler
             return null;
         }
 
-        $date = $slot->date?->format('Y-m-d');
-        $periodNumber = (int) $slot->period_number;
-        if ($date === null || $date === '') {
-            return 'Slot date is missing.';
-        }
-
-        $assignmentKey = $candidateTeacherId . '|' . $date . '|' . $periodNumber;
+        $assignmentKey = $candidateTeacherId . '|' . $effectiveDate . '|' . $effectivePeriodNumber;
         if (isset($assignmentMap[$assignmentKey]) && $assignmentMap[$assignmentKey] !== (int) $slot->id) {
             return 'Teacher conflict within selected request items.';
         }
@@ -336,8 +495,8 @@ class ReviewChangeRequestHandler
 
         $hasExistingConflict = ScheduleSlot::query()
             ->where('teacher_id', $candidateTeacherId)
-            ->whereDate('date', $date)
-            ->where('period_number', $periodNumber)
+            ->whereDate('date', $effectiveDate)
+            ->where('period_number', $effectivePeriodNumber)
             ->where('id', '!=', $slot->id)
             ->when(
                 $batchSlotIds !== [],
@@ -350,6 +509,92 @@ class ReviewChangeRequestHandler
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     * @param array<string, int> $assignmentMap
+     * @param array<int> $batchSlotIds
+     */
+    private function validateClassScheduleCollision(?ScheduleSlot $slot, ?array $payload, array &$assignmentMap, array $batchSlotIds): ?string
+    {
+        if ($slot === null) {
+            return 'Target slot is missing.';
+        }
+
+        $classId = $this->normalizeNullableNumber($slot->class_id);
+        if ($classId === null) {
+            return null;
+        }
+
+        $effectiveDate = $this->resolveEffectiveDate($slot, $payload);
+        $effectivePeriodNumber = $this->resolveEffectivePeriodNumber($slot, $payload);
+        if ($effectiveDate === null || $effectivePeriodNumber === null) {
+            return 'Target date or period is invalid.';
+        }
+
+        $assignmentKey = $classId . '|' . $effectiveDate . '|' . $effectivePeriodNumber;
+        if (isset($assignmentMap[$assignmentKey]) && $assignmentMap[$assignmentKey] !== (int) $slot->id) {
+            return 'Class already has another slot in the same date and period within request items.';
+        }
+
+        $assignmentMap[$assignmentKey] = (int) $slot->id;
+
+        $planScopedMonthlyScheduleIds = $this->resolvePlanScopedMonthlyScheduleIds($slot);
+        $hasExistingCollision = ScheduleSlot::query()
+            ->whereIn('monthly_schedule_id', $planScopedMonthlyScheduleIds)
+            ->where('class_id', $classId)
+            ->whereDate('date', $effectiveDate)
+            ->where('period_number', $effectivePeriodNumber)
+            ->where('id', '!=', $slot->id)
+            ->when(
+                $batchSlotIds !== [],
+                static fn($query) => $query->whereNotIn('id', $batchSlotIds)
+            )
+            ->exists();
+
+        if ($hasExistingCollision) {
+            return 'Class already has another slot in the same date and period.';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int>
+     */
+    private function resolvePlanScopedMonthlyScheduleIds(ScheduleSlot $slot): array
+    {
+        $monthlyScheduleId = is_numeric($slot->monthly_schedule_id) ? (int) $slot->monthly_schedule_id : 0;
+
+        if ($monthlyScheduleId <= 0) {
+            return [];
+        }
+
+        if (isset($this->planMonthlyScheduleScopeCache[$monthlyScheduleId])) {
+            return $this->planMonthlyScheduleScopeCache[$monthlyScheduleId];
+        }
+
+        $planId = MonthlySchedule::query()
+            ->whereKey($monthlyScheduleId)
+            ->value('plan_id');
+
+        if (! is_numeric($planId) || (int) $planId <= 0) {
+            return $this->planMonthlyScheduleScopeCache[$monthlyScheduleId] = [$monthlyScheduleId];
+        }
+
+        $ids = MonthlySchedule::query()
+            ->where('plan_id', (int) $planId)
+            ->pluck('id')
+            ->map(static fn($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            $ids = [$monthlyScheduleId];
+        }
+
+        return $this->planMonthlyScheduleScopeCache[$monthlyScheduleId] = $ids;
     }
 
     private function normalizeNullableNumber(mixed $value): ?int
@@ -369,7 +614,7 @@ class ReviewChangeRequestHandler
      * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */
-    private function getAllowedSlotPayload(array $payload): array
+    private function getAllowedSlotPayload(array $payload, string $changeType = 'general'): array
     {
         $allowedKeys = [
             'teacher_id',
@@ -382,7 +627,54 @@ class ReviewChangeRequestHandler
             'note',
         ];
 
+        if ($changeType === self::CHANGE_TYPE_HOLIDAY) {
+            $allowedKeys = array_merge($allowedKeys, [
+                'date',
+                'day_of_week',
+                'period_number',
+            ]);
+        }
+
         return array_intersect_key($payload, array_flip($allowedKeys));
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     */
+    private function resolveEffectiveDate(ScheduleSlot $slot, ?array $payload): ?string
+    {
+        if (is_array($payload) && array_key_exists('date', $payload)) {
+            return $this->normalizeDateString($payload['date']);
+        }
+
+        return $slot->date?->format('Y-m-d');
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     */
+    private function resolveEffectivePeriodNumber(ScheduleSlot $slot, ?array $payload): ?int
+    {
+        if (is_array($payload) && array_key_exists('period_number', $payload)) {
+            $value = $payload['period_number'];
+
+            return is_numeric($value) ? (int) $value : null;
+        }
+
+        return is_numeric($slot->period_number) ? (int) $slot->period_number : null;
+    }
+
+    private function normalizeDateString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse((string) $value)->format('Y-m-d');
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function buildComment(array $validated): ?string

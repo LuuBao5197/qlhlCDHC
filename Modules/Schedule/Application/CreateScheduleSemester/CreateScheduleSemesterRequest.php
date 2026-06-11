@@ -12,7 +12,7 @@ class CreateScheduleSemesterRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user() !== null && ($this->user()->isTrainingOffice() || $this->user()->isAdmin());
     }
 
     public function rules(): array

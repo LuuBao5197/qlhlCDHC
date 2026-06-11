@@ -19,9 +19,15 @@ class TrainingClass extends Model
     protected $fillable = [
         'code',
         'name',
-        'description',
+        'course_year',
+        'training_batch_id',
         'status',
     ];
+
+    public function trainingBatch(): BelongsTo
+    {
+        return $this->belongsTo(TrainingBatch::class, 'training_batch_id');
+    }
 
     public function department(): BelongsTo
     {

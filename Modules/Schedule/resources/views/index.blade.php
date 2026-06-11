@@ -61,6 +61,8 @@
 
     @include('schedule::partials._monthly-schedule-list')
 
+    @include('schedule::partials._holiday-calendar-management')
+
     <div class="row">
         <div class="col-12">
             <div class="card">

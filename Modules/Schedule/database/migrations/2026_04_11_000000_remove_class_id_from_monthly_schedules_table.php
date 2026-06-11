@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::table('monthly_schedules', function (Blueprint $table) {
             if (Schema::hasColumn('monthly_schedules', 'class_id')) {
-                $table->dropForeign(['class_id']);
+                try {
+                    $table->dropForeign(['class_id']);
+                } catch (\Exception $e) {
+                }
                 $table->dropColumn('class_id');
             }
         });

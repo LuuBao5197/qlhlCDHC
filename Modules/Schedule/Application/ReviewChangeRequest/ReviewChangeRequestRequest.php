@@ -4,6 +4,7 @@ namespace Modules\Schedule\Application\ReviewChangeRequest;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Training\Models\ChangeRequest;
 
 class ReviewChangeRequestRequest extends FormRequest
 {
@@ -14,7 +15,24 @@ class ReviewChangeRequestRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && ($user->isTrainingOffice() || $user->isAdmin());
+        if ($user === null || (! $user->isTrainingOffice() && ! $user->isAdmin())) {
+            return false;
+        }
+
+        $changeRequestId = (int) $this->route('id');
+        if ($changeRequestId <= 0) {
+            return true;
+        }
+
+        $changeType = ChangeRequest::query()
+            ->whereKey($changeRequestId)
+            ->value('change_type');
+
+        if ($changeType === 'holiday_reschedule') {
+            return $user->isAdmin();
+        }
+
+        return $user->isTrainingOffice() || $user->isAdmin();
     }
 
     /**

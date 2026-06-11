@@ -23,6 +23,7 @@ class ChangeRequest extends Model
         'old_payload',
         'new_payload',
         'status',
+        'change_type',
         'apply_mode',
         'apply_changes',
         'apply_summary',

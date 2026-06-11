@@ -2,9 +2,11 @@
 
 namespace Modules\Schedule\Application\GetSchedule;
 
+use Illuminate\Support\Facades\Schema;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\ChangeRequest;
+use Modules\Training\Models\HolidayCalendar;
 use Modules\Training\Models\Room;
 use Modules\Training\Models\SubjectLesson;
 use Modules\Training\Models\Teacher;
@@ -96,6 +98,12 @@ class GetScheduleHandler
             ->orderBy('lesson_no')
             ->get(['id', 'subject_id', 'lesson_no', 'title']);
 
+        $holidayCalendars = Schema::hasTable('holiday_calendars')
+            ? HolidayCalendar::query()
+                ->orderByDesc('date')
+                ->get(['id', 'name', 'date', 'note', 'is_active'])
+            : collect();
+
         return view('schedule::index', [
             'schedules' => $schedules,
             'monthlySchedules' => $monthlySchedules,
@@ -104,6 +112,7 @@ class GetScheduleHandler
             'teachers' => $teachers,
             'teacherLookup' => $teacherLookup,
             'subjectLessons' => $subjectLessons,
+            'holidayCalendars' => $holidayCalendars,
         ]);
     }
 }

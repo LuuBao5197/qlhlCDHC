@@ -134,8 +134,10 @@ class InitializeMonthlyScheduleHandler
                 ? $template->days_of_week
                 : (json_decode($template->days_of_week, true) ?: [$template->day_of_week]);
 
-            // Ensure integer comparison
-            $daysOfWeek = array_map('intval', $daysOfWeek);
+            $daysOfWeek = $this->normalizeTemplateWeekdays($daysOfWeek, $template->day_of_week);
+            if ($daysOfWeek === []) {
+                continue;
+            }
 
             $periodParts = explode('-', $template->period_range);
             $periodStart = (int) $periodParts[0];
@@ -147,7 +149,8 @@ class InitializeMonthlyScheduleHandler
                     continue;
                 }
 
-                $dotw = $date->dayOfWeekIso;
+                // Use module convention: 2..8 (Thu 2..Chu nhat)
+                $dotw = $date->dayOfWeekIso + 1;
                 if (!in_array($dotw, $daysOfWeek, true)) {
                     continue;
                 }
@@ -192,5 +195,49 @@ class InitializeMonthlyScheduleHandler
         }
 
         return $created;
+    }
+
+    private function normalizeTemplateWeekdays(array $rawDays, mixed $fallbackDay): array
+    {
+        $values = collect($rawDays)
+            ->filter(fn($item) => is_numeric($item))
+            ->map(fn($item) => (int) $item)
+            ->values();
+
+        if ($values->isEmpty() && is_numeric($fallbackDay)) {
+            $values = collect([(int) $fallbackDay]);
+        }
+
+        // Preferred/current convention in semester flows.
+        $currentConvention = $values
+            ->filter(fn(int $dow) => $dow >= 2 && $dow <= 8)
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($currentConvention->isNotEmpty()) {
+            return $currentConvention->all();
+        }
+
+        // Legacy fallback: 1..7 (ISO) -> 2..8.
+        $isoConvention = $values
+            ->filter(fn(int $dow) => $dow >= 1 && $dow <= 7)
+            ->map(fn(int $dow) => $dow + 1)
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($isoConvention->isNotEmpty()) {
+            return $isoConvention->all();
+        }
+
+        // Legacy fallback: 0..6 (Sun..Sat) -> 8,2..7.
+        return $values
+            ->filter(fn(int $dow) => $dow >= 0 && $dow <= 6)
+            ->map(fn(int $dow) => $dow === 0 ? 8 : $dow + 1)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 }

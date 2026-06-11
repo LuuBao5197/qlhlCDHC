@@ -4,6 +4,9 @@
     $lessonMap = ($subjectLessons ?? collect())->keyBy('id');
 
     $fieldOrder = [
+        'date',
+        'day_of_week',
+        'period_number',
         'teacher_id',
         'subject_id',
         'subject_lesson_id',
@@ -15,6 +18,9 @@
     ];
 
     $fieldLabels = [
+        'date' => 'Ngay hoc',
+        'day_of_week' => 'Thu',
+        'period_number' => 'Tiet',
         'teacher_id' => 'Giảng viên',
         'subject_id' => 'Môn học',
         'subject_lesson_id' => 'Bài học',
@@ -32,6 +38,43 @@
         'completed' => 'Đã hoàn thành',
     ];
 
+    $changeTypeLabels = [
+        'general' => 'Dieu chinh chung',
+        'holiday_reschedule' => 'Doi lich nghi le/tet',
+    ];
+
+    $dayOfWeekLabels = [
+        2 => 'Thu 2',
+        3 => 'Thu 3',
+        4 => 'Thu 4',
+        5 => 'Thu 5',
+        6 => 'Thu 6',
+        7 => 'Thu 7',
+        8 => 'CN',
+    ];
+
+    $formatDayOfWeek = static function ($value) use ($dayOfWeekLabels): string {
+        if (! is_numeric($value)) {
+            return (string) $value;
+        }
+
+        $day = (int) $value;
+
+        // Current module convention: 2..8 (Thu 2..CN).
+        if (isset($dayOfWeekLabels[$day])) {
+            return $dayOfWeekLabels[$day];
+        }
+
+        // Legacy fallback: 0..6 (CN..Thu 7) -> 8,2..7.
+        if ($day >= 0 && $day <= 6) {
+            $normalized = $day === 0 ? 8 : $day + 1;
+
+            return $dayOfWeekLabels[$normalized] ?? (string) $value;
+        }
+
+        return (string) $value;
+    };
+
     $normalizeValue = static function ($value) {
         if (is_string($value)) {
             return trim($value);
@@ -48,9 +91,25 @@
         return $value;
     };
 
-    $resolveFieldValue = static function (string $field, $value, $slot) use ($teacherMap, $roomMap, $lessonMap, $slotStatusLabels): string {
+    $resolveFieldValue = static function (string $field, $value, $slot) use ($teacherMap, $roomMap, $lessonMap, $slotStatusLabels, $formatDayOfWeek): string {
         if ($value === null || $value === '') {
             return '-';
+        }
+
+        if ($field === 'date') {
+            try {
+                return \Carbon\Carbon::parse((string) $value)->format('d/m/Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        }
+
+        if ($field === 'day_of_week') {
+            return $formatDayOfWeek($value);
+        }
+
+        if ($field === 'period_number') {
+            return 'Tiet ' . (string) $value;
         }
 
         if ($field === 'teacher_id') {
@@ -228,7 +287,12 @@
                         @endif
                     </td>
                     <td><span class="badge {{ $statusClass }}">{{ $changeRequest->status }}</span></td>
-                    <td>{{ \Illuminate\Support\Str::limit($changeRequest->reason, 80) }}</td>
+                    <td>
+                        {{ \Illuminate\Support\Str::limit($changeRequest->reason, 80) }}
+                        <div class="small text-muted mt-1">
+                            Loai: {{ $changeTypeLabels[$changeRequest->change_type ?? 'general'] ?? ($changeRequest->change_type ?? 'general') }}
+                        </div>
+                    </td>
                     <td>
                         @php
                             $displayItems = $changeRequest->changeRequestItems->map(static function ($item) {
@@ -326,6 +390,15 @@
                                             @if (! empty($displayItem['apply_error']))
                                                 <div class="small text-danger mt-2">Lỗi áp dụng: {{ $displayItem['apply_error'] }}</div>
                                             @endif
+
+                                            @if ($itemStatus === 'applied' && $slot)
+                                                <div class="small text-success mt-2">
+                                                    Thuc te hien tai:
+                                                    Ngay {{ optional($slot->date)->format('d/m/Y') ?? '-' }},
+                                                    {{ $formatDayOfWeek($slot->day_of_week ?? '-') }},
+                                                    Tiet {{ $slot->period_number ?? '-' }}.
+                                                </div>
+                                            @endif
                                         </div>
                                     @endforeach
                                 @endforeach
@@ -333,7 +406,16 @@
                         </details>
                     </td>
                     <td>
-                        @if ($canReviewWorkflow && $changeRequest->status === 'pending')
+                        @php
+                            $isHolidayReschedule = ($changeRequest->change_type ?? 'general') === 'holiday_reschedule';
+                            $isSelfHolidayRequest = $isHolidayReschedule
+                                && $changeRequest->requested_by
+                                && (int) $changeRequest->requested_by === (int) (auth()->id() ?? 0);
+                            $canReviewThisRequest = (! $isHolidayReschedule || (auth()->user()?->isAdmin() ?? false))
+                                && ! $isSelfHolidayRequest;
+                        @endphp
+
+                        @if ($canReviewWorkflow && $changeRequest->status === 'pending' && $canReviewThisRequest)
                             <div class="d-flex flex-column">
                                 <form method="POST"
                                     action="{{ route('change-request.review', $changeRequest->id) }}"
@@ -378,6 +460,12 @@
                                     </div>
                                 </form>
                             </div>
+                        @elseif ($canReviewWorkflow && $changeRequest->status === 'pending' && ! $canReviewThisRequest)
+                            @if ($isSelfHolidayRequest)
+                                <span class="text-muted">Khong duoc tu phe duyet phieu doi lich nghi le/tet do chinh ban tao</span>
+                            @else
+                                <span class="text-muted">Chi Admin duoc phe duyet phieu doi lich nghi le/tet</span>
+                            @endif
                         @elseif (!$canReviewWorkflow)
                             <span class="text-muted">Không có quyền thao tác</span>
                         @else

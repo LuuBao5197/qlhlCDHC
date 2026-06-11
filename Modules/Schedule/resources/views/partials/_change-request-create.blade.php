@@ -1,5 +1,6 @@
 @php
     $changeModeOld = old('apply_mode', 'all_or_none');
+    $canHolidayRescheduleRequest = auth()->user() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin());
 
     $teachersById = ($teachers ?? collect())->keyBy('id');
 
@@ -787,6 +788,146 @@
 
             updateSelectedSummary();
             renderTable();
+        });
+    </script>
+@endif
+
+@if ($canHolidayRescheduleRequest)
+    <div class="border rounded p-3 mt-3 bg-white">
+        <h6 class="mb-2">Tao phieu doi lich do nghi le/tet</h6>
+        <form method="POST" action="{{ route('change-request.holiday-reschedule.store') }}">
+            @csrf
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label class="mb-1">Lich thang</label>
+                    <select name="monthly_schedule_id" class="form-control form-control-sm" required>
+                        <option value="">-- Chon lich thang --</option>
+                        @foreach ($monthlySchedules as $monthlySchedule)
+                            <option value="{{ $monthlySchedule->id }}"
+                                @selected((int) old('monthly_schedule_id') === (int) $monthlySchedule->id)>
+                                #{{ $monthlySchedule->id }} - {{ $monthlySchedule->class_name }}
+                                ({{ $monthlySchedule->month }}/{{ $monthlySchedule->year }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-2">
+                    <label class="mb-1">Khoang ngay nghi (tu)</label>
+                    <input type="date" name="holiday_start_date" class="form-control form-control-sm"
+                        value="{{ old('holiday_start_date') }}">
+                </div>
+
+                <div class="col-md-4 mb-2">
+                    <label class="mb-1">Khoang ngay nghi (den)</label>
+                    <input type="date" name="holiday_end_date" class="form-control form-control-sm"
+                        value="{{ old('holiday_end_date') }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <label class="mb-1">Danh sach ngay nghi roi rac (YYYY-MM-DD, cach nhau boi dau phay)</label>
+                    <input type="text" name="holiday_dates_csv" class="form-control form-control-sm"
+                        value="{{ old('holiday_dates_csv') }}"
+                        placeholder="Vi du: 2026-09-02, 2026-09-03">
+                    @if (($holidayCalendars ?? collect())->isNotEmpty())
+                        <small class="text-muted d-block mt-1">
+                            Ngay nghi dang khai bao:
+                            {{ $holidayCalendars->map(fn($item) => optional($item->date)->format('Y-m-d'))->filter()->implode(', ') }}
+                        </small>
+                    @endif
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <label class="mb-1">Ngay dich de doi lich</label>
+                    <input type="date" name="target_date" class="form-control form-control-sm"
+                        value="{{ old('target_date') }}" required>
+                    <small class="text-muted d-block mt-1">Ngay bat dau tim lich thay the (thuong la ngay ngay sau khoang nghi).</small>
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <label class="mb-1">Che do ap dung khi duyet</label>
+                    <select name="apply_mode" class="form-control form-control-sm">
+                        <option value="best_effort" @selected(old('apply_mode', 'best_effort') === 'best_effort')>best_effort</option>
+                        <option value="all_or_none" @selected(old('apply_mode', 'best_effort') === 'all_or_none')>all_or_none</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-10 mb-2">
+                    <label class="mb-1">Ly do</label>
+                    <input type="text" name="reason" class="form-control form-control-sm"
+                        value="{{ old('reason') }}" maxlength="1000"
+                        placeholder="Vi du: Nghi le quoc gia, doi lich hoc trong 7 ngay tiep theo" required>
+                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-sm btn-warning w-100">Tao phieu doi lich</button>
+                </div>
+            </div>
+
+            <small class="text-muted d-block mt-1">
+                He thong se tim ngay thay the tu ngay dich, toi da {{ (int) config('schedule.holiday_reschedule.max_shift_days', 7) }} ngay,
+                bo qua T7/CN va cac ngay khong lam viec trong holiday calendar.
+            </small>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const holidayStartInput = document.querySelector('input[name="holiday_start_date"]');
+            const holidayEndInput = document.querySelector('input[name="holiday_end_date"]');
+            const targetDateInput = document.querySelector('input[name="target_date"]');
+
+            if (!holidayEndInput || !targetDateInput) {
+                return;
+            }
+
+            const toDateString = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const computeSuggestedTarget = () => {
+                const endValue = holidayEndInput.value;
+                const startValue = holidayStartInput ? holidayStartInput.value : '';
+                const baseValue = endValue || startValue;
+
+                if (!baseValue) {
+                    return null;
+                }
+
+                const base = new Date(`${baseValue}T00:00:00`);
+                if (Number.isNaN(base.getTime())) {
+                    return null;
+                }
+
+                base.setDate(base.getDate() + 1);
+                return toDateString(base);
+            };
+
+            const maybeSuggestTargetDate = (force = false) => {
+                const suggested = computeSuggestedTarget();
+                if (!suggested) {
+                    return;
+                }
+
+                const current = targetDateInput.value;
+                if (force || !current || current < suggested) {
+                    targetDateInput.value = suggested;
+                }
+            };
+
+            holidayEndInput.addEventListener('change', () => maybeSuggestTargetDate(false));
+            if (holidayStartInput) {
+                holidayStartInput.addEventListener('change', () => maybeSuggestTargetDate(false));
+            }
+
+            maybeSuggestTargetDate(false);
         });
     </script>
 @endif

@@ -59,6 +59,7 @@ class CreateChangeRequestHandler
                     'old_payload' => $firstSlot ? $this->extractSlotPayload($firstSlot) : null,
                     'new_payload' => $firstPayload,
                     'status' => 'pending',
+                    'change_type' => 'general',
                     'apply_mode' => (string) ($validated['apply_mode'] ?? 'all_or_none'),
                     'apply_changes' => true,
                     'apply_summary' => null,

@@ -8,6 +8,8 @@ use Modules\Training\Application\Management\SubjectLessons\ManageSubjectLessonsC
 use Modules\Training\Application\Management\Subjects\ManageSubjectsController;
 use Modules\Training\Application\Management\Teachers\ManageTeachersController;
 use Modules\Training\Application\Management\TrainingClasses\ManageTrainingClassesController;
+use Modules\Training\Application\Management\TrainingPrograms\ManageTrainingProgramsController;
+use Modules\Training\Application\Management\TrainingBatches\ManageTrainingBatchesController;
 use Modules\Training\Application\TeacherEvaluation\GetTeacherDailyLog\GetTeacherDailyLogController;
 use Modules\Training\Application\TeacherEvaluation\GetTeacherDailyLog\GetTeacherDailyLogEditController;
 use Modules\Training\Application\TeacherEvaluation\GetTeacherSlotEvaluation\GetTeacherSlotEvaluationController;
@@ -15,6 +17,8 @@ use Modules\Training\Application\TeacherEvaluation\SubmitDailyLog\SubmitDailyLog
 use Modules\Training\Application\TeacherEvaluation\SubmitTeacherSlotEvaluation\SubmitTeacherSlotEvaluationController;
 
 Route::middleware(['auth', 'management.access'])->prefix('management')->name('management.')->group(function () {
+    Route::apiResource('training-programs', ManageTrainingProgramsController::class);
+    Route::apiResource('training-batches', ManageTrainingBatchesController::class);
     Route::apiResource('departments', ManageDepartmentsController::class);
     Route::apiResource('training-classes', ManageTrainingClassesController::class);
     Route::apiResource('teachers', ManageTeachersController::class);
