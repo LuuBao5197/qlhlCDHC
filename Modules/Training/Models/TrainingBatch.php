@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Schedule\Models\Plans;
 
 class TrainingBatch extends Model
 {
@@ -33,5 +34,10 @@ class TrainingBatch extends Model
     public function classes(): HasMany
     {
         return $this->hasMany(TrainingClass::class, 'training_batch_id');
+    }
+
+    public function plans(): HasMany
+    {
+        return $this->hasMany(Plans::class, 'training_batch_id');
     }
 }

@@ -4,9 +4,9 @@
 
 @section('content')
     @php
-        $selectedClassIds = collect(old('selected_class_ids', []))->map(fn($id) => (string) $id)->all();
+        $selectedTrainingBatchId = (string) old('training_batch_id', '');
         $oldRules = old('class_tab_rules', []);
-        $oldExtraClass = old('class_name', '');
+        $hasAvailableTrainingBatches = $trainingBatches->isNotEmpty();
     @endphp
 
     <style>
@@ -102,6 +102,38 @@
 
                         <h5 class="mb-3">1. Thong tin hoc ky</h5>
                         <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Khoa dao tao <span class="text-danger">*</span></label>
+                                <select name="training_batch_id" id="trainingBatchSelect" class="form-control" required
+                                    {{ $hasAvailableTrainingBatches ? '' : 'disabled' }}>
+                                    <option value="">Chon khoa dao tao</option>
+                                    @foreach ($trainingBatches as $batch)
+                                        @php
+                                            $programLabel = $batch->trainingProgram
+                                                ? $batch->trainingProgram->code . ' - ' . $batch->trainingProgram->name
+                                                : null;
+                                        @endphp
+                                        <option value="{{ $batch->id }}"
+                                            data-class-count="{{ $batch->classes_count }}"
+                                            {{ $selectedTrainingBatchId === (string) $batch->id ? 'selected' : '' }}>
+                                            {{ $batch->code }} - {{ $batch->name }}
+                                            @if ($programLabel)
+                                                ({{ $programLabel }})
+                                            @endif
+                                            - {{ $batch->classes_count }} lop
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted d-block mt-2">Chi hien thi khoa dao tao dang hoat dong.</small>
+                                @if (!$hasAvailableTrainingBatches)
+                                    <div class="alert alert-warning mt-3 mb-0">
+                                        Chua co khoa dao tao kha dung de tao ke hoach moi.
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
                             <div class="col-md-3">
                                 <label class="form-label">Hoc ky</label>
                                 <select name="semester" class="form-control" required>
@@ -124,20 +156,7 @@
                                 <input type="date" name="end_date" class="form-control" value="{{ old('end_date') }}">
                             </div>
                         </div>
-
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Mon mac dinh</label>
-                                <input type="text" name="default_subject" class="form-control" list="subject-suggestions"
-                                    value="{{ old('default_subject') }}">
-
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Noi dung mac dinh</label>
-                                <input type="text" name="default_content" class="form-control"
-                                    value="{{ old('default_content', 'Noi dung se cap nhat sau') }}">
-                            </div>
-                        </div>
+                        <div id="planDuplicateHint" class="alert alert-warning mt-3 d-none"></div>
 
                         <div class="mt-3">
                             <label class="form-label">Mo ta ke hoach</label>
@@ -149,6 +168,9 @@
                         <h5 class="mb-3">2. Chon lop ap dung</h5>
                         <div class="row">
                             <div class="col-lg-7">
+                                <div id="classBatchHint" class="alert alert-light border mb-3">
+                                    Chon khoa dao tao de hien thi danh sach lop.
+                                </div>
                                 <input type="text" class="form-control mb-3" id="classFilterInput"
                                     placeholder="Tim theo ma hoac ten lop">
                                 <div class="class-list">
@@ -157,10 +179,10 @@
                                             data-search="{{ strtolower($class->code . ' ' . $class->name) }}">
                                             <div class="form-check">
                                                 <input class="form-check-input class-checkbox" type="checkbox"
-                                                    name="selected_class_ids[]" value="{{ $class->id }}"
+                                                    value="{{ $class->id }}" disabled
+                                                    data-batch-id="{{ $class->training_batch_id }}"
                                                     data-label="{{ $class->code }} - {{ $class->name }}"
-                                                    data-code="{{ $class->code }}" id="class_{{ $class->id }}"
-                                                    {{ in_array((string) $class->id, $selectedClassIds, true) ? 'checked' : '' }}>
+                                                    data-code="{{ $class->code }}" id="class_{{ $class->id }}">
                                                 <label class="form-check-label" for="class_{{ $class->id }}">
                                                     <strong>{{ $class->code }}</strong> - {{ $class->name }}
                                                 </label>
@@ -168,13 +190,8 @@
                                         </div>
                                     @endforeach
                                 </div>
+                                <div id="selectedClassInputs"></div>
                             </div>
-                            {{-- <div class="col-lg-5 mt-3 mt-lg-0">
-                                <label class="form-label">Lop bo sung</label>
-                                <input type="text" name="class_name" id="extra_class_input" class="form-control"
-                                    value="{{ $oldExtraClass }}" placeholder="Nhap ma lop neu chua co trong danh sach">
-                                <small class="text-muted d-block mt-2">Neu form bi loi, file CSV can duoc chon lai.</small>
-                            </div> --}}
                         </div>
 
                         <hr class="my-4">
@@ -193,7 +210,8 @@
                         </div>
 
                         <div class="d-flex justify-content-end mt-4">
-                            <button type="submit" class="btn btn-primary px-4">Tao ke hoach</button>
+                            <button type="submit" class="btn btn-primary px-4"
+                                {{ $hasAvailableTrainingBatches ? '' : 'disabled' }}>Tao ke hoach</button>
                         </div>
                     </form>
                 </div>
@@ -211,32 +229,34 @@
         document.addEventListener('DOMContentLoaded', function() {
             const weekdayOptions = @json($weekdayOptions);
             const oldRules = @json($oldRules);
+            const existingPlanKeys = new Set(@json($existingPlanKeys));
             const importUrl = @json(route('schedule.import-template'));
             const tabs = document.getElementById('classTabs');
             const content = document.getElementById('classTabContent');
             const emptyMsg = document.getElementById('noClassSelectedMsg');
             const filter = document.getElementById('classFilterInput');
-            const extraInput = document.getElementById('extra_class_input');
+            const batchSelect = document.getElementById('trainingBatchSelect');
+            const classBatchHint = document.getElementById('classBatchHint');
+            const selectedClassInputs = document.getElementById('selectedClassInputs');
+            const planDuplicateHint = document.getElementById('planDuplicateHint');
+            const semesterInput = document.querySelector('select[name="semester"]');
+            const yearInput = document.querySelector('input[name="year"]');
             const planStartInput = document.querySelector('input[name="start_date"]');
             const planEndInput = document.querySelector('input[name="end_date"]');
             const checkboxes = Array.from(document.querySelectorAll('.class-checkbox'));
             const form = document.getElementById('scheduleForm');
             const submitButton = form.querySelector('button[type="submit"]');
             const counters = {};
-            let extraKey = null;
 
             const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             const safe = (v) => String(v).replace(/[^A-Za-z0-9_-]/g, '_');
-            const norm = (v) => String(v || '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
             const tabId = (k) => `tab-${safe(k)}`;
             const paneId = (k) => `pane-${safe(k)}`;
             const rulesId = (k) => `rules-${safe(k)}`;
             const labelOf = (k) => {
                 const cb = checkboxes.find((item) => item.value === String(k));
                 if (cb) return cb.dataset.label;
-                if (String(k).startsWith('name:'))
-                    return `${extraInput.value.trim() || String(k).slice(5)} (bo sung)`;
                 return String(k);
             };
 
@@ -328,6 +348,32 @@
                 return jsDay === 0 ? 8 : jsDay + 1;
             };
 
+            const selectedPlanKey = () => {
+                const batchId = batchSelect ? String(batchSelect.value || '') : '';
+                const semester = semesterInput ? String(semesterInput.value || '') : '';
+                const year = yearInput ? String(yearInput.value || '') : '';
+
+                return batchId && semester && year ? `${batchId}|${semester}|${year}` : null;
+            };
+
+            const updatePlanDuplicateHint = () => {
+                const key = selectedPlanKey();
+                const duplicated = key ? existingPlanKeys.has(key) : false;
+
+                if (planDuplicateHint) {
+                    if (duplicated) {
+                        planDuplicateHint.classList.remove('d-none');
+                        planDuplicateHint.textContent =
+                            `Khoa dao tao nay da co ke hoach hoc ky ${semesterInput.value} nam ${yearInput.value}.`;
+                    } else {
+                        planDuplicateHint.classList.add('d-none');
+                        planDuplicateHint.textContent = '';
+                    }
+                }
+
+                return duplicated;
+            };
+
             const validateRuleConflicts = () => {
                 clearRuleErrors();
 
@@ -370,8 +416,13 @@
                     });
                 });
 
-                submitButton.disabled = hasConflict;
-                return !hasConflict;
+                const batchReady = batchSelect ? !batchSelect.disabled && Boolean(batchSelect.value) : true;
+                const hasSelectedClass = selectedClassInputs
+                    ? selectedClassInputs.querySelectorAll('input[name="selected_class_ids[]"]').length > 0
+                    : checkboxes.some((cb) => cb.checked);
+                const hasDuplicatePlan = updatePlanDuplicateHint();
+                submitButton.disabled = hasConflict || !batchReady || !hasSelectedClass || hasDuplicatePlan;
+                return !hasConflict && batchReady && hasSelectedClass && !hasDuplicatePlan;
             };
 
             const weekdayHtml = (k, i, picked) => weekdayOptions.map((d) => {
@@ -478,31 +529,100 @@
                 checkboxes.forEach((cb) => cb.checked ? ensurePane(cb.value) : removePane(cb.value));
             };
 
-            const syncExtra = () => {
-                if (!extraInput) return; // Bỏ qua nếu element không tồn tại
-                const next = extraInput.value.trim() ? `name:${norm(extraInput.value)}` : null;
-                if (extraKey && extraKey !== next) removePane(extraKey);
-                if (next) ensurePane(next);
-                extraKey = next;
+            const syncSelectedClassInputs = () => {
+                if (!selectedClassInputs) return;
+
+                selectedClassInputs.innerHTML = '';
+
+                checkboxes
+                    .filter((cb) => cb.checked)
+                    .forEach((cb) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'selected_class_ids[]';
+                        input.value = cb.value;
+                        selectedClassInputs.appendChild(input);
+                    });
             };
 
-            filter.addEventListener('input', function() {
-                const q = this.value.trim().toLowerCase();
-                document.querySelectorAll('.class-item').forEach((item) => item.style.display = item.dataset
-                    .search.includes(q) ? '' : 'none');
-            });
+            const applyClassFilters = () => {
+                const batchId = batchSelect ? String(batchSelect.value || '') : '';
+                const q = filter ? filter.value.trim().toLowerCase() : '';
+                let batchClassCount = 0;
+                let visibleClassCount = 0;
 
-            checkboxes.forEach((cb) => cb.addEventListener('change', function() {
-                syncChecks();
-                if (this.checked) activate(this.value);
-            }));
+                checkboxes.forEach((cb) => {
+                    const item = cb.closest('.class-item');
+                    const belongsToBatch = batchId !== '' && String(cb.dataset.batchId || '') === batchId;
+                    const matchesSearch = item ? item.dataset.search.includes(q) : true;
 
-            if (extraInput) {
-                extraInput.addEventListener('input', function() {
-                    syncExtra();
-                    if (extraKey) activate(extraKey);
+                    if (belongsToBatch) {
+                        batchClassCount++;
+                    }
+
+                    if (item) {
+                        item.style.display = belongsToBatch && matchesSearch ? '' : 'none';
+                    }
+
+                    cb.disabled = true;
+                    cb.checked = belongsToBatch;
+
+                    if (belongsToBatch) {
+                        ensurePane(cb.value);
+                    } else {
+                        removePane(cb.value);
+                    }
+
+                    if (belongsToBatch && matchesSearch) {
+                        visibleClassCount++;
+                    }
+                });
+
+                if (classBatchHint) {
+                    classBatchHint.className = 'alert border mb-3 ' + (batchId ? 'alert-info' : 'alert-light');
+
+                    if (!batchId) {
+                        classBatchHint.textContent = 'Chon khoa dao tao de hien thi danh sach lop.';
+                    } else if (batchClassCount === 0) {
+                        classBatchHint.className = 'alert alert-warning border mb-3';
+                        classBatchHint.textContent = 'Khoa dao tao nay chua co lop nao.';
+                    } else if (visibleClassCount === 0) {
+                        classBatchHint.textContent = 'Khong co lop nao khop voi tu khoa tim kiem.';
+                    } else {
+                        classBatchHint.textContent =
+                            `Da tu dong chon tat ca ${batchClassCount} lop thuoc khoa dao tao. Dang hien thi ${visibleClassCount} lop.`;
+                    }
+                }
+
+                syncSelectedClassInputs();
+                updateEmpty();
+                validateRuleConflicts();
+            };
+
+            if (filter) {
+                filter.addEventListener('input', applyClassFilters);
+            }
+
+            if (batchSelect) {
+                batchSelect.addEventListener('change', function() {
+                    applyClassFilters();
+                    syncChecks();
+                    validateRuleConflicts();
                 });
             }
+
+            if (semesterInput) {
+                semesterInput.addEventListener('change', validateRuleConflicts);
+            }
+
+            if (yearInput) {
+                yearInput.addEventListener('input', validateRuleConflicts);
+                yearInput.addEventListener('change', validateRuleConflicts);
+            }
+
+            checkboxes.forEach((cb) => cb.addEventListener('click', function(e) {
+                e.preventDefault();
+            }));
 
             tabs.addEventListener('click', function(e) {
                 const btn = e.target.closest('[data-key]');
@@ -528,8 +648,8 @@
                 }
             });
 
+            applyClassFilters();
             syncChecks();
-            if (extraInput) syncExtra();
             updateEmpty();
             validateRuleConflicts();
         });

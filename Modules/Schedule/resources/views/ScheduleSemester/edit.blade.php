@@ -8,7 +8,6 @@
             ->map(fn($id) => (string) $id)
             ->all();
         $oldRules = old('class_tab_rules', $oldRules ?? []);
-        $oldExtraClass = old('class_name', '');
     @endphp
 
     <style>
@@ -112,6 +111,14 @@
                         @method('PUT')
 
                         <h5 class="mb-3">1. Thong tin hoc ky</h5>
+                        @if ($plan->trainingBatch)
+                            <div class="alert alert-info">
+                                Khoa dao tao: <strong>{{ $plan->trainingBatch->code }}</strong> - {{ $plan->trainingBatch->name }}
+                                @if ($plan->trainingBatch->trainingProgram)
+                                    ({{ $plan->trainingBatch->trainingProgram->code }} - {{ $plan->trainingBatch->trainingProgram->name }})
+                                @endif
+                            </div>
+                        @endif
                         <div class="row">
                             <div class="col-md-3">
                                 <label class="form-label">Hoc ky</label>
@@ -136,19 +143,6 @@
                                 <label class="form-label">Ngay ket thuc</label>
                                 <input type="date" name="end_date" class="form-control"
                                     value="{{ old('end_date', $plan->effective_to?->toDateString()) }}">
-                            </div>
-                        </div>
-
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Mon mac dinh</label>
-                                <input type="text" name="default_subject" class="form-control" list="subject-suggestions"
-                                    value="{{ old('default_subject') }}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Noi dung mac dinh</label>
-                                <input type="text" name="default_content" class="form-control"
-                                    value="{{ old('default_content', 'Noi dung se cap nhat sau') }}">
                             </div>
                         </div>
 

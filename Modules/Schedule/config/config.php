@@ -8,7 +8,8 @@ return [
         'allow_weekend_if_template_allows' => (bool) env('SCHEDULE_HOLIDAY_RESCHEDULE_ALLOW_WEEKEND_IF_TEMPLATE_ALLOWS', true),
     ],
     'initialize_monthly_schedule' => [
-        // Production default: only allow initializing exactly next month.
+        // Production default: restrict initialization to the current or next month.
+        // The legacy environment variable name is retained for compatibility.
         'strict_next_month_only' => (bool) env('SCHEDULE_STRICT_NEXT_MONTH_ONLY', true),
 
         // Test mode option: when strict mode is off, allow from current month.

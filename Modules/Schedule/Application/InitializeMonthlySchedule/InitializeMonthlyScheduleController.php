@@ -1,4 +1,5 @@
 <?php
+
 namespace Modules\Schedule\Application\InitializeMonthlySchedule;
 
 use App\Http\Controllers\Controller;
@@ -23,10 +24,11 @@ class InitializeMonthlyScheduleController extends Controller
         try {
             $result = $this->handler->handle($request);
 
-            // return redirect()->route('monthly-schedule.index')
             return redirect()->route('schedule.index')
-
-                ->with('success', "Da khoi tao {$result['created_schedules']} lich thang thanh cong.");
+                ->with(
+                    'success',
+                    "Da xu ly {$result['processed_plans']} ke hoach, tao moi {$result['created_schedules']} lich thang va {$result['created_slots']} tiet hoc."
+                );
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {

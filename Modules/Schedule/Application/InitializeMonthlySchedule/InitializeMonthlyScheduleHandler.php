@@ -1,4 +1,5 @@
 <?php
+
 namespace Modules\Schedule\Application\InitializeMonthlySchedule;
 
 use Carbon\Carbon;
@@ -6,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\Plans;
-use Modules\Schedule\Models\PlanTemplates;
 use Modules\Schedule\Models\ScheduleSlot;
 
 class InitializeMonthlyScheduleHandler
@@ -20,92 +20,97 @@ class InitializeMonthlyScheduleHandler
         $targetMonthStart = $targetDate->copy()->startOfMonth();
         $targetMonthEnd = $targetDate->copy()->endOfMonth();
 
-        return DB::transaction(function () use ($targetMonth, $targetYear, $targetDate, $targetMonthStart, $targetMonthEnd, $request) {
+        return DB::transaction(function () use ($targetMonth, $targetYear, $targetMonthStart, $targetMonthEnd, $request) {
             $plans = Plans::query()
                 ->whereIn('status', ['draft', 'submitted', 'approved'])
                 ->whereNotNull('effective_from')
                 ->whereNotNull('effective_to')
+                ->whereDate('effective_from', '<=', $targetMonthEnd->toDateString())
+                ->whereDate('effective_to', '>=', $targetMonthStart->toDateString())
+                ->with(['planTemplates.subjects'])
                 ->get();
 
-            $createdCount = 0;
-            $slotCount = 0;
-            $monthlyScheduleIds = [];
-            $eligiblePlans = 0;
-            $plansWithTemplates = 0;
-
-            foreach ($plans as $plan) {
-                $planStart = Carbon::parse($plan->effective_from)->startOfMonth();
-                $planEnd = Carbon::parse($plan->effective_to)->endOfMonth();
-
-                if ($targetDate->lt($planStart) || $targetDate->gt($planEnd)) {
-                    continue;
-                }
-
-                $eligiblePlans++;
-
-                $templates = PlanTemplates::query()
-                    ->where('plan_id', $plan->id)
-                    ->where(function ($query) use ($targetMonthStart, $targetMonthEnd) {
-                        $query
-                            // If template has date bounds, only apply when it overlaps target month.
-                            ->where(function ($q) use ($targetMonthStart, $targetMonthEnd) {
-                                $q->whereNotNull('start_date')
-                                    ->whereNotNull('end_date')
-                                    ->whereDate('start_date', '<=', $targetMonthEnd->toDateString())
-                                    ->whereDate('end_date', '>=', $targetMonthStart->toDateString());
-                            })
-                            // Backward compatibility for old templates without explicit date range.
-                            ->orWhere(function ($q) {
-                                $q->whereNull('start_date')
-                                    ->whereNull('end_date');
-                            });
-                    })
-                    ->with(['subjects'])
-                    ->get();
-
-                if ($templates->isEmpty()) {
-                    continue;
-                }
-
-                $plansWithTemplates++;
-
-                // One MonthlySchedule per plan+month+year (class distinction is at ScheduleSlot level)
-                $monthlySchedule = MonthlySchedule::query()
-                    ->where('plan_id', $plan->id)
-                    ->where('month', $targetMonth)
-                    ->where('year', $targetYear)
-                    ->first();
-
-                if (!$monthlySchedule) {
-                    $monthlySchedule = MonthlySchedule::create([
-                        'plan_id' => $plan->id,
-                        'month' => $targetMonth,
-                        'year' => $targetYear,
-                        'created_by' => $request->user()?->id,
-                        'status' => 'draft',
-                    ]);
-                    $createdCount++;
-                }
-
-                $monthlyScheduleIds[] = $monthlySchedule->id;
-
-                $slotCount += $this->createScheduleSlots($monthlySchedule, $templates, $targetMonth, $targetYear);
-            }
-
-            if ($eligiblePlans === 0) {
+            if ($plans->isEmpty()) {
                 throw ValidationException::withMessages([
                     'month' => "Khong co ke hoach hoc ky nao hieu luc trong thang {$targetMonth}/{$targetYear}.",
                 ]);
             }
 
-            if ($plansWithTemplates === 0) {
-                throw ValidationException::withMessages([
-                    'month' => "Khong co mau lich hoc (plan_templates) hieu luc cho thang {$targetMonth}/{$targetYear}. Vui long tao mau truoc khi khoi tao lich thang.",
+            $preparedPlans = [];
+            $planErrors = [];
+
+            foreach ($plans as $plan) {
+                $prepared = $this->buildScheduleSlotRows(
+                    $plan->planTemplates,
+                    $targetMonth,
+                    $targetYear
+                );
+
+                $planLabel = "Plan #{$plan->id} ({$plan->name})";
+                if ($prepared['applicable_templates'] === 0) {
+                    $planErrors[] = "{$planLabel}: khong co plan_template hieu luc trong thang.";
+
+                    continue;
+                }
+
+                if ($prepared['errors'] !== []) {
+                    foreach ($prepared['errors'] as $error) {
+                        $planErrors[] = "{$planLabel}: {$error}";
+                    }
+
+                    continue;
+                }
+
+                if ($prepared['slots'] === []) {
+                    $planErrors[] = "{$planLabel}: plan_template khong sinh ra schedule_slot nao trong thang.";
+
+                    continue;
+                }
+
+                $preparedPlans[] = [
+                    'plan' => $plan,
+                    'slots' => $prepared['slots'],
+                ];
+            }
+
+            if ($planErrors !== []) {
+                throw ValidationException::withMessages(['month' => $planErrors]);
+            }
+
+            $createdCount = 0;
+            $slotCount = 0;
+            $monthlyScheduleIds = [];
+
+            foreach ($preparedPlans as $preparedPlan) {
+                $plan = $preparedPlan['plan'];
+
+                // One MonthlySchedule per plan+month+year (class distinction is at ScheduleSlot level).
+                $timestamp = now();
+
+                $createdCount += DB::table('monthly_schedules')->insertOrIgnore([
+                    'plan_id' => $plan->id,
+                    'month' => $targetMonth,
+                    'year' => $targetYear,
+                    'created_by' => $request->user()?->id,
+                    'status' => 'draft',
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
                 ]);
+
+                $monthlySchedule = MonthlySchedule::query()
+                    ->where('plan_id', $plan->id)
+                    ->where('month', $targetMonth)
+                    ->where('year', $targetYear)
+                    ->firstOrFail();
+
+                $monthlyScheduleIds[] = $monthlySchedule->id;
+
+                $slotCount += $this->upsertScheduleSlots($monthlySchedule, $preparedPlan['slots']);
             }
 
             return [
                 'success' => true,
+                'processed_plans' => count($preparedPlans),
                 'created_schedules' => $createdCount,
                 'created_slots' => $slotCount,
                 'monthly_schedule_ids' => $monthlyScheduleIds,
@@ -113,22 +118,34 @@ class InitializeMonthlyScheduleHandler
         });
     }
 
-    private function createScheduleSlots(
-        MonthlySchedule $monthlySchedule,
+    private function buildScheduleSlotRows(
         iterable $templates,
         int $targetMonth,
         int $targetYear
-    ): int {
-        $slotKeys = [];
-        $created = 0;
+    ): array {
+        $slotsByKey = [];
+        $errors = [];
+        $applicableTemplates = 0;
 
         $monthStart = Carbon::create($targetYear, $targetMonth, 1);
         $monthEnd = $monthStart->copy()->endOfMonth();
 
         foreach ($templates as $template) {
+            if (($template->start_date === null) !== ($template->end_date === null)) {
+                $errors[] = "Template #{$template->id} phai co ca start_date va end_date, hoac de trong ca hai.";
+
+                continue;
+            }
+
             $classId = $template->class_id;
             $templateStart = $template->start_date ? Carbon::parse($template->start_date)->startOfDay() : null;
             $templateEnd = $template->end_date ? Carbon::parse($template->end_date)->endOfDay() : null;
+
+            if (($templateStart && $templateStart->gt($monthEnd)) || ($templateEnd && $templateEnd->lt($monthStart))) {
+                continue;
+            }
+
+            $applicableTemplates++;
 
             $daysOfWeek = is_array($template->days_of_week)
                 ? $template->days_of_week
@@ -136,13 +153,19 @@ class InitializeMonthlyScheduleHandler
 
             $daysOfWeek = $this->normalizeTemplateWeekdays($daysOfWeek, $template->day_of_week);
             if ($daysOfWeek === []) {
+                $errors[] = "Template #{$template->id} khong co thu hoc hop le.";
+
                 continue;
             }
 
-            $periodParts = explode('-', $template->period_range);
-            $periodStart = (int) $periodParts[0];
-            $periodEnd = (int) ($periodParts[1] ?? $periodStart);
-            $periods = range($periodStart, $periodEnd);
+            $periods = $this->parsePeriodRange((string) $template->period_range);
+            if ($periods === []) {
+                $errors[] = "Template #{$template->id} co period_range khong hop le.";
+
+                continue;
+            }
+
+            $templateSlotCount = 0;
 
             for ($date = $monthStart->copy(); $date->lte($monthEnd); $date->addDay()) {
                 if (($templateStart && $date->lt($templateStart)) || ($templateEnd && $date->gt($templateEnd))) {
@@ -151,34 +174,20 @@ class InitializeMonthlyScheduleHandler
 
                 // Use module convention: 2..8 (Thu 2..Chu nhat)
                 $dotw = $date->dayOfWeekIso + 1;
-                if (!in_array($dotw, $daysOfWeek, true)) {
+                if (! in_array($dotw, $daysOfWeek, true)) {
                     continue;
                 }
 
                 foreach ($periods as $period) {
                     $slotKey = implode('|', [$classId, $date->toDateString(), $period]);
 
-                    if (isset($slotKeys[$slotKey])) {
+                    if (isset($slotsByKey[$slotKey])) {
+                        $errors[] = "Template #{$template->id} bi trung lop, ngay va tiet voi template khac.";
+
                         continue;
                     }
 
-                    // Check DB to avoid duplicates on re-run
-                    $exists = ScheduleSlot::query()
-                        ->where('monthly_schedule_id', $monthlySchedule->id)
-                        ->where('class_id', $classId)
-                        ->whereDate('date', $date->toDateString())
-                        ->where('period_number', $period)
-                        ->exists();
-
-                    if ($exists) {
-                        $slotKeys[$slotKey] = true;
-                        continue;
-                    }
-
-                    $slotKeys[$slotKey] = true;
-
-                    ScheduleSlot::create([
-                        'monthly_schedule_id' => $monthlySchedule->id,
+                    $slotsByKey[$slotKey] = [
                         'class_id' => $classId,
                         'subject_id' => $template->subject_id,
                         'date' => $date->toDateString(),
@@ -188,20 +197,82 @@ class InitializeMonthlyScheduleHandler
                         'subject' => $template->subjects?->name ?? 'Chua xep mon',
                         'content' => '',
                         'slot_status' => 'planned',
-                    ]);
-                    $created++;
+                    ];
+                    $templateSlotCount++;
                 }
             }
+
+            if ($templateSlotCount === 0) {
+                $errors[] = "Template #{$template->id} khong sinh ra ngay hoc nao trong thang.";
+            }
+        }
+
+        return [
+            'applicable_templates' => $applicableTemplates,
+            'slots' => $slotsByKey,
+            'errors' => array_values(array_unique($errors)),
+        ];
+    }
+
+    private function upsertScheduleSlots(MonthlySchedule $monthlySchedule, array $slotsByKey): int
+    {
+        $timestamp = now();
+
+        foreach ($slotsByKey as &$slot) {
+            $slot['monthly_schedule_id'] = $monthlySchedule->id;
+            $slot['created_at'] = $timestamp;
+            $slot['updated_at'] = $timestamp;
+        }
+        unset($slot);
+
+        $existingSlotKeys = ScheduleSlot::query()
+            ->where('monthly_schedule_id', $monthlySchedule->id)
+            ->get(['class_id', 'date', 'period_number'])
+            ->mapWithKeys(function (ScheduleSlot $slot): array {
+                $key = implode('|', [
+                    $slot->class_id,
+                    $slot->date->toDateString(),
+                    $slot->period_number,
+                ]);
+
+                return [$key => true];
+            })
+            ->all();
+
+        $created = count(array_diff_key($slotsByKey, $existingSlotKeys));
+
+        foreach (array_chunk(array_values($slotsByKey), 500) as $slotChunk) {
+            ScheduleSlot::query()->upsert(
+                $slotChunk,
+                ['monthly_schedule_id', 'date', 'period_number', 'class_id'],
+                ['subject_id', 'day_of_week', 'period', 'subject', 'updated_at']
+            );
         }
 
         return $created;
     }
 
+    private function parsePeriodRange(string $periodRange): array
+    {
+        if (! preg_match('/^\s*(\d+)\s*(?:-\s*(\d+)\s*)?$/', $periodRange, $matches)) {
+            return [];
+        }
+
+        $start = (int) $matches[1];
+        $end = isset($matches[2]) ? (int) $matches[2] : $start;
+
+        if ($start < 1 || $end < $start) {
+            return [];
+        }
+
+        return range($start, $end);
+    }
+
     private function normalizeTemplateWeekdays(array $rawDays, mixed $fallbackDay): array
     {
         $values = collect($rawDays)
-            ->filter(fn($item) => is_numeric($item))
-            ->map(fn($item) => (int) $item)
+            ->filter(fn ($item) => is_numeric($item))
+            ->map(fn ($item) => (int) $item)
             ->values();
 
         if ($values->isEmpty() && is_numeric($fallbackDay)) {
@@ -210,7 +281,7 @@ class InitializeMonthlyScheduleHandler
 
         // Preferred/current convention in semester flows.
         $currentConvention = $values
-            ->filter(fn(int $dow) => $dow >= 2 && $dow <= 8)
+            ->filter(fn (int $dow) => $dow >= 2 && $dow <= 8)
             ->unique()
             ->sort()
             ->values();
@@ -221,8 +292,8 @@ class InitializeMonthlyScheduleHandler
 
         // Legacy fallback: 1..7 (ISO) -> 2..8.
         $isoConvention = $values
-            ->filter(fn(int $dow) => $dow >= 1 && $dow <= 7)
-            ->map(fn(int $dow) => $dow + 1)
+            ->filter(fn (int $dow) => $dow >= 1 && $dow <= 7)
+            ->map(fn (int $dow) => $dow + 1)
             ->unique()
             ->sort()
             ->values();
@@ -233,8 +304,8 @@ class InitializeMonthlyScheduleHandler
 
         // Legacy fallback: 0..6 (Sun..Sat) -> 8,2..7.
         return $values
-            ->filter(fn(int $dow) => $dow >= 0 && $dow <= 6)
-            ->map(fn(int $dow) => $dow === 0 ? 8 : $dow + 1)
+            ->filter(fn (int $dow) => $dow >= 0 && $dow <= 6)
+            ->map(fn (int $dow) => $dow === 0 ? 8 : $dow + 1)
             ->unique()
             ->sort()
             ->values()

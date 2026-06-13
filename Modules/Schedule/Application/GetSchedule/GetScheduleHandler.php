@@ -21,7 +21,7 @@ class GetScheduleHandler
         // Get all schedules with pagination
         $perPage = $request->input('per_page', 15);
         $schedules = Plans::query()
-            ->with(['createdBy', 'submittedBy'])
+            ->with(['createdBy', 'submittedBy', 'trainingBatch.trainingProgram'])
             ->latest('id')
             ->paginate($perPage)
             ->withQueryString();

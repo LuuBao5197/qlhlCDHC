@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-    $strictNextMonthOnly = (bool) config('schedule.initialize_monthly_schedule.strict_next_month_only', true);
+    $strictRollingWindow = (bool) config('schedule.initialize_monthly_schedule.strict_next_month_only', true);
     $allowCurrentMonthForTest = (bool) config('schedule.initialize_monthly_schedule.allow_current_month_in_test', false);
 @endphp
 <div class="container mx-auto px-4 py-8">
@@ -47,8 +47,8 @@
             </div>
 
             <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-                @if ($strictNextMonthOnly)
-                    <p class="text-blue-700"><strong>Lưu ý:</strong> Chỉ được khởi tạo đúng tháng kế tiếp. Ngày hôm nay là {{ now()->format('d/m/Y') }}.</p>
+                @if ($strictRollingWindow)
+                    <p class="text-blue-700"><strong>Lưu ý:</strong> Được khởi tạo bù tháng hiện tại hoặc chuẩn bị tháng kế tiếp. Ngày hôm nay là {{ now()->format('d/m/Y') }}.</p>
                 @elseif ($allowCurrentMonthForTest)
                     <p class="text-blue-700"><strong>Lưu ý (chế độ test):</strong> Được khởi tạo từ tháng hiện tại trở đi. Ngày hôm nay là {{ now()->format('d/m/Y') }}.</p>
                 @else
@@ -64,4 +64,3 @@
     </div>
 </div>
 @endsection
-

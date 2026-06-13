@@ -4,7 +4,6 @@ namespace Modules\Schedule\Application\CreateScheduleSemester;
 
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Str;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\TrainingClass;
 
@@ -18,16 +17,18 @@ class CreateScheduleSemesterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'training_batch_id' => [
+                'required',
+                'integer',
+                'exists:training_batches,id',
+            ],
             'semester' => 'required|integer|min:1|max:2',
             'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'description' => 'nullable|string|max:500',
-            'class_name' => 'nullable|string|max:50',
             'selected_class_ids' => 'nullable|array',
             'selected_class_ids.*' => 'integer|exists:classes,id',
-            'default_subject' => 'nullable|string|max:255',
-            'default_content' => 'nullable|string|max:1000',
             'class_tab_rules' => 'nullable|array',
             'import_file' => 'nullable|array',
             'import_file.*' => 'file|mimes:csv,txt',
@@ -37,6 +38,8 @@ class CreateScheduleSemesterRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'training_batch_id.required' => 'Khoa dao tao la bat buoc.',
+            'training_batch_id.exists' => 'Khoa dao tao duoc chon khong ton tai.',
             'semester.required' => 'Hoc ky la bat buoc.',
             'year.required' => 'Nam hoc la bat buoc.',
             'end_date.after_or_equal' => 'Ngay ket thuc phai lon hon hoac bang ngay bat dau.',
@@ -47,9 +50,15 @@ class CreateScheduleSemesterRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('class_name')) {
+        $trainingBatchId = $this->input('training_batch_id');
+
+        if (is_numeric($trainingBatchId)) {
             $this->merge([
-                'class_name' => Str::upper(trim((string) $this->input('class_name', ''))),
+                'selected_class_ids' => TrainingClass::query()
+                    ->where('training_batch_id', (int) $trainingBatchId)
+                    ->pluck('id')
+                    ->map(fn ($id) => (string) $id)
+                    ->all(),
             ]);
         }
     }
@@ -57,20 +66,48 @@ class CreateScheduleSemesterRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $trainingBatchId = $this->input('training_batch_id');
             $semester = $this->input('semester');
             $year = $this->input('year');
 
-            if (is_numeric($semester) && is_numeric($year)) {
-                $exists = Plans::query()
+            if (is_numeric($trainingBatchId) && is_numeric($semester) && is_numeric($year)) {
+                $duplicatePlanExists = Plans::query()
+                    ->where('training_batch_id', (int) $trainingBatchId)
                     ->where('semester', (int) $semester)
                     ->where('year', (int) $year)
                     ->exists();
 
-                if ($exists) {
+                if ($duplicatePlanExists) {
                     $validator->errors()->add(
-                        'semester',
-                        'Ke hoach hoc ky ' . $semester . ' nam ' . $year . ' da ton tai.'
+                        'training_batch_id',
+                        'Khoa dao tao nay da co ke hoach hoc ky ' . $semester . ' nam ' . $year . '.'
                     );
+                }
+            }
+
+            if (is_numeric($trainingBatchId)) {
+                $selectedClassIds = collect($this->input('selected_class_ids', []))
+                    ->filter(fn ($id) => $id !== null && $id !== '')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values();
+
+                if ($selectedClassIds->isNotEmpty()) {
+                    $invalidClassCodes = TrainingClass::query()
+                        ->whereIn('id', $selectedClassIds->all())
+                        ->where(function ($query) use ($trainingBatchId) {
+                            $query
+                                ->whereNull('training_batch_id')
+                                ->orWhere('training_batch_id', '!=', (int) $trainingBatchId);
+                        })
+                        ->pluck('code');
+
+                    if ($invalidClassCodes->isNotEmpty()) {
+                        $validator->errors()->add(
+                            'selected_class_ids',
+                            'Cac lop sau khong thuoc khoa dao tao da chon: ' . $invalidClassCodes->implode(', ') . '.'
+                        );
+                    }
                 }
             }
 
@@ -80,17 +117,10 @@ class CreateScheduleSemesterRequest extends FormRequest
                 ->unique()
                 ->values();
 
-            $fallbackKey = $this->fallbackClassKey();
-            if ($fallbackKey !== null) {
-                $validClassKeys->push($fallbackKey);
-            }
-
-            $validClassKeys = $validClassKeys->unique()->values();
-
             if ($validClassKeys->isEmpty()) {
                 $validator->errors()->add(
                     'selected_class_ids',
-                    'Phai chon it nhat mot lop hoac nhap lop bo sung.'
+                    'Khoa dao tao da chon chua co lop nao.'
                 );
                 return;
             }
@@ -152,6 +182,13 @@ class CreateScheduleSemesterRequest extends FormRequest
                     $hasMeaningfulRule = true;
                     $ruleNumber = $index + 1;
 
+                    if (trim((string) ($rule['subject'] ?? '')) === '') {
+                        $validator->errors()->add(
+                            'class_tab_rules',
+                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap mon hoc."
+                        );
+                    }
+
                     $startDate = $rule['start_date'] ?? null;
                     $endDate = $rule['end_date'] ?? null;
                     if (!$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
@@ -197,21 +234,6 @@ class CreateScheduleSemesterRequest extends FormRequest
                 }
             }
         });
-    }
-
-    private function fallbackClassKey(): ?string
-    {
-        $className = trim((string) $this->input('class_name', ''));
-        if ($className === '') {
-            return null;
-        }
-
-        $normalized = $this->normalizeClassCode($className);
-        if ($normalized === '') {
-            return null;
-        }
-
-        return 'name:' . $normalized;
     }
 
     private function normalizeRulesPayload($validator): ?array
@@ -298,19 +320,10 @@ class CreateScheduleSemesterRequest extends FormRequest
 
     private function classLabel(string $classKey): string
     {
-        if (str_starts_with($classKey, 'name:')) {
-            return trim((string) $this->input('class_name', '')) ?: substr($classKey, 5);
-        }
-
         if (ctype_digit($classKey)) {
             return TrainingClass::query()->find($classKey)?->code ?? $classKey;
         }
 
         return $classKey;
-    }
-
-    private function normalizeClassCode(string $value): string
-    {
-        return Str::upper((string) preg_replace('/[^A-Z0-9_]/', '_', trim($value)));
     }
 }

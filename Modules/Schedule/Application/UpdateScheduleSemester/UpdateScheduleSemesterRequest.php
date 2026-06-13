@@ -28,8 +28,6 @@ class UpdateScheduleSemesterRequest extends FormRequest
             'class_name' => 'nullable|string|max:50',
             'selected_class_ids' => 'nullable|array',
             'selected_class_ids.*' => 'integer|exists:classes,id',
-            'default_subject' => 'nullable|string|max:255',
-            'default_content' => 'nullable|string|max:1000',
             'class_tab_rules' => 'nullable|array',
             'import_file' => 'nullable|array',
             'import_file.*' => 'file|mimes:csv,txt',
@@ -60,21 +58,50 @@ class UpdateScheduleSemesterRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $planId = $this->route('id');
+            $plan = Plans::query()->find($planId);
+            $trainingBatchId = $plan?->training_batch_id;
             $semester = $this->input('semester');
             $year = $this->input('year');
 
-            if (is_numeric($semester) && is_numeric($year)) {
-                $exists = Plans::query()
-                    ->where('semester', (int) $semester)
-                    ->where('year', (int) $year)
-                    ->where('id', '!=', $planId)
-                    ->exists();
+            if ($trainingBatchId) {
+                if (is_numeric($semester) && is_numeric($year)) {
+                    $duplicatePlanExists = Plans::query()
+                        ->where('training_batch_id', (int) $trainingBatchId)
+                        ->where('semester', (int) $semester)
+                        ->where('year', (int) $year)
+                        ->where('id', '!=', $planId)
+                        ->exists();
 
-                if ($exists) {
-                    $validator->errors()->add(
-                        'semester',
-                        'Ke hoach hoc ky ' . $semester . ' nam ' . $year . ' da ton tai.'
-                    );
+                    if ($duplicatePlanExists) {
+                        $validator->errors()->add(
+                            'semester',
+                            'Khoa dao tao cua ke hoach nay da co ke hoach hoc ky ' . $semester . ' nam ' . $year . '.'
+                        );
+                    }
+                }
+
+                $selectedClassIds = collect($this->input('selected_class_ids', []))
+                    ->filter(fn($id) => $id !== null && $id !== '')
+                    ->map(fn($id) => (int) $id)
+                    ->unique()
+                    ->values();
+
+                if ($selectedClassIds->isNotEmpty()) {
+                    $invalidClassCodes = TrainingClass::query()
+                        ->whereIn('id', $selectedClassIds->all())
+                        ->where(function ($query) use ($trainingBatchId) {
+                            $query
+                                ->whereNull('training_batch_id')
+                                ->orWhere('training_batch_id', '!=', (int) $trainingBatchId);
+                        })
+                        ->pluck('code');
+
+                    if ($invalidClassCodes->isNotEmpty()) {
+                        $validator->errors()->add(
+                            'selected_class_ids',
+                            'Cac lop sau khong thuoc khoa dao tao cua ke hoach: ' . $invalidClassCodes->implode(', ') . '.'
+                        );
+                    }
                 }
             }
 
@@ -157,6 +184,14 @@ class UpdateScheduleSemesterRequest extends FormRequest
                     $hasMeaningfulRule = true;
                     $ruleNumber = $index + 1;
                     $hasRuleError = false;
+
+                    if (trim((string) ($rule['subject'] ?? '')) === '') {
+                        $hasRuleError = true;
+                        $validator->errors()->add(
+                            'class_tab_rules',
+                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap mon hoc."
+                        );
+                    }
 
                     $startDate = $rule['start_date'] ?? null;
                     $endDate = $rule['end_date'] ?? null;

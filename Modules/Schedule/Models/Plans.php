@@ -8,12 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Modules\Schedule\Models\PlanTemplates;
+use Modules\Training\Models\TrainingBatch;
 
 class Plans extends Model
 {
     protected $table = 'plans';
 
     protected $fillable = [
+        'training_batch_id',
         'name',
         'semester',
         'year',
@@ -43,6 +45,11 @@ class Plans extends Model
     public function planTemplates()
     {
         return $this->hasMany(PlanTemplates::class, 'plan_id');
+    }
+
+    public function trainingBatch(): BelongsTo
+    {
+        return $this->belongsTo(TrainingBatch::class, 'training_batch_id');
     }
 
     public function createdBy(): BelongsTo

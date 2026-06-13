@@ -25,6 +25,10 @@ Route::middleware(['auth', 'management.access'])->prefix('management')->name('ma
     Route::apiResource('rooms', ManageRoomsController::class);
     Route::apiResource('subjects', ManageSubjectsController::class);
     Route::apiResource('subject-lessons', ManageSubjectLessonsController::class);
+    Route::get('students/import-template', [ManageStudentsController::class, 'downloadImportTemplate'])
+        ->name('students.import-template');
+    Route::post('students/import', [ManageStudentsController::class, 'import'])
+        ->name('students.import');
     Route::apiResource('students', ManageStudentsController::class);
 });
 

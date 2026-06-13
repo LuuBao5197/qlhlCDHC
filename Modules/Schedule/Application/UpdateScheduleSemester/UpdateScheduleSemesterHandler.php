@@ -40,7 +40,8 @@ class UpdateScheduleSemesterHandler
 
         $classMap = $this->resolveClasses(
             $validated['selected_class_ids'] ?? [],
-            $validated['class_name'] ?? null
+            $validated['class_name'] ?? null,
+            $plan->training_batch_id ? (int) $plan->training_batch_id : null
         );
 
         if ($classMap === []) {
@@ -49,18 +50,12 @@ class UpdateScheduleSemesterHandler
             ]);
         }
 
-        $defaultSubject = trim((string) ($validated['default_subject'] ?? 'Chua xep mon')) ?: 'Chua xep mon';
-        $defaultContent = trim((string) ($validated['default_content'] ?? 'Noi dung se cap nhat sau'))
-            ?: 'Noi dung se cap nhat sau';
-
         $templateEntries = array_merge(
             $this->parseClassTabRules(
                 $validated['class_tab_rules'] ?? [],
-                $classMap,
-                $defaultSubject,
-                $defaultContent
+                $classMap
             ),
-            $this->parseImportFiles($request, $classMap, $defaultSubject, $defaultContent)
+            $this->parseImportFiles($request, $classMap)
         );
 
         if ($templateEntries === []) {
@@ -79,8 +74,7 @@ class UpdateScheduleSemesterHandler
             $validated,
             $templateEntries,
             $planStart,
-            $planEnd,
-            $defaultContent
+            $planEnd
         ) {
             // Update plan master record
             $plan->update([
@@ -124,7 +118,7 @@ class UpdateScheduleSemesterHandler
             }
 
             // $monthlySchedules = $this->createMonthlySchedules($plan, $templateModels);
-            // $this->createScheduleSlots($templateModels, $monthlySchedules, $defaultContent);
+            // $this->createScheduleSlots($templateModels, $monthlySchedules);
 
             return $plan;
         });
@@ -136,6 +130,7 @@ class UpdateScheduleSemesterHandler
             'semester' => $updatedPlan->semester,
             'year' => $updatedPlan->year,
             'className' => $className,
+            'training_batch_id' => $updatedPlan->training_batch_id,
         ])->with('success', 'Da cap nhat ke hoach hoc ky va lich tong quat thanh cong.');
     }
 
@@ -151,7 +146,7 @@ class UpdateScheduleSemesterHandler
             : Carbon::parse("{$year}-12-31")->endOfDay();
     }
 
-    private function resolveClasses(array $selectedClassIds, ?string $fallbackClassName): array
+    private function resolveClasses(array $selectedClassIds, ?string $fallbackClassName, ?int $trainingBatchId): array
     {
         $classMap = [];
 
@@ -162,10 +157,14 @@ class UpdateScheduleSemesterHandler
             ->values();
 
         if ($selectedClassIds->isNotEmpty()) {
-            $classes = TrainingClass::query()
-                ->whereIn('id', $selectedClassIds->all())
-                ->get()
-                ->keyBy('id');
+            $classesQuery = TrainingClass::query()
+                ->whereIn('id', $selectedClassIds->all());
+
+            if ($trainingBatchId !== null) {
+                $classesQuery->where('training_batch_id', $trainingBatchId);
+            }
+
+            $classes = $classesQuery->get()->keyBy('id');
 
             foreach ($selectedClassIds as $classId) {
                 if ($classes->has($classId)) {
@@ -179,11 +178,22 @@ class UpdateScheduleSemesterHandler
             $existing = TrainingClass::query()->where('code', $normalized)->first();
 
             if ($existing) {
+                if ($trainingBatchId !== null && (int) $existing->training_batch_id !== $trainingBatchId) {
+                    throw ValidationException::withMessages([
+                        'class_name' => "Lop '{$normalized}' khong thuoc khoa dao tao cua ke hoach.",
+                    ]);
+                }
+
                 $classMap[(string) $existing->id] = $existing;
             } else {
+                $createData = ['name' => $normalized, 'status' => 'active'];
+                if ($trainingBatchId !== null) {
+                    $createData['training_batch_id'] = $trainingBatchId;
+                }
+
                 $classMap['name:' . $normalized] = TrainingClass::query()->firstOrCreate(
                     ['code' => $normalized],
-                    ['name' => $normalized, 'status' => 'active']
+                    $createData
                 );
             }
         }
@@ -198,9 +208,7 @@ class UpdateScheduleSemesterHandler
 
     private function parseClassTabRules(
         array|string|null $rawRules,
-        array $classMap,
-        string $defaultSubject,
-        string $defaultContent
+        array $classMap
     ): array {
         if ($rawRules === null || $rawRules === '' || $rawRules === []) {
             return [];
@@ -228,8 +236,14 @@ class UpdateScheduleSemesterHandler
                 $periodFrom = (int) $rule['period_from'];
                 $periodTo = (int) $rule['period_to'];
                 $daysOfWeek = $this->normalizeWeekdays($rule['weekdays'] ?? []);
-                $subjectText = trim((string) ($rule['subject'] ?? $defaultSubject)) ?: $defaultSubject;
-                $content = trim((string) ($rule['content'] ?? $defaultContent)) ?: $defaultContent;
+                $subjectText = trim((string) ($rule['subject'] ?? ''));
+                $content = trim((string) ($rule['content'] ?? '')) ?: null;
+
+                if ($subjectText === '') {
+                    throw ValidationException::withMessages([
+                        'class_tab_rules' => 'Moi quy tac phai nhap mon hoc.',
+                    ]);
+                }
 
                 $rows[] = [
                     'class_id' => $classMap[(string) $classKey]->id,
@@ -250,9 +264,7 @@ class UpdateScheduleSemesterHandler
 
     private function parseImportFiles(
         UpdateScheduleSemesterRequest $request,
-        array $classMap,
-        string $defaultSubject,
-        string $defaultContent
+        array $classMap
     ): array {
         $rows = [];
         $rawImports = $request->file('import_file', []);
@@ -401,8 +413,15 @@ class UpdateScheduleSemesterHandler
                     ]);
                 }
 
-                $subjectText = trim((string) ($rowData['subject'] ?? $defaultSubject)) ?: $defaultSubject;
-                $content = trim((string) ($rowData['content'] ?? $defaultContent)) ?: $defaultContent;
+                $subjectText = trim((string) ($rowData['subject'] ?? ''));
+                $content = trim((string) ($rowData['content'] ?? '')) ?: null;
+
+                if ($subjectText === '') {
+                    fclose($handle);
+                    throw ValidationException::withMessages([
+                        'import_file' => "File import cua lop '{$class->code}' chua mon hoc.",
+                    ]);
+                }
 
                 $rows[] = [
                     'class_id' => $class->id,
@@ -636,7 +655,7 @@ class UpdateScheduleSemesterHandler
         return $monthlySchedules;
     }
 
-    private function createScheduleSlots(array $templates, array $monthlySchedules, string $defaultContent): void
+    private function createScheduleSlots(array $templates, array $monthlySchedules): void
     {
         $subjectNames = Subject::query()
             ->whereIn('id', collect($templates)->pluck('subject_id')->unique()->all())
@@ -654,10 +673,7 @@ class UpdateScheduleSemesterHandler
 
             $periods = $this->parsePeriodRange((string) $template->period_range);
             $subjectName = $template->subjects?->name ?? $subjectNames->get($template->subject_id) ?? 'Mon hoc';
-            $content = trim((string) ($template->description ?: $defaultContent));
-            if ($content === '') {
-                $content = $defaultContent;
-            }
+            $content = trim((string) $template->description) ?: null;
 
             $start = Carbon::parse($template->start_date)->startOfDay();
             $end = Carbon::parse($template->end_date)->endOfDay();

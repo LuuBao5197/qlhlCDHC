@@ -16,12 +16,17 @@ class UpdateScheduleSemesterController extends Controller
 
     public function showForm($id)
     {
-        $plan = Plans::with('planTemplates.trainingClass', 'planTemplates.subjects')
+        $plan = Plans::with('trainingBatch.trainingProgram', 'planTemplates.trainingClass', 'planTemplates.subjects')
             ->findOrFail($id);
 
-        $classes = TrainingClass::query()
-            ->orderBy('code')
-            ->get(['id', 'code', 'name']);
+        $classesQuery = TrainingClass::query()
+            ->orderBy('code');
+
+        if ($plan->training_batch_id) {
+            $classesQuery->where('training_batch_id', $plan->training_batch_id);
+        }
+
+        $classes = $classesQuery->get(['id', 'training_batch_id', 'code', 'name']);
 
         $subjects = Subject::query()
             ->orderBy('code')

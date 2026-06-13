@@ -24,6 +24,7 @@ class TrainingClassSeeder extends Seeder
                 [
                     'name' => 'Lop ' . $classCode,
                     'course_year' => 2024 + ($index % 3),
+                    'total_students' => 30 + $index,
                     'status' => 'active',
                 ]
             );

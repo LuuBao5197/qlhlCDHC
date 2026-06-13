@@ -11,6 +11,11 @@
             const searchInputEl = document.getElementById('searchInput');
             const prevBtnEl = document.getElementById('prevBtn');
             const nextBtnEl = document.getElementById('nextBtn');
+            const importBtnEl = document.getElementById('importBtn');
+            const importSectionEl = document.getElementById('importSection');
+            const importFormEl = document.getElementById('importForm');
+            const importClassIdEl = document.getElementById('importClassId');
+            const submitImportBtnEl = document.getElementById('submitImportBtn');
 
             function escapeHtml(value) {
                 return String(value ?? '')
@@ -37,6 +42,7 @@
 
             async function request(url, options = {}) {
                 const method = (options.method || 'GET').toUpperCase();
+                const isFormData = options.body instanceof FormData;
                 const headers = {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -44,8 +50,10 @@
                 };
 
                 if (method !== 'GET') {
-                    headers['Content-Type'] = 'application/json';
                     headers['X-CSRF-TOKEN'] = csrfToken;
+                    if (!isFormData) {
+                        headers['Content-Type'] = 'application/json';
+                    }
                 }
 
                 const response = await fetch(url, {
@@ -96,6 +104,10 @@
                         </button>
                     `)
                     .join('');
+            }
+
+            function updateResourceActions() {
+                importBtnEl.style.display = state.currentResource === 'students' ? '' : 'none';
             }
 
             function renderTable() {
@@ -177,6 +189,7 @@
                     ['trainingBatches', resources.trainingBatches.endpoint],
                     ['departments', resources.departments.endpoint],
                     ['trainingClasses', resources.trainingClasses.endpoint],
+                    ['rooms', resources.rooms.endpoint],
                     ['subjects', resources.subjects.endpoint],
                 ];
 
@@ -284,6 +297,38 @@
                 editorSectionEl.style.display = 'none';
             }
 
+            function renderImportClassOptions() {
+                const options = (state.lookups.trainingClasses || []).map((item) => ({
+                    value: item.id,
+                    label: lookupLabels.trainingClasses(item) || item.id,
+                }));
+
+                importClassIdEl.innerHTML = `
+                    <option value="">-- Chon lop --</option>
+                    ${options.map((option) =>
+                        `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`
+                    ).join('')}
+                `;
+            }
+
+            function openImport() {
+                closeEditor();
+                hideAlert();
+                renderImportClassOptions();
+                importSectionEl.style.display = 'block';
+                importSectionEl.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+
+            function closeImport() {
+                importFormEl.reset();
+                importSectionEl.style.display = 'none';
+                submitImportBtnEl.disabled = false;
+                submitImportBtnEl.textContent = 'Nhap du lieu';
+            }
+
             function collectFormData() {
                 const resource = resources[state.currentResource];
                 const formData = {};
@@ -340,8 +385,21 @@
                 state.q = '';
                 searchInputEl.value = '';
                 closeEditor();
+                closeImport();
                 renderTabs();
+                updateResourceActions();
                 await loadRows();
+            }
+
+            function validationMessage(error) {
+                if (error.status !== 422 || !error.payload?.errors) {
+                    return null;
+                }
+
+                return Object.entries(error.payload.errors)
+                    .flatMap(([field, messages]) => messages.map((message) =>
+                        `${escapeHtml(field)}: ${escapeHtml(message)}`))
+                    .join('<br>');
             }
 
             async function saveRecord(event) {
@@ -365,16 +423,40 @@
                     closeEditor();
                     showAlert('success', `${isEditing ? 'Cap nhat' : 'Tao moi'} thanh cong.`);
                 } catch (error) {
-                    if (error.status === 422 && error.payload?.errors) {
-                        const validationMessage = Object.entries(error.payload.errors)
-                            .map(([field, messages]) =>
-                                `${escapeHtml(field)}: ${escapeHtml(messages.join(', '))}`)
-                            .join('<br>');
-                        showAlert('danger', validationMessage);
+                    const message = validationMessage(error);
+                    if (message) {
+                        showAlert('danger', message);
                         return;
                     }
 
                     showAlert('danger', escapeHtml(error.message || 'Khong the luu du lieu.'));
+                }
+            }
+
+            async function importStudents(event) {
+                event.preventDefault();
+                hideAlert();
+
+                const formData = new FormData(importFormEl);
+                submitImportBtnEl.disabled = true;
+                submitImportBtnEl.textContent = 'Dang nhap...';
+
+                try {
+                    const payload = await request(`${resources.students.endpoint}/import`, {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    state.page = 1;
+                    await loadRows();
+                    closeImport();
+                    showAlert('success', `Da nhap thanh cong ${payload?.imported_count || 0} hoc vien.`);
+                } catch (error) {
+                    const message = validationMessage(error);
+                    showAlert('danger', message || escapeHtml(error.message || 'Khong the nhap file CSV.'));
+                } finally {
+                    submitImportBtnEl.disabled = false;
+                    submitImportBtnEl.textContent = 'Nhap du lieu';
                 }
             }
 
@@ -440,11 +522,20 @@
             });
 
             document.getElementById('addBtn').addEventListener('click', function() {
+                closeImport();
                 renderEditor(null);
+            });
+
+            importBtnEl.addEventListener('click', function() {
+                openImport();
             });
 
             document.getElementById('cancelBtn').addEventListener('click', function() {
                 closeEditor();
+            });
+
+            document.getElementById('cancelImportBtn').addEventListener('click', function() {
+                closeImport();
             });
 
             document.getElementById('reloadBtn').addEventListener('click', async function() {
@@ -486,10 +577,11 @@
             });
 
             document.getElementById('editorForm').addEventListener('submit', saveRecord);
+            importFormEl.addEventListener('submit', importStudents);
 
             (async function boot() {
                 renderTabs();
+                updateResourceActions();
                 await loadLookups();
                 await loadRows();
             })();
-

@@ -21,6 +21,7 @@ class TrainingClassFactory extends Factory
             'code' => fake()->unique()->bothify('CLS-##??'),
             'name' => 'Lop ' . fake()->unique()->bothify('##??'),
             'course_year' => fake()->numberBetween(2023, 2030),
+            'total_students' => fake()->numberBetween(20, 50),
             'status' => fake()->randomElement(['active', 'inactive', 'archived']),
         ];
     }

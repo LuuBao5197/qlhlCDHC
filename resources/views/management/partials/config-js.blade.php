@@ -179,6 +179,14 @@
                             label: 'Năm học'
                         },
                         {
+                            key: 'total_students',
+                            label: 'Tổng quân số'
+                        },
+                        {
+                            key: 'default_room.name',
+                            label: 'Phòng mặc định'
+                        },
+                        {
                             key: 'status',
                             label: 'Trạng thái'
                         }
@@ -191,7 +199,7 @@
                         },
                         {
                             key: 'name',
-                            label: 'ên lớp',
+                            label: 'Tên lớp',
                             type: 'text',
                             required: true
                         },
@@ -205,6 +213,18 @@
                             key: 'course_year',
                             label: 'Năm học',
                             type: 'number'
+                        },
+                        {
+                            key: 'total_students',
+                            label: 'Tổng quân số',
+                            type: 'number',
+                            required: true
+                        },
+                        {
+                            key: 'default_room_id',
+                            label: 'Phòng mặc định',
+                            type: 'select',
+                            lookup: 'rooms'
                         },
                         {
                             key: 'status',
@@ -540,6 +560,7 @@
                 trainingClasses: (item) => [item.code, item.name].filter(Boolean).join(' - '),
                 trainingPrograms: (item) => [item.code, item.name].filter(Boolean).join(' - '),
                 trainingBatches: (item) => [item.code, item.name].filter(Boolean).join(' - '),
+                rooms: (item) => [item.code, item.name].filter(Boolean).join(' - '),
                 subjects: (item) => [item.code, item.name].filter(Boolean).join(' - '),
             };
 
@@ -556,6 +577,8 @@
                     departments: [],
                     trainingClasses: [],
                     trainingPrograms: [],
+                    trainingBatches: [],
+                    rooms: [],
                     subjects: [],
                 }
             };

@@ -13,11 +13,18 @@ class GetScheduleSemesterHandler
         $validated = $request->validated();
         $semester = $validated['semester'] ?? null;
         $year = $validated['year'] ?? null;
+        $trainingBatchId = $validated['training_batch_id'] ?? null;
         $className = $validated['className'] ?? null;
 
         if (!$semester || !$year) return view('schedule::semester', ['plan' => null]);
 
-        $plan = Plans::where('semester', $semester)->where('year', $year)->latest()->first();
+        $plan = Plans::query()
+            ->with('trainingBatch')
+            ->where('semester', $semester)
+            ->where('year', $year)
+            ->when($trainingBatchId, fn ($query) => $query->where('training_batch_id', (int) $trainingBatchId))
+            ->latest()
+            ->first();
         if (!$plan) return view('schedule::semester', ['plan' => null]);
 
         $planTemplates = PlanTemplates::with(['subjects'])

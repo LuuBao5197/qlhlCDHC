@@ -20,6 +20,8 @@ class TrainingClass extends Model
         'code',
         'name',
         'course_year',
+        'total_students',
+        'default_room_id',
         'training_batch_id',
         'status',
     ];
@@ -32,6 +34,11 @@ class TrainingClass extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function defaultRoom(): BelongsTo
+    {
+        return $this->belongsTo(Room::class, 'default_room_id');
     }
 
     public function students(): HasMany

@@ -18,6 +18,7 @@
                             <tr>
                                 <th style="width: 60px;">#</th>
                                 <th>Ten ke hoach</th>
+                                <th>Khoa dao tao</th>
                                 <th>Hoc ky/Nam</th>
                                 <th>Trang thai</th>
                                 <th>Current step</th>
@@ -37,6 +38,19 @@
                                         <div class="font-weight-bold">{{ $schedule->name }}</div>
                                         @if ($schedule->description)
                                             <small class="text-muted">{{ \Illuminate\Support\Str::limit($schedule->description, 90) }}</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($schedule->trainingBatch)
+                                            <div class="font-weight-bold">{{ $schedule->trainingBatch->code }}</div>
+                                            <small class="text-muted">
+                                                {{ $schedule->trainingBatch->name }}
+                                                @if ($schedule->trainingBatch->trainingProgram)
+                                                    - {{ $schedule->trainingBatch->trainingProgram->code }}
+                                                @endif
+                                            </small>
+                                        @else
+                                            <span class="text-muted">-</span>
                                         @endif
                                     </td>
                                     <td>HK {{ $schedule->semester }} / {{ $schedule->year }}</td>
@@ -93,7 +107,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">Chua co ke hoach hoc ky.</td>
+                                    <td colspan="9" class="text-center text-muted py-4">Chua co ke hoach hoc ky.</td>
                                 </tr>
                             @endforelse
                         </tbody>

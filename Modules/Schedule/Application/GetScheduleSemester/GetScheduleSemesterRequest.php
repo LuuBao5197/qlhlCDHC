@@ -22,6 +22,7 @@ class GetScheduleSemesterRequest extends FormRequest
         return [
             'semester' => 'nullable|integer|min:1|max:2',
             'year' => 'nullable|integer|min:2000',
+            'training_batch_id' => 'nullable|integer|exists:training_batches,id',
             'className' => 'nullable|string|max:50',
         ];
     }
@@ -35,6 +36,7 @@ class GetScheduleSemesterRequest extends FormRequest
         $this->merge([
             'semester' => $this->semester ?? $this->route('semester'),
             'year' => $this->year ?? $this->route('year'),
+            'training_batch_id' => $this->input('training_batch_id', $this->route('training_batch_id')),
             'className' => $this->className ?? $this->route('className'),
         ]);
     }
