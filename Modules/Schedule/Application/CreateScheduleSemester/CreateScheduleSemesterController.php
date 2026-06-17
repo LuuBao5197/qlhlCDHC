@@ -59,6 +59,16 @@ class CreateScheduleSemesterController extends Controller
             ['value' => 8, 'label' => 'Chu nhat'],
         ];
 
+        $globalEventTypes = [
+            ['value' => 'holiday', 'label' => 'Nghi le', 'color' => '#ffedd5'],
+        ];
+
+        $classEventTypes = [
+            ['value' => 'review', 'label' => 'On thi', 'color' => '#dbeafe'],
+            ['value' => 'exam', 'label' => 'Thi', 'color' => '#fee2e2'],
+            ['value' => 'other', 'label' => 'Su kien khac', 'color' => '#ede9fe'],
+        ];
+
         return view('schedule::ScheduleSemester.create', [
             'trainingBatches' => $trainingBatches,
             'classes' => $classes,
@@ -66,6 +76,8 @@ class CreateScheduleSemesterController extends Controller
             'subjects' => $subjects,
             'subjectSuggestions' => $subjectSuggestions,
             'weekdayOptions' => $weekdayOptions,
+            'globalEventTypes' => $globalEventTypes,
+            'classEventTypes' => $classEventTypes,
         ]);
     }
 
@@ -74,7 +86,10 @@ class CreateScheduleSemesterController extends Controller
         return response()->download(
             module_path('Schedule', 'resources/templates/plan-template-import.csv'),
             'plan-template-import.csv',
-            ['Content-Type' => 'text/csv']
+            [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="plan-template-import.csv"',
+            ]
         );
     }
 

@@ -1,3 +1,4 @@
-class_code,date,period_from,period_to,subject,content
-CD01,2026-01-05,1,2,MON_TOAN,On tap chuong 1
-CD01,2026-01-05,3,4,MON_VAN,Thuc hanh viet
+row_type,class_code,start_date,end_date,weekdays,period_from,period_to,subject,content,event_type,title,note
+rule,CD01,2026-01-05,2026-01-30,2,1,2,MON_TOAN,On tap chuong 1,,,
+rule,CD01,2026-01-05,2026-01-30,4,3,4,MON_VAN,Thuc hanh viet,,,
+event,CD01,2026-02-10,2026-02-12,,1,9,,,review,On thi giua ky,On theo lich lop

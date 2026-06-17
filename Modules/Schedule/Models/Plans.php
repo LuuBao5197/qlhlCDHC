@@ -6,6 +6,7 @@ use Modules\Training\Models\ApprovalRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Training\Models\TrainingBatch;
@@ -45,6 +46,11 @@ class Plans extends Model
     public function planTemplates()
     {
         return $this->hasMany(PlanTemplates::class, 'plan_id');
+    }
+
+    public function semesterEvents(): HasMany
+    {
+        return $this->hasMany(SemesterEvent::class, 'plan_id');
     }
 
     public function trainingBatch(): BelongsTo

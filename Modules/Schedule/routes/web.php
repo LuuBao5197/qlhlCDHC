@@ -20,6 +20,7 @@ use Modules\Schedule\Application\CreateHolidayRescheduleRequest\CreateHolidayRes
 use Modules\Schedule\Application\CreateHolidayCalendar\CreateHolidayCalendarController;
 use Modules\Schedule\Application\UpdateHolidayCalendar\UpdateHolidayCalendarController;
 use Modules\Schedule\Application\DeleteHolidayCalendar\DeleteHolidayCalendarController;
+use Modules\Schedule\Application\ManageSemesterEvents\ManageSemesterEventsController;
 use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\MonthlySchedule;
 
@@ -79,6 +80,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('holiday-calendar.update');
     Route::delete('/holiday-calendars/{id}', DeleteHolidayCalendarController::class)
         ->name('holiday-calendar.destroy');
+
+    Route::get('/schedules/{id}/semester-events', [ManageSemesterEventsController::class, 'index'])
+        ->name('schedule.semester-events.index');
+    Route::post('/schedules/{id}/semester-events', [ManageSemesterEventsController::class, 'store'])
+        ->name('schedule.semester-events.store');
+    Route::put('/schedules/{id}/semester-events/{eventId}', [ManageSemesterEventsController::class, 'update'])
+        ->name('schedule.semester-events.update');
+    Route::delete('/schedules/{id}/semester-events/{eventId}', [ManageSemesterEventsController::class, 'destroy'])
+        ->name('schedule.semester-events.destroy');
 
     // Semester schedule
     Route::get('/semester/{semester?}/{year?}/{className?}', GetScheduleSemesterController::class)

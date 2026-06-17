@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Schedule\Models\Plans;
+use Modules\Schedule\Models\SemesterEvent;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingClass;
@@ -51,22 +52,17 @@ class CreateScheduleSemesterHandler
             ]);
         }
 
-        $classMap = $this->resolveClasses(
-            $trainingBatchId
-        );
-
+        $classMap = $this->resolveClasses($trainingBatchId);
         if ($classMap === []) {
             throw ValidationException::withMessages([
                 'selected_class_ids' => 'Khoa dao tao da chon chua co lop nao.',
             ]);
         }
 
+        $importedData = $this->parseImportFiles($request, $classMap);
         $templateEntries = array_merge(
-            $this->parseClassTabRules(
-                $validated['class_tab_rules'] ?? [],
-                $classMap
-            ),
-            $this->parseImportFiles($request, $classMap)
+            $this->parseClassTabRules($validated['class_tab_rules'] ?? [], $classMap),
+            $importedData['templates']
         );
 
         if ($templateEntries === []) {
@@ -74,6 +70,15 @@ class CreateScheduleSemesterHandler
                 'class_tab_rules' => 'Khong co du lieu lich tong quat de tao ke hoach.',
             ]);
         }
+
+        $semesterEvents = array_merge(
+            $this->parseGlobalSemesterEvents($validated['global_semester_events'] ?? [], $planStart, $planEnd),
+            $this->parseClassSemesterEvents($validated['class_semester_events'] ?? [], $classMap, $planStart, $planEnd),
+            $importedData['events']
+        );
+
+        $this->validateSemesterEventsWithinPlan($semesterEvents, $planStart, $planEnd);
+        $this->validateSemesterEventConflicts($semesterEvents);
 
         $this->validateTemplateEntries($templateEntries, $planStart, $planEnd);
 
@@ -83,6 +88,7 @@ class CreateScheduleSemesterHandler
             $year,
             $validated,
             $templateEntries,
+            $semesterEvents,
             $planStart,
             $planEnd,
             $trainingBatchId
@@ -100,9 +106,8 @@ class CreateScheduleSemesterHandler
                 'created_by' => $request->user()?->id,
             ]);
 
-            $templateModels = [];
             foreach ($templateEntries as $entry) {
-                $templateModels[] = PlanTemplates::query()->create(
+                PlanTemplates::query()->create(
                     Arr::only(
                         $entry + ['plan_id' => $plan->id],
                         [
@@ -121,8 +126,26 @@ class CreateScheduleSemesterHandler
                 );
             }
 
-            // $monthlySchedules = $this->createMonthlySchedules($plan, $templateModels);
-            // $this->createScheduleSlots($templateModels, $monthlySchedules);
+            foreach ($semesterEvents as $event) {
+                SemesterEvent::query()->create(
+                    Arr::only(
+                        $event + ['plan_id' => $plan->id],
+                        [
+                            'plan_id',
+                            'class_id',
+                            'event_type',
+                            'title',
+                            'start_date',
+                            'end_date',
+                            'period_from',
+                            'period_to',
+                            'color',
+                            'note',
+                            'sort_order',
+                        ]
+                    )
+                );
+            }
 
             return $plan;
         });
@@ -160,10 +183,8 @@ class CreateScheduleSemesterHandler
             ->all();
     }
 
-    private function parseClassTabRules(
-        array|string|null $rawRules,
-        array $classMap
-    ): array {
+    private function parseClassTabRules(array|string|null $rawRules, array $classMap): array
+    {
         if ($rawRules === null || $rawRules === '' || $rawRules === []) {
             return [];
         }
@@ -216,16 +237,16 @@ class CreateScheduleSemesterHandler
         return $rows;
     }
 
-
-    private function parseImportFiles(
-        CreateScheduleSemesterRequest $request,
-        array $classMap
-    ): array {
-        $rows = [];
+    private function parseImportFiles(CreateScheduleSemesterRequest $request, array $classMap): array
+    {
+        $parsed = [
+            'templates' => [],
+            'events' => [],
+        ];
         $rawImports = $request->file('import_file', []);
 
         if ($rawImports === null) {
-            return [];
+            return $parsed;
         }
 
         if ($rawImports instanceof UploadedFile) {
@@ -255,41 +276,30 @@ class CreateScheduleSemesterHandler
                 ]);
             }
 
-            $handle = fopen($importFile->getRealPath(), 'r');
-            if ($handle === false) {
-                throw ValidationException::withMessages([
-                    'import_file' => "Khong the doc file import cho lop '{$classKey}'.",
-                ]);
+            $sheetRows = $this->readImportRows($importFile);
+            if ($sheetRows === []) {
+                continue;
             }
 
-            $headers = fgetcsv($handle);
-            if ($headers === false) {
-                fclose($handle);
+            $headers = array_shift($sheetRows);
+            if (!is_array($headers) || $headers === []) {
                 continue;
             }
 
             $headerMap = array_flip(array_map(
-                fn($header) => trim(strtolower((string) $header)),
+                fn ($header) => $this->normalizeImportHeader($header),
                 $headers
             ));
 
-            // Required columns
-            $requiredColumns = ['class_code', 'period_from', 'period_to', 'subject'];
-            foreach ($requiredColumns as $column) {
+            foreach (['class_code', 'period_from', 'period_to'] as $column) {
                 if (!array_key_exists($column, $headerMap)) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
                         'import_file' => "File import cho lop '{$classKey}' thieu cot bat buoc '{$column}'.",
                     ]);
                 }
             }
 
-            // Optional columns (at least date or start_date must exist)
-            $hasDateColumn = array_key_exists('date', $headerMap);
-            $hasStartDateColumn = array_key_exists('start_date', $headerMap);
-
-            if (!$hasDateColumn && !$hasStartDateColumn) {
-                fclose($handle);
+            if (!array_key_exists('date', $headerMap) && !array_key_exists('start_date', $headerMap)) {
                 throw ValidationException::withMessages([
                     'import_file' => "File import cho lop '{$classKey}' phai co cot 'date' hoac 'start_date'.",
                 ]);
@@ -297,8 +307,8 @@ class CreateScheduleSemesterHandler
 
             $class = $classMap[(string) $classKey];
 
-            while (($row = fgetcsv($handle)) !== false) {
-                if (count(array_filter($row, fn($value) => trim((string) $value) !== '')) === 0) {
+            foreach ($sheetRows as $rowIndex => $row) {
+                if (!is_array($row) || count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
                     continue;
                 }
 
@@ -307,102 +317,343 @@ class CreateScheduleSemesterHandler
                     $rowData[$column] = isset($row[$index]) ? trim((string) $row[$index]) : null;
                 }
 
-                // Validate class code
-                if (Str::upper((string) $rowData['class_code']) !== Str::upper($class->code)) {
-                    fclose($handle);
+                if (Str::upper((string) ($rowData['class_code'] ?? '')) !== Str::upper($class->code)) {
                     throw ValidationException::withMessages([
                         'import_file' => "Ma lop trong file ('{$rowData['class_code']}') khong khop voi lop '{$class->code}'.",
                     ]);
                 }
 
-                // Determine start date
+                $rowType = strtolower(trim((string) ($rowData['row_type'] ?? 'rule')));
+                if (!in_array($rowType, ['rule', 'event'], true)) {
+                    throw ValidationException::withMessages([
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co row_type khong hop le.",
+                    ]);
+                }
+
                 $startDateStr = $rowData['start_date'] ?? $rowData['date'] ?? null;
                 if (empty($startDateStr) || !strtotime((string) $startDateStr)) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua ngay bat dau hop le.",
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua ngay bat dau hop le.",
                     ]);
                 }
+
                 $startDate = Carbon::parse((string) $startDateStr)->startOfDay();
-
-                // Determine end date (default to start date if not provided)
                 $endDateStr = $rowData['end_date'] ?? $rowData['start_date'] ?? $rowData['date'] ?? null;
-                if (empty($endDateStr) || !strtotime((string) $endDateStr)) {
-                    $endDate = $startDate->copy();
-                } else {
-                    $endDate = Carbon::parse((string) $endDateStr)->startOfDay();
-                }
+                $endDate = empty($endDateStr) || !strtotime((string) $endDateStr)
+                    ? $startDate->copy()
+                    : Carbon::parse((string) $endDateStr)->startOfDay();
 
-                // Validate date range
                 if ($endDate->lt($startDate)) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' co ngay ket thuc nho hon ngay bat dau.",
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co ngay ket thuc nho hon ngay bat dau.",
                     ]);
                 }
 
-                // Validate periods
-                $periodFrom = is_numeric($rowData['period_from']) ? (int) $rowData['period_from'] : null;
-                $periodTo = is_numeric($rowData['period_to']) ? (int) $rowData['period_to'] : null;
-                if ($periodFrom === null || $periodTo === null || $periodFrom < 1 || $periodFrom > 9 || $periodTo < 1 || $periodTo > 9 || $periodTo < $periodFrom) {
-                    fclose($handle);
+                $periodFrom = $this->parseOptionalPeriodValue($rowData['period_from'] ?? null);
+                $periodTo = $this->parseOptionalPeriodValue($rowData['period_to'] ?? null);
+                if ($periodFrom === null || $periodTo === null || $periodTo < $periodFrom) {
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua tiet khong hop le.",
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua tiet khong hop le.",
                     ]);
                 }
 
-                // Parse weekdays (nếu có cột weekdays)
+                if ($rowType === 'event') {
+                    $eventType = strtolower(trim((string) ($rowData['event_type'] ?? '')));
+                    $title = trim((string) ($rowData['title'] ?? ''));
+
+                    if (!in_array($eventType, ['review', 'exam', 'other'], true)) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co event_type khong hop le.",
+                        ]);
+                    }
+
+                    if ($title === '') {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' phai nhap title.",
+                        ]);
+                    }
+
+                    $parsed['events'][] = [
+                        'class_id' => $class->id,
+                        'event_type' => $eventType,
+                        'title' => $title,
+                        'start_date' => $startDate->toDateString(),
+                        'end_date' => $endDate->toDateString(),
+                        'period_from' => $periodFrom,
+                        'period_to' => $periodTo,
+                        'color' => $this->semesterEventColor($eventType),
+                        'note' => trim((string) ($rowData['note'] ?? $rowData['content'] ?? '')) ?: null,
+                        'sort_order' => $rowIndex,
+                    ];
+
+                    continue;
+                }
+
                 $weekdaysStr = $rowData['weekdays'] ?? $rowData['days_of_week'] ?? null;
-                if (!empty($weekdaysStr)) {
-                    // Format: "2,3,4,5,6" hoặc "2;3;4;5;6" hoặc "Monday,Tuesday,..."
-                    $daysOfWeek = $this->parseWeekdaysFromString($weekdaysStr);
-                } else {
-                    // Nếu không có, dùng weekday của ngày start_date
-                    $daysOfWeek = [$startDate->dayOfWeekIso + 1];
-                }
+                $daysOfWeek = !empty($weekdaysStr)
+                    ? $this->parseWeekdaysFromString((string) $weekdaysStr)
+                    : [$startDate->dayOfWeekIso + 1];
 
                 if ($daysOfWeek === []) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua ngay trong tuan hop le.",
+                        'import_file' => "Dong rule #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua ngay trong tuan hop le.",
                     ]);
                 }
 
                 $subjectText = trim((string) ($rowData['subject'] ?? ''));
-                $content = trim((string) ($rowData['content'] ?? '')) ?: null;
-
                 if ($subjectText === '') {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua mon hoc.",
+                        'import_file' => "Dong rule #" . ($rowIndex + 2) . " cua lop '{$class->code}' phai nhap subject.",
                     ]);
                 }
 
-                $rows[] = [
+                $parsed['templates'][] = [
                     'class_id' => $class->id,
                     'subject_id' => $this->resolveSubjectId($subjectText),
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
                     'period_range' => sprintf('%d-%d', $periodFrom, $periodTo),
-                    'description' => $content,
+                    'description' => trim((string) ($rowData['content'] ?? '')) ?: null,
                     'start_date' => $startDate->toDateString(),
                     'end_date' => $endDate->toDateString(),
                 ];
             }
+        }
 
-            fclose($handle);
+        return $parsed;
+    }
+
+    private function readImportRows(UploadedFile $file): array
+    {
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        return match ($extension) {
+            'xlsx' => $this->readXlsxRows($file->getRealPath()),
+            default => $this->readCsvRows($file->getRealPath()),
+        };
+    }
+
+    private function readCsvRows(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        if ($handle === false) {
+            throw ValidationException::withMessages([
+                'import_file' => 'Khong the doc file import.',
+            ]);
+        }
+
+        $rows = [];
+        while (($row = fgetcsv($handle)) !== false) {
+            $rows[] = $row;
+        }
+
+        fclose($handle);
+
+        return $rows;
+    }
+
+    private function readXlsxRows(string $path): array
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            throw ValidationException::withMessages([
+                'import_file' => 'Khong the mo file Excel import.',
+            ]);
+        }
+
+        $sharedStrings = $this->parseXlsxSharedStrings($zip->getFromName('xl/sharedStrings.xml') ?: null);
+        $dateStyles = $this->parseXlsxDateStyleIndexes($zip->getFromName('xl/styles.xml') ?: null);
+        $sheetPath = $this->firstWorksheetPath($zip);
+        $sheetXml = $sheetPath ? $zip->getFromName($sheetPath) : false;
+        $zip->close();
+
+        if ($sheetXml === false || $sheetXml === null) {
+            throw ValidationException::withMessages([
+                'import_file' => 'File Excel import khong co du lieu sheet hop le.',
+            ]);
+        }
+
+        $xml = @simplexml_load_string($sheetXml);
+        if ($xml === false || !isset($xml->sheetData)) {
+            throw ValidationException::withMessages([
+                'import_file' => 'Khong the doc du lieu trong file Excel import.',
+            ]);
+        }
+
+        $rows = [];
+
+        foreach ($xml->sheetData->row as $rowNode) {
+            $row = [];
+
+            foreach ($rowNode->c as $cell) {
+                $reference = (string) ($cell['r'] ?? '');
+                $columnIndex = $this->columnIndexFromReference($reference);
+                $row[$columnIndex] = $this->parseXlsxCellValue($cell, $sharedStrings, $dateStyles);
+            }
+
+            if ($row === []) {
+                continue;
+            }
+
+            ksort($row);
+            $normalized = [];
+            $maxIndex = max(array_keys($row));
+            for ($i = 0; $i <= $maxIndex; $i++) {
+                $normalized[] = $row[$i] ?? '';
+            }
+
+            $rows[] = $normalized;
         }
 
         return $rows;
     }
+
+    private function parseXlsxSharedStrings(?string $xml): array
+    {
+        if ($xml === null || $xml === '') {
+            return [];
+        }
+
+        $parsed = @simplexml_load_string($xml);
+        if ($parsed === false) {
+            return [];
+        }
+
+        $values = [];
+        foreach ($parsed->si as $item) {
+            $text = '';
+
+            if (isset($item->t)) {
+                $text = (string) $item->t;
+            } elseif (isset($item->r)) {
+                foreach ($item->r as $run) {
+                    $text .= (string) ($run->t ?? '');
+                }
+            }
+
+            $values[] = $text;
+        }
+
+        return $values;
+    }
+
+    private function parseXlsxDateStyleIndexes(?string $xml): array
+    {
+        if ($xml === null || $xml === '') {
+            return [];
+        }
+
+        $parsed = @simplexml_load_string($xml);
+        if ($parsed === false || !isset($parsed->cellXfs)) {
+            return [];
+        }
+
+        $customFormats = [];
+        if (isset($parsed->numFmts)) {
+            foreach ($parsed->numFmts->numFmt as $numFmt) {
+                $customFormats[(int) $numFmt['numFmtId']] = strtolower((string) $numFmt['formatCode']);
+            }
+        }
+
+        $dateStyles = [];
+        foreach ($parsed->cellXfs->xf as $index => $xf) {
+            $numFmtId = (int) ($xf['numFmtId'] ?? 0);
+            $formatCode = $customFormats[$numFmtId] ?? null;
+
+            if ($this->isDateNumFmtId($numFmtId, $formatCode)) {
+                $dateStyles[(int) $index] = true;
+            }
+        }
+
+        return $dateStyles;
+    }
+
+    private function isDateNumFmtId(int $numFmtId, ?string $formatCode): bool
+    {
+        if (in_array($numFmtId, [14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 46, 47], true)) {
+            return true;
+        }
+
+        if ($formatCode === null) {
+            return false;
+        }
+
+        return preg_match('/[dmyhs]/', $formatCode) === 1;
+    }
+
+    private function firstWorksheetPath(\ZipArchive $zip): ?string
+    {
+        $workbookRelsXml = $zip->getFromName('xl/_rels/workbook.xml.rels');
+        if ($workbookRelsXml !== false && $workbookRelsXml !== null) {
+            $rels = @simplexml_load_string($workbookRelsXml);
+            if ($rels !== false) {
+                foreach ($rels->Relationship as $relationship) {
+                    $target = (string) ($relationship['Target'] ?? '');
+                    if (str_contains($target, 'worksheets/')) {
+                        return 'xl/' . ltrim($target, '/');
+                    }
+                }
+            }
+        }
+
+        return $zip->locateName('xl/worksheets/sheet1.xml') !== false
+            ? 'xl/worksheets/sheet1.xml'
+            : null;
+    }
+
+    private function parseXlsxCellValue(\SimpleXMLElement $cell, array $sharedStrings, array $dateStyles): string
+    {
+        $type = (string) ($cell['t'] ?? '');
+        $styleIndex = isset($cell['s']) ? (int) $cell['s'] : null;
+        $value = isset($cell->v) ? (string) $cell->v : '';
+
+        if ($type === 's') {
+            return (string) ($sharedStrings[(int) $value] ?? '');
+        }
+
+        if ($type === 'inlineStr') {
+            return (string) ($cell->is->t ?? '');
+        }
+
+        if ($type === 'b') {
+            return $value === '1' ? '1' : '0';
+        }
+
+        if ($styleIndex !== null && isset($dateStyles[$styleIndex]) && is_numeric($value)) {
+            return Carbon::create(1899, 12, 30)->addDays((int) floor((float) $value))->toDateString();
+        }
+
+        return trim($value);
+    }
+
+    private function columnIndexFromReference(string $reference): int
+    {
+        $letters = preg_replace('/[^A-Z]/', '', strtoupper($reference));
+        if ($letters === '') {
+            return 0;
+        }
+
+        $index = 0;
+        foreach (str_split($letters) as $letter) {
+            $index = ($index * 26) + (ord($letter) - 64);
+        }
+
+        return max(0, $index - 1);
+    }
+
+    private function normalizeImportHeader(mixed $header): string
+    {
+        $value = strtolower(trim((string) $header));
+        return ltrim($value, "\xEF\xBB\xBF");
+    }
+
     private function parseWeekdaysFromString(string $input): array
     {
         if (empty($input)) {
             return [];
         }
 
-        // Split by comma or semicolon
         $parts = preg_split('/[,;]+/', trim($input), -1, PREG_SPLIT_NO_EMPTY);
         $weekdays = [];
 
@@ -426,25 +677,17 @@ class CreateScheduleSemesterHandler
         foreach ($parts as $part) {
             $part = trim(strtolower($part));
 
-            // Try number first (2-8)
             if (is_numeric($part)) {
                 $dayNum = (int) $part;
                 if ($dayNum >= 2 && $dayNum <= 8) {
                     $weekdays[] = $dayNum;
                 }
-            } else {
-                // Try day name
-                if (isset($dayNameMap[$part])) {
-                    $weekdays[] = $dayNameMap[$part];
-                }
+            } elseif (isset($dayNameMap[$part])) {
+                $weekdays[] = $dayNameMap[$part];
             }
         }
 
-        return collect($weekdays)
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
+        return collect($weekdays)->unique()->sort()->values()->all();
     }
 
     private function normalizeWeekdays(mixed $value): array
@@ -458,9 +701,9 @@ class CreateScheduleSemesterHandler
             : preg_split('/[\s,;]+/', (string) $value, -1, PREG_SPLIT_NO_EMPTY);
 
         return collect($weekdays)
-            ->filter(fn($item) => is_numeric($item))
-            ->map(fn($item) => (int) $item)
-            ->filter(fn(int $dow) => $dow >= 2 && $dow <= 8)
+            ->filter(fn ($item) => is_numeric($item))
+            ->map(fn ($item) => (int) $item)
+            ->filter(fn (int $dow) => $dow >= 2 && $dow <= 8)
             ->unique()
             ->sort()
             ->values()
@@ -484,7 +727,6 @@ class CreateScheduleSemesterHandler
 
         return $subject->id;
     }
-
 
     private function validateTemplateEntries(array $entries, Carbon $planStart, Carbon $planEnd): void
     {
@@ -548,6 +790,332 @@ class CreateScheduleSemesterHandler
                 }
             }
         }
+    }
+
+    private function parsePeriodRange(string $range): array
+    {
+        if (preg_match('/^(\\d+)\\s*-\\s*(\\d+)$/', trim($range), $matches)) {
+            return range((int) $matches[1], (int) $matches[2]);
+        }
+
+        return [];
+    }
+
+    private function parseGlobalSemesterEvents(array|string|null $rawEvents, Carbon $planStart, Carbon $planEnd): array
+    {
+        if ($rawEvents === null || $rawEvents === '' || $rawEvents === []) {
+            return [];
+        }
+
+        $decoded = is_string($rawEvents) ? json_decode($rawEvents, true) : $rawEvents;
+        if (!is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'global_semester_events' => 'Du lieu su kien nghi le khong hop le.',
+            ]);
+        }
+
+        $rows = [];
+        foreach ($decoded as $index => $event) {
+            if (!is_array($event)) {
+                continue;
+            }
+
+            $title = trim((string) ($event['title'] ?? ''));
+            $eventType = trim((string) ($event['event_type'] ?? ''));
+            $startDate = $event['start_date'] ?? null;
+            $endDate = $event['end_date'] ?? null;
+
+            if ($title === '' || $eventType === '' || !$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
+                continue;
+            }
+
+            if ($eventType !== 'holiday') {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien chung chi chap nhan loai nghi le.',
+                ]);
+            }
+
+            $start = Carbon::parse($startDate)->startOfDay();
+            $end = Carbon::parse($endDate)->endOfDay();
+
+            if ($end->lt($start)) {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien nghi le co ngay ket thuc nho hon ngay bat dau.',
+                ]);
+            }
+
+            if ($start->lt($planStart) || $end->gt($planEnd)) {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien nghi le phai nam trong khoang thoi gian hoc ky.',
+                ]);
+            }
+
+            $periodFrom = $this->parseOptionalPeriodValue($event['period_from'] ?? null) ?? 1;
+            $periodTo = $this->parseOptionalPeriodValue($event['period_to'] ?? null) ?? 9;
+
+            if ($periodTo < $periodFrom) {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien nghi le co tiet ket thuc nho hon tiet bat dau.',
+                ]);
+            }
+
+            $rows[] = [
+                'class_id' => null,
+                'event_type' => $eventType,
+                'title' => $title,
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'period_from' => $periodFrom,
+                'period_to' => $periodTo,
+                'color' => $this->semesterEventColor($eventType),
+                'note' => trim((string) ($event['note'] ?? '')) ?: null,
+                'sort_order' => is_numeric($event['sort_order'] ?? null) ? (int) $event['sort_order'] : $index,
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function parseClassSemesterEvents(array|string|null $rawEvents, array $classMap, Carbon $planStart, Carbon $planEnd): array
+    {
+        if ($rawEvents === null || $rawEvents === '' || $rawEvents === []) {
+            return [];
+        }
+
+        $decoded = is_string($rawEvents) ? json_decode($rawEvents, true) : $rawEvents;
+        if (!is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'class_semester_events' => 'Du lieu su kien cua lop khong hop le.',
+            ]);
+        }
+
+        $rows = [];
+
+        foreach ($decoded as $classKey => $events) {
+            if (!array_key_exists((string) $classKey, $classMap) || !is_array($events)) {
+                continue;
+            }
+
+            foreach ($events as $index => $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+
+                $title = trim((string) ($event['title'] ?? ''));
+                $eventType = trim((string) ($event['event_type'] ?? ''));
+                $startDate = $event['start_date'] ?? null;
+                $endDate = $event['end_date'] ?? null;
+
+                if ($title === '' || $eventType === '' || !$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
+                    continue;
+                }
+
+                if (!in_array($eventType, ['review', 'exam', 'other'], true)) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop chi chap nhan loai on thi, thi hoac khac.',
+                    ]);
+                }
+
+                $start = Carbon::parse($startDate)->startOfDay();
+                $end = Carbon::parse($endDate)->endOfDay();
+
+                if ($end->lt($start)) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop co ngay ket thuc nho hon ngay bat dau.',
+                    ]);
+                }
+
+                if ($start->lt($planStart) || $end->gt($planEnd)) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop phai nam trong khoang thoi gian hoc ky.',
+                    ]);
+                }
+
+                $periodFrom = $this->parseOptionalPeriodValue($event['period_from'] ?? null) ?? 1;
+                $periodTo = $this->parseOptionalPeriodValue($event['period_to'] ?? null) ?? 9;
+
+                if ($periodTo < $periodFrom) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop co tiet ket thuc nho hon tiet bat dau.',
+                    ]);
+                }
+
+                $rows[] = [
+                    'class_id' => $classMap[(string) $classKey]->id,
+                    'event_type' => $eventType,
+                    'title' => $title,
+                    'start_date' => $start->toDateString(),
+                    'end_date' => $end->toDateString(),
+                    'period_from' => $periodFrom,
+                    'period_to' => $periodTo,
+                    'color' => $this->semesterEventColor($eventType),
+                    'note' => trim((string) ($event['note'] ?? '')) ?: null,
+                    'sort_order' => is_numeric($event['sort_order'] ?? null) ? (int) $event['sort_order'] : $index,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function parseOptionalPeriodValue(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $period = (int) $value;
+        return $period >= 1 && $period <= 9 ? $period : null;
+    }
+
+    private function semesterEventColor(string $eventType): string
+    {
+        return match ($eventType) {
+            'holiday' => '#ffedd5',
+            'review' => '#dbeafe',
+            'exam' => '#fee2e2',
+            default => '#ede9fe',
+        };
+    }
+
+    private function ruleHasInput(array $rule): bool
+    {
+        $weekdays = $rule['weekdays'] ?? null;
+        $hasWeekdays = is_array($weekdays)
+            ? count(array_filter($weekdays, fn ($value) => $value !== null && $value !== '')) > 0
+            : ($weekdays !== null && $weekdays !== '');
+
+        return $hasWeekdays || collect([
+            $rule['start_date'] ?? null,
+            $rule['end_date'] ?? null,
+            $rule['period_from'] ?? null,
+            $rule['period_to'] ?? null,
+            $rule['subject'] ?? null,
+            $rule['content'] ?? null,
+        ])->contains(fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function isDateValue(mixed $value): bool
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return false;
+        }
+
+        try {
+            Carbon::parse($value);
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function normalizeSemesterEventsForPersistence(array $events): array
+    {
+        return array_values(array_filter($events, fn ($event) => is_array($event)));
+    }
+
+    private function validateSemesterEventsWithinPlan(array $events, Carbon $planStart, Carbon $planEnd): void
+    {
+        foreach ($events as $event) {
+            $start = Carbon::parse($event['start_date'])->startOfDay();
+            $end = Carbon::parse($event['end_date'])->endOfDay();
+
+            if ($end->lt($start)) {
+                throw ValidationException::withMessages([
+                    'class_semester_events' => 'Co su kien hoc ky co ngay ket thuc nho hon ngay bat dau.',
+                ]);
+            }
+
+            if ($start->lt($planStart) || $end->gt($planEnd)) {
+                throw ValidationException::withMessages([
+                    'class_semester_events' => 'Su kien import phai nam trong khoang thoi gian hoc ky.',
+                ]);
+            }
+        }
+    }
+
+    private function validateSemesterEventConflicts(array $events): void
+    {
+        $globalEvents = array_values(array_filter($events, fn (array $event) => ($event['class_id'] ?? null) === null));
+        $classEvents = array_values(array_filter($events, fn (array $event) => ($event['class_id'] ?? null) !== null));
+
+        $this->assertNoOverlapWithinGroup($globalEvents, 'global_semester_events', 'Su kien nghi le');
+
+        $classGroups = collect($classEvents)->groupBy(fn (array $event) => (string) ($event['class_id'] ?? ''));
+        foreach ($classGroups as $classId => $classGroup) {
+            $this->assertNoOverlapWithinGroup(
+                $classGroup->values()->all(),
+                'class_semester_events',
+                'Su kien cua lop ' . $this->classLabelById((int) $classId)
+            );
+        }
+
+        foreach ($globalEvents as $globalEvent) {
+            foreach ($classEvents as $classEvent) {
+                if ($this->dateRangesOverlap($globalEvent, $classEvent) && $this->eventPeriodsOverlap($globalEvent, $classEvent)) {
+                    $classLabel = $this->classLabelById((int) $classEvent['class_id']);
+                    throw ValidationException::withMessages([
+                        'global_semester_events' => "Su kien nghi le '{$globalEvent['title']}' bi trung ngay/tiet voi su kien cua lop '{$classLabel}'.",
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function assertNoOverlapWithinGroup(array $events, string $errorKey, string $labelPrefix): void
+    {
+        $count = count($events);
+
+        for ($i = 0; $i < $count; $i++) {
+            for ($j = $i + 1; $j < $count; $j++) {
+                if ($this->dateRangesOverlap($events[$i], $events[$j]) && $this->eventPeriodsOverlap($events[$i], $events[$j])) {
+                    throw ValidationException::withMessages([
+                        $errorKey => $labelPrefix . " '" . ($events[$i]['title'] ?? 'su kien') . "' bi trung ngay/tiet voi '" . ($events[$j]['title'] ?? 'su kien') . "'.",
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function eventPeriodsOverlap(array $first, array $second): bool
+    {
+        $firstFrom = (int) ($first['period_from'] ?? 1);
+        $firstTo = (int) ($first['period_to'] ?? 9);
+        $secondFrom = (int) ($second['period_from'] ?? 1);
+        $secondTo = (int) ($second['period_to'] ?? 9);
+
+        return max($firstFrom, $secondFrom) <= min($firstTo, $secondTo);
+    }
+
+    private function classLabelById(int $classId): string
+    {
+        return TrainingClass::query()->find($classId)?->code ?? (string) $classId;
+    }
+
+    private function dateRangesOverlap(array $first, array $second): bool
+    {
+        $firstStart = Carbon::parse($first['start_date'])->startOfDay();
+        $firstEnd = Carbon::parse($first['end_date'])->endOfDay();
+        $secondStart = Carbon::parse($second['start_date'])->startOfDay();
+        $secondEnd = Carbon::parse($second['end_date'])->endOfDay();
+
+        return $firstStart->lte($secondEnd) && $secondStart->lte($firstEnd);
+    }
+
+    private function weekdaysOverlap(array $first, array $second): bool
+    {
+        $firstDays = $this->normalizeWeekdays($first['days_of_week'] ?? []);
+        $secondDays = $this->normalizeWeekdays($second['days_of_week'] ?? []);
+
+        return array_intersect($firstDays, $secondDays) !== [];
+    }
+
+    private function periodsOverlap(array $first, array $second): bool
+    {
+        $firstPeriods = $this->parsePeriodRange((string) $first['period_range']);
+        $secondPeriods = $this->parsePeriodRange((string) $second['period_range']);
+
+        return array_intersect($firstPeriods, $secondPeriods) !== [];
     }
 
     private function createMonthlySchedules(Plans $plan, array $templateModels): array
@@ -669,57 +1237,5 @@ class CreateScheduleSemesterHandler
                 }
             }
         }
-    }
-
-    private function parsePeriodRange(string $range): array
-    {
-        if (preg_match('/^(\\d+)\\s*-\\s*(\\d+)$/', trim($range), $matches)) {
-            return range((int) $matches[1], (int) $matches[2]);
-        }
-
-        return [];
-    }
-
-    private function ruleHasInput(array $rule): bool
-    {
-        $weekdays = $rule['weekdays'] ?? null;
-        $hasWeekdays = is_array($weekdays)
-            ? count(array_filter($weekdays, fn($value) => $value !== null && $value !== '')) > 0
-            : ($weekdays !== null && $weekdays !== '');
-
-        return $hasWeekdays || collect([
-            $rule['start_date'] ?? null,
-            $rule['end_date'] ?? null,
-            $rule['period_from'] ?? null,
-            $rule['period_to'] ?? null,
-            $rule['subject'] ?? null,
-            $rule['content'] ?? null,
-        ])->contains(fn($value) => $value !== null && $value !== '');
-    }
-
-    private function dateRangesOverlap(array $first, array $second): bool
-    {
-        $firstStart = Carbon::parse($first['start_date'])->startOfDay();
-        $firstEnd = Carbon::parse($first['end_date'])->endOfDay();
-        $secondStart = Carbon::parse($second['start_date'])->startOfDay();
-        $secondEnd = Carbon::parse($second['end_date'])->endOfDay();
-
-        return $firstStart->lte($secondEnd) && $secondStart->lte($firstEnd);
-    }
-
-    private function weekdaysOverlap(array $first, array $second): bool
-    {
-        $firstDays = $this->normalizeWeekdays($first['days_of_week'] ?? []);
-        $secondDays = $this->normalizeWeekdays($second['days_of_week'] ?? []);
-
-        return array_intersect($firstDays, $secondDays) !== [];
-    }
-
-    private function periodsOverlap(array $first, array $second): bool
-    {
-        $firstPeriods = $this->parsePeriodRange((string) $first['period_range']);
-        $secondPeriods = $this->parsePeriodRange((string) $second['period_range']);
-
-        return array_intersect($firstPeriods, $secondPeriods) !== [];
     }
 }

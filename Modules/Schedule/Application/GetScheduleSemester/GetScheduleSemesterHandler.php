@@ -5,6 +5,7 @@ namespace Modules\Schedule\Application\GetScheduleSemester;
 use Carbon\Carbon;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Schedule\Models\Plans;
+use Modules\Schedule\Models\SemesterEvent;
 
 class GetScheduleSemesterHandler
 {
@@ -16,7 +17,9 @@ class GetScheduleSemesterHandler
         $trainingBatchId = $validated['training_batch_id'] ?? null;
         $className = $validated['className'] ?? null;
 
-        if (!$semester || !$year) return view('schedule::semester', ['plan' => null]);
+        if (!$semester || !$year) {
+            return view('schedule::semester', ['plan' => null]);
+        }
 
         $plan = Plans::query()
             ->with('trainingBatch')
@@ -25,44 +28,101 @@ class GetScheduleSemesterHandler
             ->when($trainingBatchId, fn ($query) => $query->where('training_batch_id', (int) $trainingBatchId))
             ->latest()
             ->first();
-        if (!$plan) return view('schedule::semester', ['plan' => null]);
 
-        $planTemplates = PlanTemplates::with(['subjects'])
+        if (!$plan) {
+            return view('schedule::semester', ['plan' => null]);
+        }
+
+        $planTemplates = PlanTemplates::query()
+            ->with(['subjects', 'trainingClass'])
             ->where('plan_id', $plan->id)
-            ->when($className, function ($q) use ($className) {
-                $q->whereHas('classes', fn($c) => $c->where('code', $className));
-            })->get();
+            ->when($className, function ($query) use ($className) {
+                $query->whereHas('trainingClass', fn ($classQuery) => $classQuery->where('code', $className));
+            })
+            ->orderBy('id')
+            ->get();
 
-        if ($planTemplates->isEmpty()) return view('schedule::semester', ['plan' => $plan, 'renderRows' => []]);
+        $semesterEvents = SemesterEvent::query()
+            ->with(['trainingClass'])
+            ->where('plan_id', $plan->id)
+            ->when($className, function ($query) use ($className) {
+                $query->where(function ($eventQuery) use ($className) {
+                    $eventQuery
+                        ->whereNull('class_id')
+                        ->orWhereHas('trainingClass', fn ($classQuery) => $classQuery->where('code', $className));
+                });
+            })
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->sortBy(fn ($event) => $event->class_id === null ? 1 : 0)
+            ->values();
 
-        $startDate = $planTemplates->min('start_date');
-        $endDate = $planTemplates->max('end_date');
+        if ($planTemplates->isEmpty() && $semesterEvents->isEmpty()) {
+            return view('schedule::semester', [
+                'plan' => $plan,
+                'renderRows' => [],
+                'dates' => [],
+                'periods' => range(1, 9),
+                'className' => $className,
+            ]);
+        }
+
+        $rangeStart = Carbon::parse($plan->effective_from ?? $planTemplates->min('start_date') ?? $semesterEvents->min('start_date'))->startOfDay();
+        $rangeEnd = Carbon::parse($plan->effective_to ?? $planTemplates->max('end_date') ?? $semesterEvents->max('end_date'))->endOfDay();
 
         $dates = [];
-        $tempDate = $startDate->copy();
-        while ($tempDate <= $endDate) {
-            $dates[] = $tempDate->copy();
-            $tempDate->addDay();
+        for ($cursor = $rangeStart->copy(); $cursor->lte($rangeEnd); $cursor->addDay()) {
+            $dates[] = $cursor->copy();
         }
 
         $periods = range(1, 9);
         $scheduleMatrix = [];
 
-        // Đổ dữ liệu thô vào ma trận
         foreach ($planTemplates as $template) {
-            $dows = is_array($template->days_of_week) ? $template->days_of_week : (json_decode($template->days_of_week, true) ?: [$template->day_of_week]);
-            $pRange = $this->parsePeriodRange($template->period_range ?: ($template->session === 'Sáng' ? '1-5' : '6-9'));
+            $daysOfWeek = $this->normalizeDaysOfWeek($template->days_of_week ?? [$template->day_of_week]);
+            $periodRange = $this->parsePeriodRange((string) ($template->period_range ?: ($template->session === 'Chieu' ? '6-9' : '1-5')));
+            $content = [
+                'type' => 'subject',
+                'key' => 'subject|' . $template->id,
+                'label' => $template->subjects?->name ?? 'Mon hoc',
+                'description' => $template->description,
+                'color' => '#f0f9ff',
+                'border_color' => '#2563eb',
+            ];
 
             foreach ($dates as $date) {
                 $dow = $date->dayOfWeekIso + 1;
-                if ($date >= $template->start_date && $date <= $template->end_date && in_array($dow, $dows)) {
-                    foreach ($pRange as $p) {
-                        $scheduleMatrix[$p][$date->toDateString()] = [
-                            'subject' => $template->subjects?->name ?? 'Môn học',
-                            'session' => $template->session,
-                            'description' => $template->description,
-                        ];
-                    }
+                if ($date->lt($template->start_date) || $date->gt($template->end_date) || !in_array($dow, $daysOfWeek, true)) {
+                    continue;
+                }
+
+                foreach ($periodRange as $period) {
+                    $scheduleMatrix[$period][$date->toDateString()] = $content;
+                }
+            }
+        }
+
+        foreach ($semesterEvents as $event) {
+            $periodRange = $this->parseEventPeriodRange($event);
+            $color = $event->color ?: $this->semesterEventColor($event->event_type);
+            $content = [
+                'type' => 'event',
+                'key' => 'event|' . $event->id,
+                'label' => $event->title,
+                'description' => $event->note,
+                'event_type' => $event->event_type,
+                'color' => $color,
+                'border_color' => $this->semesterEventBorder($event->event_type, $color),
+            ];
+
+            for ($date = Carbon::parse($event->start_date)->startOfDay(); $date->lte(Carbon::parse($event->end_date)->endOfDay()); $date->addDay()) {
+                if ($className && $event->class_id && optional($event->trainingClass)->code !== $className) {
+                    continue;
+                }
+
+                foreach ($periodRange as $period) {
+                    $scheduleMatrix[$period][$date->toDateString()] = $content;
                 }
             }
         }
@@ -70,69 +130,77 @@ class GetScheduleSemesterHandler
         $renderRows = [];
         $assigned = [];
 
-        // HÀM HELPER: So sánh nội dung để gộp
-        $isSameContent = function ($cell1, $cell2) {
-            if (!$cell1 || !$cell2) return false;
-            return $cell1['subject'] === $cell2['subject'];
+        $isSameContent = function (array|null $first, array|null $second): bool {
+            if (!$first || !$second) {
+                return false;
+            }
+
+            return $first['type'] === $second['type']
+                && $first['key'] === $second['key']
+                && ($first['label'] ?? null) === ($second['label'] ?? null)
+                && ($first['description'] ?? null) === ($second['description'] ?? null)
+                && ($first['color'] ?? null) === ($second['color'] ?? null);
         };
 
-        // Quét ma trận để tính gộp ô
-        foreach ($periods as $p) {
+        foreach ($periods as $period) {
             foreach ($dates as $index => $date) {
                 $dateKey = $date->toDateString();
 
-                // 🔴 ĐIỂM SỬA LỖI QUAN TRỌNG NHẤT Ở ĐÂY:
-                // Nếu ô đã bị gộp (nằm dưới quyền của ô khác), bắt buộc phải gán 'type' = 'hidden'
-                // để Blade file gọi @continue và không render thẻ <td> nào cả.
-                if (isset($assigned[$p][$dateKey])) {
-                    $renderRows[$p][$dateKey] = ['type' => 'hidden'];
+                if (isset($assigned[$period][$dateKey])) {
+                    $renderRows[$period][$dateKey] = ['type' => 'hidden'];
                     continue;
                 }
 
-                $current = $scheduleMatrix[$p][$dateKey] ?? null;
+                $current = $scheduleMatrix[$period][$dateKey] ?? null;
 
                 if (!$current) {
-                    $renderRows[$p][$dateKey] = ['type' => 'empty', 'colspan' => 1, 'rowspan' => 1];
+                    $renderRows[$period][$dateKey] = ['type' => 'empty', 'colspan' => 1, 'rowspan' => 1];
                     continue;
                 }
 
-                // 1. Tính Rowspan (Gộp dọc)
                 $rowspan = 1;
-                for ($rp = $p + 1; $rp <= max($periods); $rp++) {
+                for ($rp = $period + 1; $rp <= max($periods); $rp++) {
                     if (isset($scheduleMatrix[$rp][$dateKey]) && $isSameContent($scheduleMatrix[$rp][$dateKey], $current)) {
                         $rowspan++;
-                    } else { break; }
+                    } else {
+                        break;
+                    }
                 }
 
-                // 2. Tính Colspan (Gộp ngang)
                 $colspan = 1;
                 for ($di = $index + 1; $di < count($dates); $di++) {
                     $nextDateKey = $dates[$di]->toDateString();
                     $canMerge = true;
-                    // Check xem toàn bộ các tiết của cột tiếp theo có giống hệt nội dung không
-                    for ($cp = $p; $cp < $p + $rowspan; $cp++) {
+
+                    for ($cp = $period; $cp < $period + $rowspan; $cp++) {
                         if (!isset($scheduleMatrix[$cp][$nextDateKey]) || !$isSameContent($scheduleMatrix[$cp][$nextDateKey], $current)) {
                             $canMerge = false;
                             break;
                         }
                     }
-                    if ($canMerge) $colspan++; else break;
-                }
 
-                // 3. Đánh dấu các ô "con" đã bị gộp (bỏ qua ô "gốc")
-                for ($i = 0; $i < $rowspan; $i++) {
-                    for ($j = 0; $j < $colspan; $j++) {
-                        if ($i === 0 && $j === 0) continue; // Không đánh dấu ô gốc
-                        $assigned[$p + $i][$dates[$index + $j]->toDateString()] = true;
+                    if ($canMerge) {
+                        $colspan++;
+                    } else {
+                        break;
                     }
                 }
 
-                // Lưu lại ô gốc kèm rowspan và colspan
-                $renderRows[$p][$dateKey] = [
-                    'type' => 'subject',
+                for ($i = 0; $i < $rowspan; $i++) {
+                    for ($j = 0; $j < $colspan; $j++) {
+                        if ($i === 0 && $j === 0) {
+                            continue;
+                        }
+
+                        $assigned[$period + $i][$dates[$index + $j]->toDateString()] = true;
+                    }
+                }
+
+                $renderRows[$period][$dateKey] = [
+                    'type' => $current['type'],
                     'colspan' => $colspan,
                     'rowspan' => $rowspan,
-                    'data' => $current
+                    'data' => $current,
                 ];
             }
         }
@@ -140,8 +208,70 @@ class GetScheduleSemesterHandler
         return view('schedule::semester', compact('plan', 'renderRows', 'dates', 'periods', 'className'));
     }
 
-    private function parsePeriodRange($range) {
-        if (preg_match('/^(\d+)\s*-\s*(\d+)$/', trim($range), $m)) return range((int)$m[1], (int)$m[2]);
-        return (strtolower($range) === 'chiều') ? range(6, 9) : range(1, 5);
+    private function normalizeDaysOfWeek(mixed $value): array
+    {
+        $days = is_array($value)
+            ? $value
+            : preg_split('/[\s,;]+/', (string) $value, -1, PREG_SPLIT_NO_EMPTY);
+
+        return collect($days)
+            ->filter(fn ($item) => is_numeric($item))
+            ->map(fn ($item) => (int) $item)
+            ->filter(fn (int $item) => $item >= 2 && $item <= 8)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    private function parsePeriodRange(string $range): array
+    {
+        $range = trim($range);
+
+        if (preg_match('/^(\\d+)\\s*-\\s*(\\d+)$/', $range, $matches)) {
+            return range((int) $matches[1], (int) $matches[2]);
+        }
+
+        $lower = mb_strtolower($range);
+        if (in_array($lower, ['chieu', 'chiều', 'afternoon'], true)) {
+            return range(6, 9);
+        }
+
+        return range(1, 5);
+    }
+
+    private function parseEventPeriodRange(SemesterEvent $event): array
+    {
+        $periodFrom = is_numeric($event->period_from) ? (int) $event->period_from : null;
+        $periodTo = is_numeric($event->period_to) ? (int) $event->period_to : null;
+
+        if ($periodFrom === null && $periodTo === null) {
+            return range(1, 9);
+        }
+
+        $periodFrom = $periodFrom ?? $periodTo ?? 1;
+        $periodTo = $periodTo ?? $periodFrom;
+
+        return $periodTo >= $periodFrom ? range($periodFrom, $periodTo) : range($periodFrom, $periodFrom);
+    }
+
+    private function semesterEventColor(string $eventType): string
+    {
+        return match ($eventType) {
+            'holiday' => '#ffedd5',
+            'review' => '#dbeafe',
+            'exam' => '#fee2e2',
+            default => '#ede9fe',
+        };
+    }
+
+    private function semesterEventBorder(string $eventType, string $color): string
+    {
+        return match ($eventType) {
+            'holiday' => '#fb923c',
+            'review' => '#3b82f6',
+            'exam' => '#ef4444',
+            default => '#8b5cf6',
+        };
     }
 }
