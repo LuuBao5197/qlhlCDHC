@@ -24,8 +24,8 @@ class CreateScheduleSemesterRequest extends FormRequest
             ],
             'semester' => 'required|integer|min:1|max:2',
             'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'description' => 'nullable|string|max:500',
             'selected_class_ids' => 'nullable|array',
             'selected_class_ids.*' => 'integer|exists:classes,id',
@@ -59,6 +59,8 @@ class CreateScheduleSemesterRequest extends FormRequest
             'training_batch_id.exists' => 'Khoa dao tao duoc chon khong ton tai.',
             'semester.required' => 'Hoc ky la bat buoc.',
             'year.required' => 'Nam hoc la bat buoc.',
+            'start_date.required' => 'Ngay bat dau hoc ky la bat buoc.',
+            'end_date.required' => 'Ngay ket thuc hoc ky la bat buoc.',
             'end_date.after_or_equal' => 'Ngay ket thuc phai lon hon hoac bang ngay bat dau.',
             'selected_class_ids.*.exists' => 'Lop duoc chon khong ton tai.',
             'import_file.*.mimes' => 'File import phai o dinh dang Excel (.xlsx) hoac CSV/TXT.',
@@ -94,6 +96,7 @@ class CreateScheduleSemesterRequest extends FormRequest
             $trainingBatchId = $this->input('training_batch_id');
             $semester = $this->input('semester');
             $year = $this->input('year');
+            $minAllowedDate = $this->minimumAllowedPlanDate();
 
             if (is_numeric($trainingBatchId) && is_numeric($semester) && is_numeric($year)) {
                 $duplicatePlanExists = Plans::query()
@@ -108,6 +111,22 @@ class CreateScheduleSemesterRequest extends FormRequest
                         'Khoa dao tao nay da co ke hoach hoc ky ' . $semester . ' nam ' . $year . '.'
                     );
                 }
+            }
+
+            $startDate = $this->validatedDateValue($this->input('start_date'));
+            if ($startDate !== null && $startDate->lt($minAllowedDate)) {
+                $validator->errors()->add(
+                    'start_date',
+                    'Ngay bat dau hoc ky khong duoc som hon ' . $minAllowedDate->format('d/m/Y') . '.'
+                );
+            }
+
+            $endDate = $this->validatedDateValue($this->input('end_date'));
+            if ($endDate !== null && $endDate->lt($minAllowedDate)) {
+                $validator->errors()->add(
+                    'end_date',
+                    'Ngay ket thuc hoc ky khong duoc som hon ' . $minAllowedDate->format('d/m/Y') . '.'
+                );
             }
 
             if (is_numeric($trainingBatchId)) {
@@ -331,16 +350,25 @@ class CreateScheduleSemesterRequest extends FormRequest
 
     private function isDateValue(mixed $value): bool
     {
+        return $this->validatedDateValue($value) !== null;
+    }
+
+    private function validatedDateValue(mixed $value): ?Carbon
+    {
         if (!is_string($value) || trim($value) === '') {
-            return false;
+            return null;
         }
 
         try {
-            Carbon::parse($value);
-            return true;
+            return Carbon::parse($value)->startOfDay();
         } catch (\Throwable) {
-            return false;
+            return null;
         }
+    }
+
+    private function minimumAllowedPlanDate(): Carbon
+    {
+        return now()->startOfDay()->subMonth();
     }
 
     private function classLabel(string $classKey): string

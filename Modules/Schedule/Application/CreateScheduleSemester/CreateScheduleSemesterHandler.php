@@ -26,12 +26,8 @@ class CreateScheduleSemesterHandler
         $semester = (int) $validated['semester'];
         $year = (int) $validated['year'];
         $trainingBatchId = (int) $validated['training_batch_id'];
-        $planStart = isset($validated['start_date'])
-            ? Carbon::parse($validated['start_date'])->startOfDay()
-            : $this->defaultSemesterStart($semester, $year);
-        $planEnd = isset($validated['end_date'])
-            ? Carbon::parse($validated['end_date'])->endOfDay()
-            : $this->defaultSemesterEnd($semester, $year);
+        $planStart = Carbon::parse($validated['start_date'])->startOfDay();
+        $planEnd = Carbon::parse($validated['end_date'])->endOfDay();
 
         if ($planEnd->lt($planStart)) {
             throw ValidationException::withMessages([
@@ -159,18 +155,6 @@ class CreateScheduleSemesterHandler
             'className' => $className,
             'training_batch_id' => $plan->training_batch_id,
         ])->with('success', 'Da tao ke hoach hoc ky va lich tong quat thanh cong.');
-    }
-
-    private function defaultSemesterStart(int $semester, int $year): Carbon
-    {
-        return $semester === 1 ? Carbon::parse("{$year}-01-01") : Carbon::parse("{$year}-07-01");
-    }
-
-    private function defaultSemesterEnd(int $semester, int $year): Carbon
-    {
-        return $semester === 1
-            ? Carbon::parse("{$year}-06-30")->endOfDay()
-            : Carbon::parse("{$year}-12-31")->endOfDay();
     }
 
     private function resolveClasses(int $trainingBatchId): array

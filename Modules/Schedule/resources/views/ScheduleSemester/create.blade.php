@@ -1,4 +1,4 @@
-@extends('layouts.dashboard')
+﻿@extends('layouts.dashboard')
 
 @section('title', 'Tao lich tong quat hoc ky')
 
@@ -9,6 +9,7 @@
         $oldGlobalEvents = old('global_semester_events', []);
         $oldClassEvents = old('class_semester_events', []);
         $hasAvailableTrainingBatches = $trainingBatches->isNotEmpty();
+        $minAllowedPlanDate = now()->startOfDay()->subMonth()->toDateString();
     @endphp
 
     <style>
@@ -113,16 +114,30 @@
             right: 20px;
             z-index: 1050;
             width: auto;
-            padding: 12px 14px;
+            padding: 10px 12px 12px;
             border-radius: 18px;
             background: rgba(255, 255, 255, 0.96);
             border: 1px solid #dbe7f3;
             box-shadow: 0 14px 36px rgba(15, 76, 129, 0.16);
             backdrop-filter: blur(10px);
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .quick-actions-top {
+            display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .quick-actions-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .quick-actions .quick-title {
@@ -131,7 +146,57 @@
             text-transform: uppercase;
             color: #6b7b8f;
             font-weight: 700;
-            margin-right: 6px;
+            margin-right: 2px;
+        }
+
+        .quick-actions-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #dbe7f3;
+            border-radius: 999px;
+            background: #fff;
+            color: #0f4c81;
+            padding: 8px 12px;
+            font-size: .86rem;
+            font-weight: 700;
+            line-height: 1;
+            transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+        }
+
+        .quick-actions-toggle:hover {
+            background: #f5f9ff;
+            border-color: #b9d6ef;
+            box-shadow: 0 4px 12px rgba(15, 76, 129, 0.08);
+        }
+
+        .quick-actions-toggle-icon {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .quick-actions-toggle-icon span {
+            display: block;
+            width: 15px;
+            height: 2px;
+            border-radius: 999px;
+            background: currentColor;
+        }
+
+        .quick-actions-toggle .quick-actions-caret {
+            transition: transform .2s ease;
+        }
+
+        .quick-actions.is-collapsed .quick-actions-caret {
+            transform: rotate(-90deg);
+        }
+
+        .quick-actions-body {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
         }
 
         .quick-actions .btn {
@@ -152,8 +217,12 @@
             color: #0f4c81;
         }
 
+        .quick-actions.is-collapsed .quick-actions-body {
+            display: none;
+        }
+
         .quick-actions-spacer {
-            height: 76px;
+            height: 90px;
         }
 
         @media (max-width: 1200px) {
@@ -170,7 +239,15 @@
             }
 
             .quick-actions-spacer {
-                height: 96px;
+                height: 108px;
+            }
+
+            .quick-actions-top {
+                align-items: flex-start;
+            }
+
+            .quick-actions .quick-label {
+                width: 100%;
             }
 
             .quick-actions .btn {
@@ -182,6 +259,33 @@
                 flex-basis: 100%;
                 height: 0;
             }
+        }
+
+        .date-field {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .date-display-input {
+            background: #fff;
+            min-width: 0;
+        }
+
+        .date-native-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .date-picker-btn {
+            white-space: nowrap;
+            flex: 0 0 auto;
         }
     </style>
 
@@ -212,23 +316,38 @@
                         id="scheduleForm">
                         @csrf
 
-                        <div class="quick-actions shadow-sm">
-                            <div class="quick-title">Menu nhanh</div>
-                            <button type="button" class="btn btn-sm btn-primary" id="quickAddRuleBtn">
-                                Thêm rule
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddClassEventBtn">
-                                Thêm sự kiện
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddHolidayBtn">
-                                Thêm nghỉ lễ
-                            </button>
-                            <button type="button" class="btn btn-sm btn-light border" id="quickScrollTopBtn">
-                                Lên đầu
-                            </button>
-                            <div class="quick-spacer"></div>
-                            <div class="quick-label">
-                                Lớp hiện tại: <strong id="quickActiveClassLabel">Chưa chọn</strong>
+                        <div class="quick-actions shadow-sm" id="quickActionsBar">
+                            <div class="quick-actions-top">
+                                <div class="quick-actions-left">
+                                    <button type="button" class="quick-actions-toggle" id="quickActionsToggleBtn"
+                                        aria-expanded="true" aria-controls="quickActionsBody">
+                                        <span class="quick-actions-toggle-icon" aria-hidden="true">
+                                            <span></span>
+                                            <span></span>
+                                            <span></span>
+                                        </span>
+                                        <span>Menu nhanh</span>
+                                        <span class="quick-actions-caret" aria-hidden="true">▾</span>
+                                    </button>
+                                    <div class="quick-title">Thao tác nhanh</div>
+                                </div>
+                                <div class="quick-label">
+                                    Lớp hiện tại: <strong id="quickActiveClassLabel">Chưa chọn</strong>
+                                </div>
+                            </div>
+                            <div class="quick-actions-body" id="quickActionsBody">
+                                <button type="button" class="btn btn-sm btn-primary" id="quickAddRuleBtn">
+                                    Thêm rule
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddClassEventBtn">
+                                    Thêm sự kiện
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddHolidayBtn">
+                                    Thêm nghỉ lễ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-light border" id="quickScrollTopBtn">
+                                    Lên đầu
+                                </button>
                             </div>
                         </div>
                         <div class="quick-actions-spacer"></div>
@@ -281,12 +400,27 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Ngay bat dau</label>
-                                <input type="date" name="start_date" class="form-control"
-                                    value="{{ old('start_date') }}">
+                                <div class="date-field">
+                                    <input type="text" class="form-control date-display-input"
+                                        data-date-display="start_date" placeholder="DD/MMMM/YY" readonly>
+                                    <input type="date" name="start_date" class="date-native-input"
+                                        data-date-native="start_date" value="{{ old('start_date') }}"
+                                        min="{{ $minAllowedPlanDate }}" required>
+                                    <button type="button" class="btn btn-outline-secondary date-picker-btn"
+                                        data-date-picker="start_date">Lich</button>
+                                </div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Ngay ket thuc</label>
-                                <input type="date" name="end_date" class="form-control" value="{{ old('end_date') }}">
+                                <div class="date-field">
+                                    <input type="text" class="form-control date-display-input"
+                                        data-date-display="end_date" placeholder="DD/MMMM/YY" readonly>
+                                    <input type="date" name="end_date" class="date-native-input"
+                                        data-date-native="end_date" value="{{ old('end_date') }}"
+                                        min="{{ $minAllowedPlanDate }}" required>
+                                    <button type="button" class="btn btn-outline-secondary date-picker-btn"
+                                        data-date-picker="end_date">Lich</button>
+                                </div>
                             </div>
                         </div>
                         <div id="planDuplicateHint" class="alert alert-warning mt-3 d-none"></div>
@@ -404,6 +538,13 @@
             const quickAddHolidayBtn = document.getElementById('quickAddHolidayBtn');
             const quickScrollTopBtn = document.getElementById('quickScrollTopBtn');
             const quickActiveClassLabel = document.getElementById('quickActiveClassLabel');
+            const quickActionsBar = document.getElementById('quickActionsBar');
+            const quickActionsToggleBtn = document.getElementById('quickActionsToggleBtn');
+            const quickActionsBody = document.getElementById('quickActionsBody');
+            const quickActionsStorageKey = 'schedule-create-quick-actions-collapsed';
+            const displayDateInputs = Array.from(document.querySelectorAll('[data-date-display]'));
+            const nativeDateInputs = Array.from(document.querySelectorAll('[data-date-native]'));
+            const minAllowedPlanDate = @json($minAllowedPlanDate);
             const counters = {};
             const eventCounters = { global: 0, classes: {} };
             let activeClassKey = null;
@@ -435,6 +576,88 @@
             const scrollToEl = (el) => {
                 if (!el) return;
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+
+            const formatVietnameseDate = (value) => {
+                if (!value) return '';
+                const date = new Date(`${value}T00:00:00`);
+                if (Number.isNaN(date.getTime())) return '';
+
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = new Intl.DateTimeFormat('vi-VN', { month: 'long' }).format(date)
+                    .replace(/^tháng\s*/i, 'Tháng ');
+                const year = String(date.getFullYear()).slice(-2);
+                return `${day}/${month}/${year}`;
+            };
+
+            const syncDateDisplay = (fieldName) => {
+                const displayInput = document.querySelector(`[data-date-display="${fieldName}"]`);
+                const nativeInput = document.querySelector(`[data-date-native="${fieldName}"]`);
+                if (!displayInput || !nativeInput) return;
+                displayInput.value = formatVietnameseDate(nativeInput.value);
+            };
+
+            const validatePlanDate = (nativeInput) => {
+                if (!nativeInput) return true;
+
+                nativeInput.setCustomValidity('');
+                if (!nativeInput.value) {
+                    nativeInput.setCustomValidity('Vui lòng chọn ngày.');
+                    return false;
+                }
+
+                if (nativeInput.value < minAllowedPlanDate) {
+                    nativeInput.setCustomValidity(`Ngày không được sớm hơn ${formatVietnameseDate(minAllowedPlanDate)}.`);
+                    return false;
+                }
+
+                return true;
+            };
+
+            const validatePlanDates = () => {
+                const start = planStartInput;
+                const end = planEndInput;
+                let valid = true;
+
+                if (start && !validatePlanDate(start)) valid = false;
+                if (end && !validatePlanDate(end)) valid = false;
+
+                if (start && end && start.value && end.value && end.value < start.value) {
+                    end.setCustomValidity('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
+                    valid = false;
+                }
+
+                syncAllDateDisplays();
+
+                return valid;
+            };
+
+            const syncAllDateDisplays = () => {
+                displayDateInputs.forEach((input) => syncDateDisplay(input.dataset.dateDisplay));
+            };
+
+            const openNativeDatePicker = (fieldName) => {
+                const nativeInput = document.querySelector(`[data-date-native="${fieldName}"]`);
+                if (!nativeInput) return;
+
+                nativeInput.focus();
+                if (typeof nativeInput.showPicker === 'function') {
+                    nativeInput.showPicker();
+                } else {
+                    nativeInput.click();
+                }
+            };
+
+            const syncQuickActionsCollapsedState = (collapsed) => {
+                if (!quickActionsBar || !quickActionsToggleBtn) return;
+                quickActionsBar.classList.toggle('is-collapsed', collapsed);
+                quickActionsToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+                quickActionsToggleBtn.dataset.collapsed = collapsed ? '1' : '0';
+                try {
+                    localStorage.setItem(quickActionsStorageKey, collapsed ? '1' : '0');
+                } catch (error) {
+                    // Ignore storage failures and keep the menu usable.
+                }
             };
 
             const syncQuickActions = () => {
@@ -1195,12 +1418,41 @@
             quickScrollTopBtn?.addEventListener('click', () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             });
+            quickActionsToggleBtn?.addEventListener('click', () => {
+                const collapsed = quickActionsBar?.classList.contains('is-collapsed') ?? false;
+                syncQuickActionsCollapsedState(!collapsed);
+            });
+            document.querySelectorAll('[data-date-picker]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    openNativeDatePicker(button.dataset.datePicker);
+                });
+            });
+            nativeDateInputs.forEach((input) => {
+                input.addEventListener('input', () => {
+                    syncDateDisplay(input.dataset.dateNative);
+                    validatePlanDates();
+                });
+                input.addEventListener('change', () => {
+                    syncDateDisplay(input.dataset.dateNative);
+                    validatePlanDates();
+                });
+            });
             form.addEventListener('submit', function(e) {
-                if (!validateRuleConflicts() || !validateAllSemesterEvents()) {
+                if (!validateRuleConflicts() || !validateAllSemesterEvents() || !validatePlanDates()) {
                     e.preventDefault();
                 }
             });
 
+            syncAllDateDisplays();
+            validatePlanDates();
+            const initialCollapsed = (() => {
+                try {
+                    return localStorage.getItem(quickActionsStorageKey) === '1';
+                } catch (error) {
+                    return false;
+                }
+            })();
+            syncQuickActionsCollapsedState(initialCollapsed);
             applyClassFilters();
             syncChecks();
             hydrateSemesterEvents();
