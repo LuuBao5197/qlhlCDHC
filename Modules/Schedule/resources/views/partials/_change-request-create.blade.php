@@ -119,7 +119,17 @@
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="mb-1">Ngay hoc</label>
-                        <input type="date" id="slotFilterDate" class="form-control form-control-sm">
+                        @include('schedule::partials._date-picker-field', [
+                            'label' => '',
+                            'name' => 'slot_filter_date',
+                            'field' => 'slotFilterDate',
+                            'displayId' => 'slotFilterDate',
+                            'nativeId' => 'slotFilterDateNative',
+                            'value' => '',
+                            'inputClass' => 'form-control-sm',
+                            'wrapperClass' => 'mb-0',
+                            'buttonLabel' => 'Lich',
+                        ])
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="mb-1">Tiet hoc</label>
@@ -241,7 +251,6 @@
             const subjectLessons = @json($subjectLessonsJs)
 
             const scheduleSelect = document.getElementById('draftMonthlySchedule');
-            const filterDate = document.getElementById('slotFilterDate');
             const filterPeriod = document.getElementById('slotFilterPeriod');
             const filterClass = document.getElementById('slotFilterClass');
             const clearBtn = document.getElementById('clearSlotFilterBtn');
@@ -357,7 +366,7 @@
             };
 
             const slotMatchesFilter = (slot) => {
-                const dateValue = filterDate?.value || '';
+                const dateValue = getDateFieldValue(filterDateFieldKey);
                 const periodValue = filterPeriod?.value || '';
                 const classKeyword = (filterClass?.value || '').trim().toLowerCase();
 
@@ -707,7 +716,8 @@
             };
 
             scheduleSelect?.addEventListener('change', renderTable);
-            filterDate?.addEventListener('change', renderTable);
+            filterDateInput?.addEventListener('change', renderTable);
+            getDateFieldElements(filterDateFieldKey).nativeInput?.addEventListener('change', renderTable);
             filterPeriod?.addEventListener('change', renderTable);
             filterClass?.addEventListener('input', renderTable);
 
@@ -725,7 +735,7 @@
             });
 
             clearBtn?.addEventListener('click', () => {
-                filterDate.value = '';
+                setDateFieldValue(filterDateFieldKey, '');
                 filterPeriod.value = '';
                 filterClass.value = '';
                 renderTable();
@@ -815,14 +825,32 @@
 
                 <div class="col-md-4 mb-2">
                     <label class="mb-1">Khoang ngay nghi (tu)</label>
-                    <input type="date" name="holiday_start_date" class="form-control form-control-sm"
-                        value="{{ old('holiday_start_date') }}">
+                    @include('schedule::partials._date-picker-field', [
+                        'label' => '',
+                        'name' => 'holiday_start_date',
+                        'field' => 'holiday_start_date',
+                        'displayId' => 'holidayStartDate',
+                        'nativeId' => 'holidayStartDateNative',
+                        'value' => old('holiday_start_date'),
+                        'inputClass' => 'form-control-sm',
+                        'wrapperClass' => 'mb-0',
+                        'buttonLabel' => 'Lich',
+                    ])
                 </div>
 
                 <div class="col-md-4 mb-2">
                     <label class="mb-1">Khoang ngay nghi (den)</label>
-                    <input type="date" name="holiday_end_date" class="form-control form-control-sm"
-                        value="{{ old('holiday_end_date') }}">
+                    @include('schedule::partials._date-picker-field', [
+                        'label' => '',
+                        'name' => 'holiday_end_date',
+                        'field' => 'holiday_end_date',
+                        'displayId' => 'holidayEndDate',
+                        'nativeId' => 'holidayEndDateNative',
+                        'value' => old('holiday_end_date'),
+                        'inputClass' => 'form-control-sm',
+                        'wrapperClass' => 'mb-0',
+                        'buttonLabel' => 'Lich',
+                    ])
                 </div>
             </div>
 
@@ -842,9 +870,19 @@
 
                 <div class="col-md-3 mb-2">
                     <label class="mb-1">Ngay dich de doi lich</label>
-                    <input type="date" name="target_date" class="form-control form-control-sm"
-                        value="{{ old('target_date') }}" required>
-                    <small class="text-muted d-block mt-1">Ngay bat dau tim lich thay the (thuong la ngay ngay sau khoang nghi).</small>
+                    @include('schedule::partials._date-picker-field', [
+                        'label' => '',
+                        'name' => 'target_date',
+                        'field' => 'target_date',
+                        'displayId' => 'targetDate',
+                        'nativeId' => 'targetDateNative',
+                        'value' => old('target_date'),
+                        'inputClass' => 'form-control-sm',
+                        'wrapperClass' => 'mb-0',
+                        'buttonLabel' => 'Lich',
+                        'required' => true,
+                        'help' => 'Ngay bat dau tim lich thay the (thuong la ngay ngay sau khoang nghi).',
+                    ])
                 </div>
 
                 <div class="col-md-3 mb-2">
@@ -877,11 +915,46 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const holidayStartInput = document.querySelector('input[name="holiday_start_date"]');
-            const holidayEndInput = document.querySelector('input[name="holiday_end_date"]');
-            const targetDateInput = document.querySelector('input[name="target_date"]');
+            const getDateFieldElements = (fieldKey) => {
+                const wrapper = document.querySelector(`[data-field="${fieldKey}"]`);
+                if (!wrapper) return {};
+                return {
+                    wrapper,
+                    displayInput: wrapper.querySelector('[data-date-display]'),
+                    nativeInput: wrapper.querySelector('[data-date-native]'),
+                };
+            };
 
-            if (!holidayEndInput || !targetDateInput) {
+            const getDateFieldValue = (fieldKey) => {
+                return getDateFieldElements(fieldKey).nativeInput?.value || '';
+            };
+
+            const setDateFieldValue = (fieldKey, value) => {
+                if (window.ScheduleDatePicker?.setValue) {
+                    return window.ScheduleDatePicker.setValue(fieldKey, value);
+                }
+
+                const { displayInput, nativeInput } = getDateFieldElements(fieldKey);
+                if (!displayInput || !nativeInput) return false;
+
+                displayInput.value = value || '';
+                nativeInput.value = value || '';
+                displayInput.dispatchEvent(new Event('change', { bubbles: true }));
+                nativeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+            };
+
+            const holidayStartFieldKey = 'holiday_start_date';
+            const holidayEndFieldKey = 'holiday_end_date';
+            const targetDateFieldKey = 'target_date';
+            const filterDateFieldKey = 'slotFilterDate';
+
+            const filterDateInput = getDateFieldElements(filterDateFieldKey).displayInput;
+            const holidayStartInput = getDateFieldElements(holidayStartFieldKey).displayInput;
+            const holidayEndInput = getDateFieldElements(holidayEndFieldKey).displayInput;
+            const targetDateInput = getDateFieldElements(targetDateFieldKey).displayInput;
+
+            if (!filterDateInput || !holidayEndInput || !targetDateInput) {
                 return;
             }
 
@@ -893,8 +966,8 @@
             };
 
             const computeSuggestedTarget = () => {
-                const endValue = holidayEndInput.value;
-                const startValue = holidayStartInput ? holidayStartInput.value : '';
+                const endValue = getDateFieldValue(holidayEndFieldKey);
+                const startValue = getDateFieldValue(holidayStartFieldKey);
                 const baseValue = endValue || startValue;
 
                 if (!baseValue) {
@@ -916,9 +989,9 @@
                     return;
                 }
 
-                const current = targetDateInput.value;
+                const current = getDateFieldValue(targetDateFieldKey);
                 if (force || !current || current < suggested) {
-                    targetDateInput.value = suggested;
+                    setDateFieldValue(targetDateFieldKey, suggested);
                 }
             };
 
@@ -926,6 +999,9 @@
             if (holidayStartInput) {
                 holidayStartInput.addEventListener('change', () => maybeSuggestTargetDate(false));
             }
+
+            filterDateInput.addEventListener('change', renderTable);
+            getDateFieldElements(filterDateFieldKey).nativeInput?.addEventListener('change', renderTable);
 
             maybeSuggestTargetDate(false);
         });

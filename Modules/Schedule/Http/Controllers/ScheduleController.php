@@ -4,7 +4,6 @@ namespace Modules\Schedule\Http\Controllers;
 
 use App\Http\Controllers\Scaffold\ApiCrudController;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Modules\Schedule\Models\MonthlySchedule;
 
 class ScheduleController extends ApiCrudController
@@ -16,12 +15,12 @@ class ScheduleController extends ApiCrudController
 
     protected function relationships(): array
     {
-        return ['plan', 'department', 'trainingClass', 'scheduleSlots'];
+        return ['plan', 'trainingClass', 'scheduleSlots'];
     }
 
     protected function searchColumns(): array
     {
-        return ['class_name', 'status'];
+        return ['class_name'];
     }
 
     protected function rules(Request $request, ?int $id = null): array
@@ -34,11 +33,6 @@ class ScheduleController extends ApiCrudController
             'month' => ['required', 'integer', 'between:1,12'],
             'year' => ['required', 'integer', 'min:2000', 'max:' . ((int) date('Y') + 10)],
             'created_by' => ['nullable', 'integer', 'exists:users,id'],
-            'status' => ['required', 'string', Rule::in(['draft', 'pending', 'processing', 'submitted', 'approved', 'rejected', 'returned'])],
-            'submitted_at' => ['nullable', 'date'],
-            'approved_at' => ['nullable', 'date'],
-            'approved_by' => ['nullable', 'integer', 'exists:users,id'],
-            'rejection_reason' => ['nullable', 'string'],
         ];
     }
 }

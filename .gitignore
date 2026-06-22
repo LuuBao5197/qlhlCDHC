@@ -25,3 +25,4 @@ Thumbs.db
 /.history
 .codex/config.toml
 AGENTS.md
+package-lock.json

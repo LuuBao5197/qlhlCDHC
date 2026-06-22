@@ -5,6 +5,7 @@ namespace Modules\Schedule\Application\UpdateScheduleSemester;
 use App\Http\Controllers\Controller;
 use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\PlanTemplates;
+use Modules\Schedule\Models\SemesterEvent;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingClass;
 
@@ -17,6 +18,7 @@ class UpdateScheduleSemesterController extends Controller
     public function showForm($id)
     {
         $plan = Plans::with('trainingBatch.trainingProgram', 'planTemplates.trainingClass', 'planTemplates.subjects')
+            ->with(['semesterEvents.trainingClass'])
             ->findOrFail($id);
 
         $classesQuery = TrainingClass::query()
@@ -49,15 +51,38 @@ class UpdateScheduleSemesterController extends Controller
             ['value' => 8, 'label' => 'Chu nhat'],
         ];
 
-        // Convert PlanTemplates to class_tab_rules format for frontend
         $oldRules = $this->convertTemplatesToRules($plan->planTemplates);
 
-        // Get selected class IDs
         $selectedClassIds = $plan->planTemplates
             ->pluck('class_id')
+            ->merge($plan->semesterEvents->pluck('class_id'))
             ->unique()
             ->values()
             ->toArray();
+
+        $oldGlobalEvents = $this->convertSemesterEventsToForm($plan->semesterEvents->whereNull('class_id'));
+        $oldClassEvents = $this->convertClassSemesterEventsToForm($plan->semesterEvents->whereNotNull('class_id'));
+
+        $existingPlanKeys = Plans::query()
+            ->whereNotNull('training_batch_id')
+            ->where('id', '!=', $plan->id)
+            ->get(['training_batch_id', 'semester', 'year'])
+            ->map(fn (Plans $item) => implode('|', [
+                $item->training_batch_id,
+                $item->semester,
+                $item->year,
+            ]))
+            ->values();
+
+        $globalEventTypes = [
+            ['value' => 'holiday', 'label' => 'Nghi le', 'color' => '#ffedd5'],
+        ];
+
+        $classEventTypes = [
+            ['value' => 'review', 'label' => 'On thi', 'color' => '#dbeafe'],
+            ['value' => 'exam', 'label' => 'Thi', 'color' => '#fee2e2'],
+            ['value' => 'other', 'label' => 'Su kien khac', 'color' => '#ede9fe'],
+        ];
 
         return view('schedule::ScheduleSemester.edit', [
             'plan' => $plan,
@@ -66,7 +91,12 @@ class UpdateScheduleSemesterController extends Controller
             'subjectSuggestions' => $subjectSuggestions,
             'weekdayOptions' => $weekdayOptions,
             'oldRules' => $oldRules,
+            'oldGlobalEvents' => $oldGlobalEvents,
+            'oldClassEvents' => $oldClassEvents,
             'selectedClassIds' => $selectedClassIds,
+            'existingPlanKeys' => $existingPlanKeys,
+            'globalEventTypes' => $globalEventTypes,
+            'classEventTypes' => $classEventTypes,
         ]);
     }
 
@@ -126,6 +156,37 @@ class UpdateScheduleSemesterController extends Controller
         }
 
         return $rulesByClass;
+    }
+
+    private function convertSemesterEventsToForm($events): array
+    {
+        return $events->map(fn (SemesterEvent $event) => [
+            'event_type' => $event->event_type,
+            'title' => $event->title,
+            'start_date' => optional($event->start_date)->toDateString() ?? '',
+            'end_date' => optional($event->end_date)->toDateString() ?? '',
+            'period_from' => $event->period_from,
+            'period_to' => $event->period_to,
+            'note' => $event->note,
+            'sort_order' => $event->sort_order,
+        ])->values()->all();
+    }
+
+    private function convertClassSemesterEventsToForm($events): array
+    {
+        return $events
+            ->groupBy(fn (SemesterEvent $event) => (string) $event->class_id)
+            ->map(fn ($group) => $group->map(fn (SemesterEvent $event) => [
+                'event_type' => $event->event_type,
+                'title' => $event->title,
+                'start_date' => optional($event->start_date)->toDateString() ?? '',
+                'end_date' => optional($event->end_date)->toDateString() ?? '',
+                'period_from' => $event->period_from,
+                'period_to' => $event->period_to,
+                'note' => $event->note,
+                'sort_order' => $event->sort_order,
+            ])->values()->all())
+            ->all();
     }
 
     private function getPeriodFrom($periodRange): ?int

@@ -23,6 +23,15 @@
       </a>
     </li>
 
+    @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('department-monthly-assignment-batches.index') }}">
+          <span class="menu-icon"><i class="mdi mdi-clipboard-check-outline"></i></span>
+          <span class="menu-title">Phê duyệt phân công</span>
+        </a>
+      </li>
+    @endif
+
     <li class="nav-item menu-items">
       <a class="nav-link" href="{{ route('management.index') }}">
         <span class="menu-icon"><i class="mdi mdi-database"></i></span>

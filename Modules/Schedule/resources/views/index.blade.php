@@ -7,35 +7,15 @@
         $user = auth()->user();
         $canReviewWorkflow = $user && ($user->isTrainingOffice() || $user->isAdmin());
         $canDepartmentAssign = $user && ($user->isDepartmentStaff() || $user->isAdmin());
-
-        $statusStyles = [
-            'draft' => 'badge-secondary',
-            'pending' => 'badge-warning',
-            'processing' => 'badge-info',
-            'submitted' => 'badge-primary',
-            'approved' => 'badge-success',
-            'rejected' => 'badge-danger',
-            'returned' => 'badge-dark',
-            'resolved' => 'badge-success',
-        ];
-
-        $formatJson = static function ($payload): string {
-            if (!is_array($payload)) {
-                return '-';
-            }
-
-            return json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?: '-';
-        };
     @endphp
 
     <div class="row mb-3">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <h4 class="card-title mb-1">Dieu hanh quy trinh lich huan luyen</h4>
+                    <h4 class="card-title mb-1">Điều hướng phân công giảng dạy</h4>
                     <p class="text-muted mb-0">
-                        UC4: trinh duyet ke hoach hoc ky, UC5: phe duyet lich thang, UC6: phe duyet phieu thay doi,
-                        UC7: trinh lich thang len BGH.
+                        Khoa đi vào phân công tổng hợp theo tháng; Phòng Đào tạo và quản trị viên đi vào hộp chờ phê duyệt batch.
                     </p>
                 </div>
             </div>
@@ -50,6 +30,10 @@
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
+    @if (session('warning'))
+        <div class="alert alert-warning">{{ session('warning') }}</div>
+    @endif
+
     @if (!$canReviewWorkflow && !$canDepartmentAssign)
         <div class="alert alert-warning">
             Tai khoan cua ban chi co quyen xem. Chuc nang nghiep vu chi danh cho vai tro `department_staff`,
@@ -57,9 +41,93 @@
         </div>
     @endif
 
-    @include('schedule::partials._semester-plan')
+    @php
+        $aggregateAssignmentCards = collect($monthlySchedules ?? [])
+            ->map(function ($monthlySchedule) {
+                $subjectSlots = collect($monthlySchedule->scheduleSlots ?? [])
+                    ->filter(fn ($slot) => ($slot->slot_type ?? 'subject') !== 'event' && $slot->subjectModel?->department_id !== null);
 
-    @include('schedule::partials._monthly-schedule-list')
+                $departmentId = $subjectSlots->first()?->subjectModel?->department_id;
+                if ($departmentId === null) {
+                    return null;
+                }
+
+                $assignedCount = $subjectSlots->filter(fn ($slot) => !empty($slot->teacher_id))->count();
+
+                return [
+                    'monthly_schedule_id' => $monthlySchedule->id,
+                    'year' => (int) $monthlySchedule->year,
+                    'month' => (int) $monthlySchedule->month,
+                    'department_id' => (int) $departmentId,
+                    'department_name' => $subjectSlots->first()?->subjectModel?->department?->name ?? '-',
+                    'plan_count' => 1,
+                    'slot_count' => $subjectSlots->count(),
+                    'assigned_count' => $assignedCount,
+                    'unassigned_count' => max(0, $subjectSlots->count() - $assignedCount),
+                ];
+            })
+            ->filter()
+            ->groupBy(fn ($item) => $item['year'] . '|' . $item['month'] . '|' . $item['department_id'])
+            ->map(function ($items) {
+                $first = $items->first();
+
+                return [
+                    'monthly_schedule_id' => $first['monthly_schedule_id'],
+                    'year' => $first['year'],
+                    'month' => $first['month'],
+                    'department_name' => $first['department_name'],
+                    'plan_count' => $items->count(),
+                    'slot_count' => $items->sum('slot_count'),
+                    'assigned_count' => $items->sum('assigned_count'),
+                    'unassigned_count' => $items->sum('unassigned_count'),
+                ];
+            })
+            ->sortByDesc(fn ($item) => sprintf('%04d-%02d-%s', $item['year'], $item['month'], $item['department_name']))
+            ->values();
+    @endphp
+
+    <div class="row mb-3">
+        <div class="col-lg-6 mb-3">
+            <div class="card h-100 border-left-info shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-2">Phân công giảng dạy tổng hợp</h5>
+                    <p class="text-muted mb-3">
+                        Dành cho khoa để vào màn hình phân công theo từng lịch tháng.
+                    </p>
+                    @if ($canDepartmentAssign)
+                        <div class="d-flex flex-wrap">
+                            @foreach ($aggregateAssignmentCards->take(3) as $aggregateCard)
+                                <a href="{{ route('monthly-schedule.assignment', $aggregateCard['monthly_schedule_id']) }}"
+                                    class="btn btn-outline-info btn-sm mr-2 mb-2">
+                                    {{ str_pad((string) $aggregateCard['month'], 2, '0', STR_PAD_LEFT) }}/{{ $aggregateCard['year'] }}
+                                    - {{ $aggregateCard['department_name'] }}
+                                </a>
+                            @endforeach
+                        </div>
+                    @else
+                        <span class="text-muted">Không có quyền truy cập.</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+            <div class="card h-100 border-left-success shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-2">Hộp chờ phê duyệt phân công</h5>
+                    <p class="text-muted mb-3">
+                        Dành cho Phòng Đào tạo và quản trị viên để rà soát các batch phân công tổng hợp theo khoa.
+                    </p>
+                    @if ($canReviewWorkflow)
+                        <a href="{{ route('department-monthly-assignment-batches.index') }}" class="btn btn-success btn-sm">
+                            Đi tới hộp chờ phê duyệt
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @include('schedule::partials._semester-plan')
 
     @include('schedule::partials._holiday-calendar-management')
 
@@ -78,5 +146,3 @@
         </div>
     </div>
 @endsection
-
-{{-- REMOVED: large semester-plan, monthly-schedule-list, change-request bloc

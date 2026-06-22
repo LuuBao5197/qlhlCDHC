@@ -2,44 +2,62 @@
 
 namespace Modules\Training\Database\Seeders;
 
-use Modules\Training\Models\Department;
-use App\Models\User;
 use Illuminate\Database\Seeder;
+use Modules\Training\Database\Seeders\Concerns\DemoSeedingGuard;
+use Modules\Training\Models\Department;
 
 class DepartmentSeeder extends Seeder
 {
+    use DemoSeedingGuard;
+
     public function run(): void
     {
+        if (! $this->shouldRunDemoSeeding()) {
+            return;
+        }
+
         $departments = [
-            ['code' => 'PDT', 'name' => 'Phong Dao Tao', 'description' => 'Quan ly va dieu phoi dao tao', 'status' => 'active'],
-            ['code' => 'KCNTT', 'name' => 'Khoa Cong Nghe Thong Tin', 'description' => 'Quan ly lop va mon hoc CNTT', 'status' => 'active'],
-            ['code' => 'KQS', 'name' => 'Khoa Quan Su', 'description' => 'Don vi huan luyen chuyen mon', 'status' => 'active'],
+            [
+                'code' => 'KHOA-DUOC',
+                'name' => 'Khoa Dược',
+                'description' => 'Đào tạo và quản lý các học phần chuyên sâu về dược lý, bào chế và thực hành cấp phát thuốc.',
+                'status' => 'active',
+            ],
+            [
+                'code' => 'KHOA-DIEU-DUONG',
+                'name' => 'Khoa Điều dưỡng',
+                'description' => 'Phụ trách chương trình điều dưỡng cơ bản, chăm sóc người bệnh và thực hành lâm sàng.',
+                'status' => 'active',
+            ],
+            [
+                'code' => 'KHOA-Y-SI-DA-KHOA',
+                'name' => 'Khoa Y sĩ đa khoa',
+                'description' => 'Đào tạo y sĩ đa khoa phục vụ tuyến y tế quân y và cộng đồng.',
+                'status' => 'active',
+            ],
+            [
+                'code' => 'KHOA-Y-HOC-CO-SO',
+                'name' => 'Khoa Y học cơ sở',
+                'description' => 'Phụ trách các môn nền tảng về sinh lý, vi sinh, miễn dịch và hóa sinh y học.',
+                'status' => 'active',
+            ],
+            [
+                'code' => 'KHOA-KHOA-HOC-CO-BAN',
+                'name' => 'Khoa Khoa học cơ bản',
+                'description' => 'Giảng dạy các học phần nền tảng như y đức, giao tiếp y khoa và tin học ứng dụng.',
+                'status' => 'active',
+            ],
         ];
 
         foreach ($departments as $department) {
-            Department::updateOrCreate(
+            Department::firstOrCreate(
                 ['code' => $department['code']],
-                $department
+                [
+                    'name' => $department['name'],
+                    'description' => $department['description'],
+                    'status' => $department['status'],
+                ]
             );
-        }
-
-        $mapping = [
-            'training@example.com' => 'PDT',
-            'department@example.com' => 'KCNTT',
-            'teacher@example.com' => 'KCNTT',
-            'student@example.com' => 'KCNTT',
-        ];
-
-        foreach ($mapping as $email => $code) {
-            $user = User::where('email', $email)->first();
-            $department = Department::where('code', $code)->first();
-
-            if ($user && $department) {
-                $user->update([
-                    'department_id' => $department->id,
-                    'employee_code' => $user->employee_code ?? strtoupper(substr($code, 0, 3)) . '-' . str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
-                ]);
-            }
         }
     }
 }

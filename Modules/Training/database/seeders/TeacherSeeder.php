@@ -2,54 +2,46 @@
 
 namespace Modules\Training\Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
+use Modules\Training\Database\Seeders\Concerns\DemoSeedingGuard;
 use Modules\Training\Models\Department;
 use Modules\Training\Models\Teacher;
 
 class TeacherSeeder extends Seeder
 {
+    use DemoSeedingGuard;
+
     public function run(): void
     {
-        $defaultDepartment = Department::where('code', 'KCNTT')->first() ?? Department::query()->first();
+        if (! $this->shouldRunDemoSeeding()) {
+            return;
+        }
 
-        $seedTeachers = [
-            ['teacher_code' => 'GV-0001', 'name' => 'Giang vien 01', 'status' => 'active'],
-            ['teacher_code' => 'GV-0002', 'name' => 'Giang vien 02', 'status' => 'active'],
-            ['teacher_code' => 'GV-0003', 'name' => 'Giang vien 03', 'status' => 'inactive'],
+        $departmentDuoc = Department::where('code', 'KHOA-DUOC')->first();
+        $departmentDieuDuong = Department::where('code', 'KHOA-DIEU-DUONG')->first();
+        $departmentYsdk = Department::where('code', 'KHOA-Y-SI-DA-KHOA')->first();
+        $departmentYhocCoSo = Department::where('code', 'KHOA-Y-HOC-CO-SO')->first();
+        $departmentKhoaHocCoBan = Department::where('code', 'KHOA-KHOA-HOC-CO-BAN')->first();
+
+        $teachers = [
+            ['teacher_code' => 'GV-DUOC-01', 'name' => 'ThS. Dược sĩ Nguyễn Minh Đức', 'department_id' => $departmentDuoc?->id],
+            ['teacher_code' => 'GV-DUOC-02', 'name' => 'ThS. Dược sĩ Trần Thu Hà', 'department_id' => $departmentDuoc?->id],
+            ['teacher_code' => 'GV-DUONG-01', 'name' => 'CN. Điều dưỡng Lê Thị Hồng', 'department_id' => $departmentDieuDuong?->id],
+            ['teacher_code' => 'GV-DUONG-02', 'name' => 'CN. Điều dưỡng Phạm Đức Anh', 'department_id' => $departmentDieuDuong?->id],
+            ['teacher_code' => 'GV-YSDK-01', 'name' => 'BS. Nguyễn Hoàng Nam', 'department_id' => $departmentYsdk?->id],
+            ['teacher_code' => 'GV-YHCS-01', 'name' => 'TS. Trần Thị Lan Phương', 'department_id' => $departmentYhocCoSo?->id],
+            ['teacher_code' => 'GV-KHCB-01', 'name' => 'ThS. Lê Quốc Bảo', 'department_id' => $departmentKhoaHocCoBan?->id],
         ];
 
-        foreach ($seedTeachers as $teacher) {
-            Teacher::updateOrCreate(
+        foreach ($teachers as $teacher) {
+            Teacher::firstOrCreate(
                 ['teacher_code' => $teacher['teacher_code']],
                 [
                     'name' => $teacher['name'],
-                    'status' => $teacher['status'],
-                    'department_id' => $defaultDepartment?->id,
+                    'status' => 'active',
+                    'department_id' => $teacher['department_id'],
                 ]
             );
         }
-
-        User::query()
-            ->where('role', User::ROLE_TEACHER)
-            ->get()
-            ->each(function (User $user) use ($defaultDepartment): void {
-                $teacherCode = $user->employee_code ?: 'GV-' . str_pad((string) $user->id, 4, '0', STR_PAD_LEFT);
-
-                Teacher::query()
-                    ->where('user_id', $user->id)
-                    ->where('teacher_code', '!=', $teacherCode)
-                    ->update(['user_id' => null]);
-
-                Teacher::updateOrCreate(
-                    ['teacher_code' => $teacherCode],
-                    [
-                        'name' => $user->name,
-                        'status' => $user->isApproved() ? 'active' : 'inactive',
-                        'department_id' => $user->department_id ?? $defaultDepartment?->id,
-                        'user_id' => $user->id,
-                    ]
-                );
-            });
     }
 }

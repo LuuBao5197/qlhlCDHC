@@ -8,11 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasColumn('schedule_slots', 'template_id')) {
+            return;
+        }
+
+        try {
+            Schema::table('schedule_slots', function (Blueprint $table) {
+                $table->dropForeign('schedule_slots_template_id_foreign');
+            });
+        } catch (\Exception $e) {
+        }
+
         Schema::table('schedule_slots', function (Blueprint $table) {
-            if (Schema::hasColumn('schedule_slots', 'template_id')) {
-                $table->dropForeign(['template_id']);
-                $table->dropColumn('template_id');
-            }
+            $table->dropColumn('template_id');
         });
     }
 

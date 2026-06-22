@@ -11,11 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasColumn('plan_templates', 'department_id')) {
+            return;
+        }
+
+        try {
+            Schema::table('plan_templates', function (Blueprint $table) {
+                $table->dropForeign('plan_templates_department_id_foreign');
+            });
+        } catch (\Exception $e) {
+        }
+
         Schema::table('plan_templates', function (Blueprint $table) {
-            if (Schema::hasColumn('plan_templates', 'department_id')) {
-                $table->dropForeign(['department_id']);
-                $table->dropColumn('department_id');
-            }
+            $table->dropColumn('department_id');
         });
     }
 
@@ -26,9 +34,10 @@ return new class extends Migration
     {
         Schema::table('plan_templates', function (Blueprint $table) {
             $table->foreignId('department_id')
+                ->nullable()
                 ->after('subject_id')
                 ->constrained('departments')
-                ->onDelete('restrict');
+                ->nullOnDelete();
         });
     }
 };

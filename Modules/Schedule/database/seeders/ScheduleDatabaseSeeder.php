@@ -5,26 +5,23 @@ namespace Modules\Schedule\Database\Seeders;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\MonthlySchedule;
+use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\Department;
 
 class ScheduleDatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Clean up old data
         MonthlySchedule::query()->delete();
         Plans::query()->delete();
         DB::table('plan_templates')->delete();
 
-        // Reset auto-increment
         DB::statement('ALTER TABLE monthly_schedules AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE plans AUTO_INCREMENT = 1');
         DB::statement('ALTER TABLE plan_templates AUTO_INCREMENT = 1');
 
-        // Create plan (semester)
-        $plan = Plans::create([
+        Plans::create([
             'name' => 'Kế hoạch huấn luyện HK1',
             'semester' => 1,
             'year' => 2026,
@@ -38,11 +35,8 @@ class ScheduleDatabaseSeeder extends Seeder
             ['code' => 'KQS', 'name' => 'Khoa Quân Sự'],
         ];
 
-        $months = [2, 3, 4];
-
-        // Create MonthlySchedule stubs for each department and month
         foreach ($departments as $departmentData) {
-            $department = Department::firstOrCreate(
+            Department::firstOrCreate(
                 ['code' => $departmentData['code']],
                 [
                     'name' => $departmentData['name'],
@@ -50,11 +44,8 @@ class ScheduleDatabaseSeeder extends Seeder
                     'status' => 'active',
                 ]
             );
-
-
         }
 
-        // Call seeder to create plan templates
         $this->call(PlanTemplateSeeder::class);
     }
 }

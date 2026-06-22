@@ -8,20 +8,26 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasColumn('monthly_schedules', 'department_id')) {
+            return;
+        }
+
+        try {
+            Schema::table('monthly_schedules', function (Blueprint $table) {
+                $table->dropForeign('monthly_schedules_department_id_foreign');
+            });
+        } catch (Throwable $e) {
+        }
+
+        try {
+            Schema::table('monthly_schedules', function (Blueprint $table) {
+                $table->dropUnique('monthly_schedules_plan_department_month_year_unique');
+            });
+        } catch (Throwable $e) {
+        }
+
         Schema::table('monthly_schedules', function (Blueprint $table) {
-            if (Schema::hasColumn('monthly_schedules', 'department_id')) {
-                try {
-                    $table->dropForeign(['department_id']);
-                } catch (Throwable $e) {
-                }
-
-                try {
-                    $table->dropUnique('monthly_schedules_plan_department_month_year_unique');
-                } catch (Throwable $e) {
-                }
-
-                $table->dropColumn('department_id');
-            }
+            $table->dropColumn('department_id');
         });
     }
 
@@ -30,9 +36,21 @@ return new class extends Migration
         Schema::table('monthly_schedules', function (Blueprint $table) {
             $table->foreignId('department_id')
                 ->nullable()
-                ->after('plan_id')
-                ->constrained('departments')
-                ->onDelete('set null');
+                ->after('plan_id');
+        });
+
+        Schema::table('monthly_schedules', function (Blueprint $table) {
+            $table->foreign('department_id')
+                ->references('id')
+                ->on('departments')
+                ->nullOnDelete();
+        });
+
+        Schema::table('monthly_schedules', function (Blueprint $table) {
+            $table->unique(
+                ['plan_id', 'department_id', 'month', 'year'],
+                'monthly_schedules_plan_department_month_year_unique'
+            );
         });
     }
 };

@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Schedule\Models\Plans;
+use Modules\Schedule\Models\SemesterEvent;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingClass;
@@ -64,6 +65,13 @@ class UpdateScheduleSemesterHandler
             ]);
         }
 
+        $semesterEvents = array_merge(
+            $this->parseGlobalSemesterEvents($validated['global_semester_events'] ?? [], $planStart, $planEnd),
+            $this->parseClassSemesterEvents($validated['class_semester_events'] ?? [], $classMap, $planStart, $planEnd)
+        );
+
+        $this->validateSemesterEventsWithinPlan($semesterEvents, $planStart, $planEnd);
+        $this->validateSemesterEventConflicts($semesterEvents);
         $this->validateTemplateEntries($templateEntries, $planStart, $planEnd);
 
         $updatedPlan = DB::transaction(function () use (
@@ -73,6 +81,7 @@ class UpdateScheduleSemesterHandler
             $year,
             $validated,
             $templateEntries,
+            $semesterEvents,
             $planStart,
             $planEnd
         ) {
@@ -88,6 +97,7 @@ class UpdateScheduleSemesterHandler
 
             // Delete old plan templates
             PlanTemplates::where('plan_id', $plan->id)->delete();
+            SemesterEvent::where('plan_id', $plan->id)->delete();
 
             // Delete old monthly schedules and slots
             foreach ($plan->monthlySchedules as $monthly) {
@@ -112,6 +122,27 @@ class UpdateScheduleSemesterHandler
                             'description',
                             'start_date',
                             'end_date',
+                        ]
+                    )
+                );
+            }
+
+            foreach ($semesterEvents as $event) {
+                SemesterEvent::query()->create(
+                    Arr::only(
+                        $event + ['plan_id' => $plan->id],
+                        [
+                            'plan_id',
+                            'class_id',
+                            'event_type',
+                            'title',
+                            'start_date',
+                            'end_date',
+                            'period_from',
+                            'period_to',
+                            'color',
+                            'note',
+                            'sort_order',
                         ]
                     )
                 );
@@ -255,6 +286,163 @@ class UpdateScheduleSemesterHandler
                     'description' => $content,
                     'start_date' => Carbon::parse($rule['start_date'])->toDateString(),
                     'end_date' => Carbon::parse($rule['end_date'])->toDateString(),
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    private function parseGlobalSemesterEvents(array|string|null $rawEvents, Carbon $planStart, Carbon $planEnd): array
+    {
+        if ($rawEvents === null || $rawEvents === '' || $rawEvents === []) {
+            return [];
+        }
+
+        $decoded = is_string($rawEvents) ? json_decode($rawEvents, true) : $rawEvents;
+        if (!is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'global_semester_events' => 'Du lieu su kien nghi le khong hop le.',
+            ]);
+        }
+
+        $rows = [];
+        foreach ($decoded as $index => $event) {
+            if (!is_array($event)) {
+                continue;
+            }
+
+            $title = trim((string) ($event['title'] ?? ''));
+            $eventType = trim((string) ($event['event_type'] ?? ''));
+            $startDate = $event['start_date'] ?? null;
+            $endDate = $event['end_date'] ?? null;
+
+            if ($title === '' || $eventType === '' || !$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
+                continue;
+            }
+
+            if ($eventType !== 'holiday') {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien chung chi chap nhan loai nghi le.',
+                ]);
+            }
+
+            $start = Carbon::parse($startDate)->startOfDay();
+            $end = Carbon::parse($endDate)->endOfDay();
+
+            if ($end->lt($start)) {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien nghi le co ngay ket thuc nho hon ngay bat dau.',
+                ]);
+            }
+
+            if ($start->lt($planStart) || $end->gt($planEnd)) {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien nghi le phai nam trong khoang thoi gian hoc ky.',
+                ]);
+            }
+
+            $periodFrom = $this->parseOptionalPeriodValue($event['period_from'] ?? null) ?? 1;
+            $periodTo = $this->parseOptionalPeriodValue($event['period_to'] ?? null) ?? 9;
+
+            if ($periodTo < $periodFrom) {
+                throw ValidationException::withMessages([
+                    'global_semester_events' => 'Su kien nghi le co tiet ket thuc nho hon tiet bat dau.',
+                ]);
+            }
+
+            $rows[] = [
+                'class_id' => null,
+                'event_type' => $eventType,
+                'title' => $title,
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'period_from' => $periodFrom,
+                'period_to' => $periodTo,
+                'color' => $this->semesterEventColor($eventType),
+                'note' => trim((string) ($event['note'] ?? '')) ?: null,
+                'sort_order' => is_numeric($event['sort_order'] ?? null) ? (int) $event['sort_order'] : $index,
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function parseClassSemesterEvents(array|string|null $rawEvents, array $classMap, Carbon $planStart, Carbon $planEnd): array
+    {
+        if ($rawEvents === null || $rawEvents === '' || $rawEvents === []) {
+            return [];
+        }
+
+        $decoded = is_string($rawEvents) ? json_decode($rawEvents, true) : $rawEvents;
+        if (!is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'class_semester_events' => 'Du lieu su kien cua lop khong hop le.',
+            ]);
+        }
+
+        $rows = [];
+
+        foreach ($decoded as $classKey => $events) {
+            if (!array_key_exists((string) $classKey, $classMap) || !is_array($events)) {
+                continue;
+            }
+
+            foreach ($events as $index => $event) {
+                if (!is_array($event)) {
+                    continue;
+                }
+
+                $title = trim((string) ($event['title'] ?? ''));
+                $eventType = trim((string) ($event['event_type'] ?? ''));
+                $startDate = $event['start_date'] ?? null;
+                $endDate = $event['end_date'] ?? null;
+
+                if ($title === '' || $eventType === '' || !$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
+                    continue;
+                }
+
+                if (!in_array($eventType, ['review', 'exam', 'other'], true)) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop chi chap nhan loai on thi, thi hoac khac.',
+                    ]);
+                }
+
+                $start = Carbon::parse($startDate)->startOfDay();
+                $end = Carbon::parse($endDate)->endOfDay();
+
+                if ($end->lt($start)) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop co ngay ket thuc nho hon ngay bat dau.',
+                    ]);
+                }
+
+                if ($start->lt($planStart) || $end->gt($planEnd)) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop phai nam trong khoang thoi gian hoc ky.',
+                    ]);
+                }
+
+                $periodFrom = $this->parseOptionalPeriodValue($event['period_from'] ?? null) ?? 1;
+                $periodTo = $this->parseOptionalPeriodValue($event['period_to'] ?? null) ?? 9;
+
+                if ($periodTo < $periodFrom) {
+                    throw ValidationException::withMessages([
+                        'class_semester_events' => 'Su kien cua lop co tiet ket thuc nho hon tiet bat dau.',
+                    ]);
+                }
+
+                $rows[] = [
+                    'class_id' => $classMap[(string) $classKey]->id,
+                    'event_type' => $eventType,
+                    'title' => $title,
+                    'start_date' => $start->toDateString(),
+                    'end_date' => $end->toDateString(),
+                    'period_from' => $periodFrom,
+                    'period_to' => $periodTo,
+                    'color' => $this->semesterEventColor($eventType),
+                    'note' => trim((string) ($event['note'] ?? '')) ?: null,
+                    'sort_order' => is_numeric($event['sort_order'] ?? null) ? (int) $event['sort_order'] : $index,
                 ];
             }
         }
@@ -740,5 +928,127 @@ class UpdateScheduleSemesterHandler
             $rule['subject'] ?? null,
             $rule['content'] ?? null,
         ])->contains(fn($value) => $value !== null && $value !== '');
+    }
+
+    private function parseOptionalPeriodValue(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $period = (int) $value;
+        return $period >= 1 && $period <= 9 ? $period : null;
+    }
+
+    private function isDateValue(mixed $value): bool
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return false;
+        }
+
+        try {
+            Carbon::parse($value);
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function semesterEventColor(string $eventType): string
+    {
+        return match ($eventType) {
+            'holiday' => '#ffedd5',
+            'review' => '#dbeafe',
+            'exam' => '#fee2e2',
+            default => '#ede9fe',
+        };
+    }
+
+    private function validateSemesterEventsWithinPlan(array $events, Carbon $planStart, Carbon $planEnd): void
+    {
+        foreach ($events as $event) {
+            $start = Carbon::parse($event['start_date'])->startOfDay();
+            $end = Carbon::parse($event['end_date'])->endOfDay();
+
+            if ($end->lt($start)) {
+                throw ValidationException::withMessages([
+                    'class_semester_events' => 'Co su kien hoc ky co ngay ket thuc nho hon ngay bat dau.',
+                ]);
+            }
+
+            if ($start->lt($planStart) || $end->gt($planEnd)) {
+                throw ValidationException::withMessages([
+                    'class_semester_events' => 'Su kien hoc ky phai nam trong khoang thoi gian hoc ky.',
+                ]);
+            }
+        }
+    }
+
+    private function validateSemesterEventConflicts(array $events): void
+    {
+        $globalEvents = array_values(array_filter($events, fn (array $event) => ($event['class_id'] ?? null) === null));
+        $classEvents = array_values(array_filter($events, fn (array $event) => ($event['class_id'] ?? null) !== null));
+
+        $this->assertNoOverlapWithinGroup($globalEvents, 'global_semester_events', 'Su kien nghi le');
+
+        $classGroups = collect($classEvents)->groupBy(fn (array $event) => (string) ($event['class_id'] ?? ''));
+        foreach ($classGroups as $classId => $classGroup) {
+            $this->assertNoOverlapWithinGroup(
+                $classGroup->values()->all(),
+                'class_semester_events',
+                'Su kien cua lop ' . $this->classLabelById((int) $classId)
+            );
+        }
+
+        foreach ($globalEvents as $globalEvent) {
+            foreach ($classEvents as $classEvent) {
+                if ($this->dateRangesOverlap($globalEvent, $classEvent) && $this->eventPeriodsOverlap($globalEvent, $classEvent)) {
+                    $classLabel = $this->classLabelById((int) $classEvent['class_id']);
+                    throw ValidationException::withMessages([
+                        'global_semester_events' => "Su kien nghi le '{$globalEvent['title']}' bi trung ngay/tiet voi su kien cua lop '{$classLabel}'.",
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function assertNoOverlapWithinGroup(array $events, string $errorKey, string $labelPrefix): void
+    {
+        $count = count($events);
+
+        for ($i = 0; $i < $count; $i++) {
+            for ($j = $i + 1; $j < $count; $j++) {
+                if ($this->dateRangesOverlap($events[$i], $events[$j]) && $this->eventPeriodsOverlap($events[$i], $events[$j])) {
+                    throw ValidationException::withMessages([
+                        $errorKey => $labelPrefix . " '" . ($events[$i]['title'] ?? 'su kien') . "' bi trung ngay/tiet voi '" . ($events[$j]['title'] ?? 'su kien') . "'.",
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function eventPeriodsOverlap(array $first, array $second): bool
+    {
+        $firstFrom = (int) ($first['period_from'] ?? 1);
+        $firstTo = (int) ($first['period_to'] ?? 9);
+        $secondFrom = (int) ($second['period_from'] ?? 1);
+        $secondTo = (int) ($second['period_to'] ?? 9);
+
+        return max($firstFrom, $secondFrom) <= min($firstTo, $secondTo);
+    }
+
+    private function classLabelById(int $classId): string
+    {
+        return TrainingClass::query()->find($classId)?->code ?? (string) $classId;
+    }
+
+    private function dateRangesOverlap(array $first, array $second): bool
+    {
+        $firstStart = Carbon::parse($first['start_date'])->startOfDay();
+        $firstEnd = Carbon::parse($first['end_date'])->endOfDay();
+        $secondStart = Carbon::parse($second['start_date'])->startOfDay();
+        $secondEnd = Carbon::parse($second['end_date'])->endOfDay();
+
+        return $firstStart->lte($secondEnd) && $secondStart->lte($firstEnd);
     }
 }

@@ -151,11 +151,23 @@
                         </div>
                         <div>
                             <label class="compact-label">Tu ngay</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm" required>
+                            @include('schedule::partials._date-picker-field', [
+                                'name' => 'start_date',
+                                'field' => 'global_event_start_date',
+                                'value' => '',
+                                'required' => true,
+                                'buttonLabel' => 'Lich',
+                            ])
                         </div>
                         <div>
                             <label class="compact-label">Den ngay</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm" required>
+                            @include('schedule::partials._date-picker-field', [
+                                'name' => 'end_date',
+                                'field' => 'global_event_end_date',
+                                'value' => '',
+                                'required' => true,
+                                'buttonLabel' => 'Lich',
+                            ])
                         </div>
                         <div>
                             <label class="compact-label">Tu tiet</label>
@@ -205,22 +217,24 @@
                                             required>
                                     </td>
                                     <td>
-                                        <input
-                                            type="date"
-                                            name="start_date"
-                                            form="global-event-{{ $event->id }}"
-                                            class="form-control form-control-sm"
-                                            value="{{ optional($event->start_date)->format('Y-m-d') }}"
-                                            required>
+                                        @include('schedule::partials._date-picker-field', [
+                                            'name' => 'start_date',
+                                            'field' => 'global_event_' . $event->id . '_start_date',
+                                            'value' => optional($event->start_date)->format('Y-m-d'),
+                                            'form' => 'global-event-' . $event->id,
+                                            'required' => true,
+                                            'buttonLabel' => 'Lich',
+                                        ])
                                     </td>
                                     <td>
-                                        <input
-                                            type="date"
-                                            name="end_date"
-                                            form="global-event-{{ $event->id }}"
-                                            class="form-control form-control-sm"
-                                            value="{{ optional($event->end_date)->format('Y-m-d') }}"
-                                            required>
+                                        @include('schedule::partials._date-picker-field', [
+                                            'name' => 'end_date',
+                                            'field' => 'global_event_' . $event->id . '_end_date',
+                                            'value' => optional($event->end_date)->format('Y-m-d'),
+                                            'form' => 'global-event-' . $event->id,
+                                            'required' => true,
+                                            'buttonLabel' => 'Lich',
+                                        ])
                                     </td>
                                     <td>
                                         <div class="event-period-stack">
@@ -310,11 +324,23 @@
                         </div>
                         <div>
                             <label class="compact-label">Tu ngay</label>
-                            <input type="date" name="start_date" class="form-control form-control-sm" required>
+                            @include('schedule::partials._date-picker-field', [
+                                'name' => 'start_date',
+                                'field' => 'class_event_start_date',
+                                'value' => '',
+                                'required' => true,
+                                'buttonLabel' => 'Lich',
+                            ])
                         </div>
                         <div>
                             <label class="compact-label">Den ngay</label>
-                            <input type="date" name="end_date" class="form-control form-control-sm" required>
+                            @include('schedule::partials._date-picker-field', [
+                                'name' => 'end_date',
+                                'field' => 'class_event_end_date',
+                                'value' => '',
+                                'required' => true,
+                                'buttonLabel' => 'Lich',
+                            ])
                         </div>
                         <div>
                             <label class="compact-label">Tu tiet</label>
@@ -386,22 +412,24 @@
                                                     required>
                                             </td>
                                             <td>
-                                                <input
-                                                    type="date"
-                                                    name="start_date"
-                                                    form="class-event-{{ $event->id }}"
-                                                    class="form-control form-control-sm"
-                                                    value="{{ optional($event->start_date)->format('Y-m-d') }}"
-                                                    required>
+                                                @include('schedule::partials._date-picker-field', [
+                                                    'name' => 'start_date',
+                                                    'field' => 'class_event_' . $event->id . '_start_date',
+                                                    'value' => optional($event->start_date)->format('Y-m-d'),
+                                                    'form' => 'class-event-' . $event->id,
+                                                    'required' => true,
+                                                    'buttonLabel' => 'Lich',
+                                                ])
                                             </td>
                                             <td>
-                                                <input
-                                                    type="date"
-                                                    name="end_date"
-                                                    form="class-event-{{ $event->id }}"
-                                                    class="form-control form-control-sm"
-                                                    value="{{ optional($event->end_date)->format('Y-m-d') }}"
-                                                    required>
+                                                @include('schedule::partials._date-picker-field', [
+                                                    'name' => 'end_date',
+                                                    'field' => 'class_event_' . $event->id . '_end_date',
+                                                    'value' => optional($event->end_date)->format('Y-m-d'),
+                                                    'form' => 'class-event-' . $event->id,
+                                                    'required' => true,
+                                                    'buttonLabel' => 'Lich',
+                                                ])
                                             </td>
                                             <td>
                                                 <div class="event-period-stack">

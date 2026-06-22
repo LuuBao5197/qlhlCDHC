@@ -18,19 +18,35 @@ class UpdateScheduleSemesterRequest extends FormRequest
 
     public function rules(): array
     {
-        $planId = $this->route('id');
         return [
             'semester' => 'required|integer|min:1|max:2',
             'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'description' => 'nullable|string|max:500',
             'class_name' => 'nullable|string|max:50',
             'selected_class_ids' => 'nullable|array',
             'selected_class_ids.*' => 'integer|exists:classes,id',
             'class_tab_rules' => 'nullable|array',
+            'global_semester_events' => 'nullable|array',
+            'global_semester_events.*.event_type' => 'required|string|in:holiday',
+            'global_semester_events.*.title' => 'required|string|max:255',
+            'global_semester_events.*.start_date' => 'required|date',
+            'global_semester_events.*.end_date' => 'required|date',
+            'global_semester_events.*.period_from' => 'nullable|integer|min:1|max:9',
+            'global_semester_events.*.period_to' => 'nullable|integer|min:1|max:9',
+            'global_semester_events.*.note' => 'nullable|string|max:1000',
+            'class_semester_events' => 'nullable|array',
+            'class_semester_events.*' => 'nullable|array',
+            'class_semester_events.*.*.event_type' => 'required|string|in:review,exam,other',
+            'class_semester_events.*.*.title' => 'required|string|max:255',
+            'class_semester_events.*.*.start_date' => 'required|date',
+            'class_semester_events.*.*.end_date' => 'required|date',
+            'class_semester_events.*.*.period_from' => 'nullable|integer|min:1|max:9',
+            'class_semester_events.*.*.period_to' => 'nullable|integer|min:1|max:9',
+            'class_semester_events.*.*.note' => 'nullable|string|max:1000',
             'import_file' => 'nullable|array',
-            'import_file.*' => 'file|mimes:csv,txt',
+            'import_file.*' => 'file|mimes:csv,txt,xlsx',
         ];
     }
 
@@ -39,9 +55,19 @@ class UpdateScheduleSemesterRequest extends FormRequest
         return [
             'semester.required' => 'Hoc ky la bat buoc.',
             'year.required' => 'Nam hoc la bat buoc.',
+            'start_date.required' => 'Ngay bat dau hoc ky la bat buoc.',
+            'end_date.required' => 'Ngay ket thuc hoc ky la bat buoc.',
             'end_date.after_or_equal' => 'Ngay ket thuc phai lon hon hoac bang ngay bat dau.',
             'selected_class_ids.*.exists' => 'Lop duoc chon khong ton tai.',
-            'import_file.*.mimes' => 'File import phai o dinh dang CSV hoac TXT.',
+            'import_file.*.mimes' => 'File import phai o dinh dang Excel (.xlsx) hoac CSV/TXT.',
+            'global_semester_events.*.event_type.required' => 'Moi su kien nghi le phai chon loai su kien.',
+            'global_semester_events.*.title.required' => 'Moi su kien nghi le phai nhap ten.',
+            'global_semester_events.*.start_date.required' => 'Moi su kien nghi le phai co ngay bat dau.',
+            'global_semester_events.*.end_date.required' => 'Moi su kien nghi le phai co ngay ket thuc.',
+            'class_semester_events.*.*.event_type.required' => 'Moi su kien cua lop phai chon loai su kien.',
+            'class_semester_events.*.*.title.required' => 'Moi su kien cua lop phai nhap ten.',
+            'class_semester_events.*.*.start_date.required' => 'Moi su kien cua lop phai co ngay bat dau.',
+            'class_semester_events.*.*.end_date.required' => 'Moi su kien cua lop phai co ngay ket thuc.',
         ];
     }
 

@@ -30,10 +30,9 @@ class GetScheduleHandler
             ->with([
                 'plan',
                 'createdBy',
-                'approvedBy',
                 'scheduleSlots' => static function ($query): void {
                     $query
-                        ->with(['trainingClass', 'room', 'subjectModel', 'teacher', 'subjectLesson'])
+                        ->with(['trainingClass', 'room', 'subjectModel.department', 'teacher', 'subjectLesson'])
                         ->orderBy('date')
                         ->orderBy('period_number');
                 },

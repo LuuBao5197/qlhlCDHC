@@ -3,28 +3,29 @@
 namespace Modules\Training\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Training\Database\Seeders\Concerns\DemoSeedingGuard;
 
 class TrainingDatabaseSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    use DemoSeedingGuard;
+
     public function run(): void
     {
+        if (! $this->shouldRunDemoSeeding()) {
+            return;
+        }
+
         $this->call([
             DepartmentSeeder::class,
+            DemoUserSeeder::class,
+            TrainingProgramSeeder::class,
+            TrainingBatchSeeder::class,
             TeacherSeeder::class,
+            RoomSeeder::class,
             TrainingClassSeeder::class,
             SubjectSeeder::class,
             SubjectLessonSeeder::class,
-            RoomSeeder::class,
             StudentSeeder::class,
-            ApprovalRequestSeeder::class,
-            ApprovalActionSeeder::class,
-            ChangeRequestSeeder::class,
-            DailyTrainingLogSeeder::class,
-            SlotEvaluationSeeder::class,
-            MonthlyReportSeeder::class,
         ]);
     }
 }

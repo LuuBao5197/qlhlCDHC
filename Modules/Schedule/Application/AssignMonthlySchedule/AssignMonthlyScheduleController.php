@@ -3,10 +3,11 @@
 namespace Modules\Schedule\Application\AssignMonthlySchedule;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleRequest;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleViewRequest;
+use Modules\Schedule\Models\DepartmentMonthlyAssignmentBatch;
 use Modules\Schedule\Models\MonthlySchedule;
+use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\Room;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\SubjectLesson;
@@ -15,7 +16,8 @@ use Modules\Training\Models\Teacher;
 class AssignMonthlyScheduleController extends Controller
 {
     public function __construct(
-        private AssignMonthlyScheduleHandler $handler
+        private AssignMonthlyScheduleHandler $handler,
+        private MonthlyAssignmentScopeResolver $scopeResolver
     ) {}
 
     /**
@@ -25,46 +27,78 @@ class AssignMonthlyScheduleController extends Controller
     public function showForm(AssignMonthlyScheduleViewRequest $request, int $id)
     {
         $user = $request->user();
-        $departmentId = $user?->department_id;
-
-        // Get subject IDs belonging to this department (for filtering slots)
-        $departmentSubjectIds = [];
-        if ($departmentId !== null) {
-            $departmentSubjectIds = Subject::where('department_id', $departmentId)
-                ->pluck('id')
-                ->all();
-        }
-
         $monthlySchedule = MonthlySchedule::query()
             ->with([
                 'plan',
-                'scheduleSlots' => function ($query) use ($departmentSubjectIds): void {
-                    // Only show slots whose subject belongs to this department
-                    if ($departmentSubjectIds !== []) {
-                        $query->whereIn('subject_id', $departmentSubjectIds);
-                    }
-                    $query->orderBy('date')->orderBy('period_number');
-                },
-                'scheduleSlots.trainingClass',
+                'trainingClass.department',
             ])
             ->findOrFail($id);
 
-        // $teachers = User::query()
-        //     ->where('role', User::ROLE_TEACHER)
-        //     ->when(
-        //         $departmentId !== null,
-        //         fn($query) => $query->where('department_id', $departmentId)
-        //     )
-        //     ->orderBy('name')
-        //     ->get();
+        $scope = $this->scopeResolver->resolve($monthlySchedule, $user);
+        if ($scope === null) {
+            abort(422, 'Khong xac dinh duoc khoa hien tai de tong hop phan cong.');
+        }
 
-        $teachers = Teacher::query()->where('department_id', $departmentId)->orderBy('name')->get();
+        $departmentId = $scope['department_id'];
+        $departmentName = $scope['department_name'];
+        $aggregateMonthlySchedules = $scope['monthly_schedules'];
+        $aggregateMonthlyScheduleIds = $scope['monthly_schedule_ids'];
+        $aggregatePlanCount = $scope['plan_count'];
+        $aggregateMonthlyScheduleCount = $scope['monthly_schedule_count'];
+        $departmentSubjectIds = $scope['department_subject_ids'];
+        $currentBatch = DepartmentMonthlyAssignmentBatch::query()
+            ->with([
+                'department',
+                'submittedBy',
+                'reviewedBy',
+                'batchSlots.scheduleSlot.monthlySchedule.plan',
+                'batchSlots.scheduleSlot.trainingClass',
+                'batchSlots.scheduleSlot.teacher',
+                'batchSlots.scheduleSlot.subjectModel.department',
+                'batchSlots.scheduleSlot.subjectLesson',
+                'batchSlots.scheduleSlot.room',
+                'batchSlots.scheduleSlot.scheduleSlotGroup',
+            ])
+            ->where('department_id', $departmentId)
+            ->where('month', $monthlySchedule->month)
+            ->where('year', $monthlySchedule->year)
+            ->first();
+        $aggregateSubjectSlots = ScheduleSlot::query()
+            ->with([
+                'monthlySchedule.plan',
+                'monthlySchedule.trainingClass.department',
+                'trainingClass',
+                'teacher',
+                'subjectModel.department',
+                'subjectLesson',
+                'room',
+                'scheduleSlotGroup',
+            ])
+            ->whereIn('monthly_schedule_id', $aggregateMonthlyScheduleIds)
+            ->where('slot_type', 'subject')
+            ->when(
+                $departmentSubjectIds !== [],
+                fn ($query) => $query->whereIn('subject_id', $departmentSubjectIds)
+            )
+            ->orderBy('date')
+            ->orderBy('period_number')
+            ->orderBy('monthly_schedule_id')
+            ->orderBy('class_id')
+            ->orderBy('id')
+            ->get();
+
+        $aggregateEventSlotCount = ScheduleSlot::query()
+            ->whereIn('monthly_schedule_id', $aggregateMonthlyScheduleIds)
+            ->where('slot_type', 'event')
+            ->count();
+
+        $teachers = Teacher::query()
+            ->where('department_id', $departmentId)
+            ->orderBy('name')
+            ->get();
 
         $subjects = Subject::with('department')
-            ->when(
-                $departmentId !== null,
-                fn($query) => $query->where('department_id', $departmentId)
-            )
+            ->where('department_id', $departmentId)
             ->orderBy('code')
             ->get();
 
@@ -81,11 +115,19 @@ class AssignMonthlyScheduleController extends Controller
 
         return view('schedule::monthly-assignment', [
             'monthlySchedule' => $monthlySchedule,
+            'aggregateMonthlySchedules' => $aggregateMonthlySchedules,
+            'aggregatePlanCount' => $aggregatePlanCount,
+            'aggregateMonthlyScheduleCount' => $aggregateMonthlyScheduleCount,
+            'aggregateSlots' => $aggregateSubjectSlots,
+            'aggregateEventSlotCount' => $aggregateEventSlotCount,
+            'departmentName' => $departmentName,
             'teachers' => $teachers,
             'subjects' => $subjects,
             'subjectLessons' => $subjectLessons,
             'rooms' => $rooms,
-            'canSubmitToTrainingOffice' => $user?->isDepartmentStaff() || $user?->isAdmin(),
+            'currentBatch' => $currentBatch,
+            'canSubmitToTrainingOffice' => false,
+            'isAggregateAssignment' => true,
         ]);
     }
 

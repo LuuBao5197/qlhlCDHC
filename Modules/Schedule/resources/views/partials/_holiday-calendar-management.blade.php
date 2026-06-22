@@ -18,8 +18,18 @@
                     </div>
                     <div class="col-md-3 mb-2">
                         <label class="mb-1">Ngay</label>
-                        <input type="date" name="date" class="form-control form-control-sm"
-                            value="{{ old('date') }}" required>
+                        @include('schedule::partials._date-picker-field', [
+                            'label' => '',
+                            'name' => 'date',
+                            'field' => 'holiday_calendar_new_date',
+                            'displayId' => 'holidayCalendarNewDate',
+                            'nativeId' => 'holidayCalendarNewDateNative',
+                            'value' => old('date'),
+                            'inputClass' => 'form-control-sm',
+                            'wrapperClass' => 'mb-0',
+                            'buttonLabel' => 'Lich',
+                            'required' => true,
+                        ])
                     </div>
                     <div class="col-md-3 mb-2">
                         <label class="mb-1">Trang thai</label>
@@ -56,18 +66,28 @@
                     </thead>
                     <tbody>
                         @forelse ($holidayCalendars ?? collect() as $holiday)
-                            <tr>
-                                <td>{{ $holiday->id }}</td>
-                                <td>
-                                    <form method="POST" action="{{ route('holiday-calendar.update', $holiday->id) }}" class="mb-0">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="text" name="name" class="form-control form-control-sm"
-                                            value="{{ $holiday->name }}" maxlength="255" required>
-                                </td>
-                                <td>
-                                        <input type="date" name="date" class="form-control form-control-sm"
-                                            value="{{ optional($holiday->date)->format('Y-m-d') }}" required>
+                        <tr>
+                            <td>{{ $holiday->id }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('holiday-calendar.update', $holiday->id) }}" class="mb-0">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="text" name="name" class="form-control form-control-sm"
+                                        value="{{ $holiday->name }}" maxlength="255" required>
+                            </td>
+                            <td>
+                                @include('schedule::partials._date-picker-field', [
+                                    'label' => '',
+                                    'name' => 'date',
+                                    'field' => 'holiday_calendar_'.$holiday->id.'_date',
+                                    'displayId' => 'holidayCalendarDate'.$holiday->id,
+                                    'nativeId' => 'holidayCalendarDateNative'.$holiday->id,
+                                    'value' => optional($holiday->date)->format('Y-m-d'),
+                                    'inputClass' => 'form-control-sm',
+                                    'wrapperClass' => 'mb-0',
+                                    'buttonLabel' => 'Lich',
+                                    'required' => true,
+                                ])
                                 </td>
                                 <td>
                                         <select name="is_active" class="form-control form-control-sm">

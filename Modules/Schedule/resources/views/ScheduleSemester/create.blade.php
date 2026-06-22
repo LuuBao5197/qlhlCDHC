@@ -272,17 +272,6 @@
             min-width: 0;
         }
 
-        .date-native-input {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: 0;
-            border: 0;
-            opacity: 0;
-            pointer-events: none;
-        }
-
         .date-picker-btn {
             white-space: nowrap;
             flex: 0 0 auto;
@@ -400,27 +389,25 @@
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Ngay bat dau</label>
-                                <div class="date-field">
-                                    <input type="text" class="form-control date-display-input"
-                                        data-date-display="start_date" placeholder="DD/MMMM/YY" readonly>
-                                    <input type="date" name="start_date" class="date-native-input"
-                                        data-date-native="start_date" value="{{ old('start_date') }}"
-                                        min="{{ $minAllowedPlanDate }}" required>
-                                    <button type="button" class="btn btn-outline-secondary date-picker-btn"
-                                        data-date-picker="start_date">Lich</button>
-                                </div>
+                                @include('schedule::partials._date-picker-field', [
+                                    'name' => 'start_date',
+                                    'field' => 'start_date',
+                                    'value' => old('start_date'),
+                                    'required' => true,
+                                    'min' => $minAllowedPlanDate,
+                                    'buttonLabel' => 'Lich',
+                                ])
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Ngay ket thuc</label>
-                                <div class="date-field">
-                                    <input type="text" class="form-control date-display-input"
-                                        data-date-display="end_date" placeholder="DD/MMMM/YY" readonly>
-                                    <input type="date" name="end_date" class="date-native-input"
-                                        data-date-native="end_date" value="{{ old('end_date') }}"
-                                        min="{{ $minAllowedPlanDate }}" required>
-                                    <button type="button" class="btn btn-outline-secondary date-picker-btn"
-                                        data-date-picker="end_date">Lich</button>
-                                </div>
+                                @include('schedule::partials._date-picker-field', [
+                                    'name' => 'end_date',
+                                    'field' => 'end_date',
+                                    'value' => old('end_date'),
+                                    'required' => true,
+                                    'min' => $minAllowedPlanDate,
+                                    'buttonLabel' => 'Lich',
+                                ])
                             </div>
                         </div>
                         <div id="planDuplicateHint" class="alert alert-warning mt-3 d-none"></div>
@@ -578,36 +565,26 @@
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             };
 
-            const formatVietnameseDate = (value) => {
-                if (!value) return '';
-                const date = new Date(`${value}T00:00:00`);
-                if (Number.isNaN(date.getTime())) return '';
-
-                const day = String(date.getDate()).padStart(2, '0');
-                const month = new Intl.DateTimeFormat('vi-VN', { month: 'long' }).format(date)
-                    .replace(/^tháng\s*/i, 'Tháng ');
-                const year = String(date.getFullYear()).slice(-2);
-                return `${day}/${month}/${year}`;
-            };
+            const formatDateDisplay = (value) => window.ScheduleDatePicker?.formatDisplay(value) || '';
 
             const syncDateDisplay = (fieldName) => {
                 const displayInput = document.querySelector(`[data-date-display="${fieldName}"]`);
                 const nativeInput = document.querySelector(`[data-date-native="${fieldName}"]`);
                 if (!displayInput || !nativeInput) return;
-                displayInput.value = formatVietnameseDate(nativeInput.value);
+                displayInput.value = formatDateDisplay(nativeInput.value);
             };
 
-            const validatePlanDate = (nativeInput) => {
-                if (!nativeInput) return true;
+            const validatePlanDate = (displayInput, nativeInput) => {
+                if (!displayInput || !nativeInput) return true;
 
-                nativeInput.setCustomValidity('');
+                displayInput.setCustomValidity('');
                 if (!nativeInput.value) {
-                    nativeInput.setCustomValidity('Vui lòng chọn ngày.');
+                    displayInput.setCustomValidity('Vui lòng chọn ngày.');
                     return false;
                 }
 
                 if (nativeInput.value < minAllowedPlanDate) {
-                    nativeInput.setCustomValidity(`Ngày không được sớm hơn ${formatVietnameseDate(minAllowedPlanDate)}.`);
+                    displayInput.setCustomValidity(`Ngày không được sớm hơn ${formatDateDisplay(minAllowedPlanDate)}.`);
                     return false;
                 }
 
@@ -617,17 +594,22 @@
             const validatePlanDates = () => {
                 const start = planStartInput;
                 const end = planEndInput;
+                const startDisplay = document.querySelector('[data-date-display="start_date"]');
+                const endDisplay = document.querySelector('[data-date-display="end_date"]');
                 let valid = true;
 
-                if (start && !validatePlanDate(start)) valid = false;
-                if (end && !validatePlanDate(end)) valid = false;
+                if (startDisplay && start && !validatePlanDate(startDisplay, start)) valid = false;
+                if (endDisplay && end && !validatePlanDate(endDisplay, end)) valid = false;
 
                 if (start && end && start.value && end.value && end.value < start.value) {
-                    end.setCustomValidity('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
+                    if (endDisplay) {
+                        endDisplay.setCustomValidity('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
+                    }
                     valid = false;
                 }
 
                 syncAllDateDisplays();
+                window.ScheduleDatePicker?.refreshBounds(document);
 
                 return valid;
             };
@@ -637,15 +619,15 @@
             };
 
             const openNativeDatePicker = (fieldName) => {
-                const nativeInput = document.querySelector(`[data-date-native="${fieldName}"]`);
-                if (!nativeInput) return;
+                const displayInput = document.querySelector(`[data-date-display="${fieldName}"]`);
+                if (!displayInput) return;
 
-                nativeInput.focus();
-                if (typeof nativeInput.showPicker === 'function') {
-                    nativeInput.showPicker();
-                } else {
-                    nativeInput.click();
+                if (window.jQuery && typeof window.jQuery(displayInput).datepicker === 'function') {
+                    window.jQuery(displayInput).datepicker('show');
+                    return;
                 }
+
+                displayInput.focus();
             };
 
             const syncQuickActionsCollapsedState = (collapsed) => {
@@ -831,6 +813,39 @@
                 return `<label><input type="checkbox" name="class_tab_rules[${esc(k)}][${i}][weekdays][]" value="${d.value}" ${checked}> ${esc(d.label)}</label>`;
             }).join('');
 
+            const renderDateField = (label, name, value, fieldName, options = {}) => {
+                const fieldOptions = {
+                    label,
+                    name,
+                    value,
+                    fieldName,
+                    required: true,
+                    buttonLabel: 'Lich',
+                    minSource: 'start_date',
+                    maxSource: 'end_date',
+                    ...options,
+                };
+
+                if (window.ScheduleDatePicker?.fieldHtml) {
+                    return window.ScheduleDatePicker.fieldHtml(fieldOptions);
+                }
+
+                return `
+                    <div class="schedule-date-field js-schedule-date-field" data-field="${esc(fieldName)}"
+                        data-min-source="${esc(fieldOptions.minSource || '')}"
+                        data-max-source="${esc(fieldOptions.maxSource || '')}">
+                        <label class="form-label">${esc(label)}</label>
+                        <div class="schedule-date-input-group input-group">
+                            <input type="text" class="form-control schedule-date-display js-schedule-date-display"
+                                data-date-display="${esc(fieldName)}" placeholder="DD/MM/YYYY" value="${esc(window.ScheduleDatePicker?.formatDisplay(value) || '')}" readonly required>
+                            <input type="hidden" name="${esc(name)}" data-date-native="${esc(fieldName)}" value="${esc(value || '')}">
+                            <button type="button" class="btn btn-outline-secondary schedule-date-toggle"
+                                data-date-picker="${esc(fieldName)}">Lich</button>
+                        </div>
+                    </div>
+                `;
+            };
+
             const addRule = (k, data = {}) => {
                 const box = document.getElementById(rulesId(k));
                 const i = counters[k] ?? 0;
@@ -845,8 +860,8 @@
                         <button type="button" class="btn btn-sm btn-outline-danger remove-rule">Xoa</button>
                     </div>
                     <div class="row">
-                        <div class="col-md-3"><label class="form-label">Tu ngay</label><input type="date" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][start_date]" value="${esc(startDate)}"></div>
-                        <div class="col-md-3"><label class="form-label">Den ngay</label><input type="date" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][end_date]" value="${esc(endDate)}"></div>
+                        <div class="col-md-3">${renderDateField('Tu ngay', `class_tab_rules[${esc(k)}][${i}][start_date]`, startDate, `${safe(k)}_${i}_start_date`)}</div>
+                        <div class="col-md-3">${renderDateField('Den ngay', `class_tab_rules[${esc(k)}][${i}][end_date]`, endDate, `${safe(k)}_${i}_end_date`)}</div>
                         <div class="col-md-3"><label class="form-label">Tiet bat dau</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_from]" value="${esc(data.period_from || '')}"></div>
                         <div class="col-md-3"><label class="form-label">Tiet ket thuc</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_to]" value="${esc(data.period_to || '')}"></div>
                     </div>
@@ -857,6 +872,7 @@
                     <div class="mt-3"><label class="form-label d-block">Thu hoc</label><div class="weekday-list">${weekdayHtml(k, i, data.weekdays || [])}</div></div>
                 `;
                 box.appendChild(div);
+                window.ScheduleDatePicker?.init(div);
                 updateRuleEmpty(k);
                 validateRuleConflicts();
                 scrollToEl(div);
@@ -956,6 +972,7 @@
                 const eventType = data.event_type || types[0]?.value || '';
                 const color = data.color || eventColor(eventType, types);
                 const label = data.title || defaultLabel || eventLabel(eventType, types);
+                const fieldKeyBase = safe(namePrefix);
 
                 return `
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -973,14 +990,8 @@
                             <label class="form-label">Ten su kien</label>
                             <input type="text" class="form-control form-control-sm" name="${namePrefix}[title]" value="${esc(label)}" placeholder="Nhap ten su kien">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Tu ngay</label>
-                            <input type="date" class="form-control form-control-sm" name="${namePrefix}[start_date]" value="${esc(data.start_date || planStartInput?.value || '')}">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Den ngay</label>
-                            <input type="date" class="form-control form-control-sm" name="${namePrefix}[end_date]" value="${esc(data.end_date || planEndInput?.value || '')}">
-                        </div>
+                        <div class="col-md-3">${renderDateField('Tu ngay', `${namePrefix}[start_date]`, data.start_date || planStartInput?.value || '', `${fieldKeyBase}_start_date`)}</div>
+                        <div class="col-md-3">${renderDateField('Den ngay', `${namePrefix}[end_date]`, data.end_date || planEndInput?.value || '', `${fieldKeyBase}_end_date`)}</div>
                     </div>
                     <div class="row mt-3">
                         <div class="col-md-2">
@@ -1015,6 +1026,7 @@
                     'Nghi le'
                 );
                 globalHolidayEventList.appendChild(card);
+                window.ScheduleDatePicker?.init(card);
                 updateEventEmpty(globalHolidayEventList, 'Chua co su kien nghi le nao.');
                 scrollToEl(card);
                 const firstInput = card.querySelector('input, select, textarea');
@@ -1036,6 +1048,7 @@
                     'Su kien lop'
                 );
                 listEl.appendChild(card);
+                window.ScheduleDatePicker?.init(card);
                 updateEventEmpty(listEl, 'Chua co su kien nao trong lop nay.');
                 scrollToEl(card);
                 const firstInput = card.querySelector('input, select, textarea');

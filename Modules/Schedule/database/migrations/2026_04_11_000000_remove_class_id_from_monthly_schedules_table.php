@@ -11,14 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasColumn('monthly_schedules', 'class_id')) {
+            return;
+        }
+
+        try {
+            Schema::table('monthly_schedules', function (Blueprint $table) {
+                $table->dropForeign('monthly_schedules_class_id_foreign');
+            });
+        } catch (\Exception $e) {
+        }
+
         Schema::table('monthly_schedules', function (Blueprint $table) {
-            if (Schema::hasColumn('monthly_schedules', 'class_id')) {
-                try {
-                    $table->dropForeign(['class_id']);
-                } catch (\Exception $e) {
-                }
-                $table->dropColumn('class_id');
-            }
+            $table->dropColumn('class_id');
         });
     }
 
@@ -30,8 +35,13 @@ return new class extends Migration
         Schema::table('monthly_schedules', function (Blueprint $table) {
             $table->foreignId('class_id')
                 ->nullable()
-                ->after('class_name')
-                ->constrained('classes')
+                ->after('class_name');
+        });
+
+        Schema::table('monthly_schedules', function (Blueprint $table) {
+            $table->foreign('class_id')
+                ->references('id')
+                ->on('classes')
                 ->nullOnDelete();
         });
     }

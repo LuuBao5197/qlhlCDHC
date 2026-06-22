@@ -1,10 +1,10 @@
 <?php
 namespace Modules\Schedule\Models;
+use App\Models\User;
 use Modules\Training\Models\ApprovalRequest;
 use Modules\Training\Models\ChangeRequest;
 use Modules\Training\Models\MonthlyReport;
 use Modules\Training\Models\TrainingClass;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,16 +19,6 @@ class MonthlySchedule extends Model
         'month',
         'year',
         'created_by',
-        'status',
-        'submitted_at',
-        'approved_at',
-        'approved_by',
-        'rejection_reason',
-    ];
-
-    protected $casts = [
-        'submitted_at' => 'datetime',
-        'approved_at' => 'datetime',
     ];
 
     public function plan(): BelongsTo
@@ -46,14 +36,14 @@ class MonthlySchedule extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function approvedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'approved_by');
-    }
-
     public function scheduleSlots(): HasMany
     {
         return $this->hasMany(ScheduleSlot::class, 'monthly_schedule_id');
+    }
+
+    public function scheduleSlotGroups(): HasMany
+    {
+        return $this->hasMany(ScheduleSlotGroup::class, 'monthly_schedule_id');
     }
 
     public function changeRequests(): HasMany

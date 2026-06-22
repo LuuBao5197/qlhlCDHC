@@ -1,0 +1,97 @@
+.schedule-date-field {
+    display: grid;
+    gap: 6px;
+}
+
+.schedule-date-input-group {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.schedule-date-display {
+    min-width: 0;
+    background: #fff;
+}
+
+.schedule-date-toggle {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.schedule-date-field .invalid-feedback {
+    display: block;
+}
+
+.schedule-date-field .schedule-date-display {
+    background: #fff !important;
+    color: #1f2937 !important;
+}
+
+.datepicker.dropdown-menu,
+.datepicker.datepicker-dropdown {
+    background: #fff !important;
+    border: 1px solid #d9e3ef !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18) !important;
+    color: #1f2937 !important;
+    padding: 12px !important;
+    z-index: 3000 !important;
+}
+
+.datepicker.dropdown-menu table,
+.datepicker.datepicker-dropdown table {
+    width: 100%;
+    margin: 0;
+}
+
+.datepicker.dropdown-menu table thead th,
+.datepicker.datepicker-dropdown table thead th {
+    color: #64748b !important;
+    font-weight: 700;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+.datepicker.dropdown-menu table tbody td,
+.datepicker.datepicker-dropdown table tbody td {
+    border: 0 !important;
+    border-radius: 10px !important;
+    color: #0f172a !important;
+}
+
+.datepicker.dropdown-menu table tbody td.day:hover,
+.datepicker.datepicker-dropdown table tbody td.day:hover,
+.datepicker.dropdown-menu table tbody td.active,
+.datepicker.datepicker-dropdown table tbody td.active,
+.datepicker.dropdown-menu table tbody td.active:hover,
+.datepicker.datepicker-dropdown table tbody td.active:hover {
+    background: #1d4ed8 !important;
+    color: #fff !important;
+}
+
+.datepicker.dropdown-menu table tbody td.disabled,
+.datepicker.datepicker-dropdown table tbody td.disabled {
+    color: #cbd5e1 !important;
+}
+
+.datepicker.dropdown-menu .datepicker-switch,
+.datepicker.datepicker-dropdown .datepicker-switch,
+.datepicker.dropdown-menu .prev,
+.datepicker.datepicker-dropdown .prev,
+.datepicker.dropdown-menu .next,
+.datepicker.datepicker-dropdown .next {
+    color: #0f172a !important;
+    font-weight: 700;
+    background: transparent !important;
+}
+
+.datepicker.dropdown-menu .datepicker-switch:hover,
+.datepicker.datepicker-dropdown .datepicker-switch:hover,
+.datepicker.dropdown-menu .prev:hover,
+.datepicker.datepicker-dropdown .prev:hover,
+.datepicker.dropdown-menu .next:hover,
+.datepicker.datepicker-dropdown .next:hover {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+}

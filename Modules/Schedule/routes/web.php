@@ -7,11 +7,11 @@ use Modules\Schedule\Application\CreateScheduleSemester\CreateScheduleSemesterCo
 use Modules\Schedule\Application\UpdateSchedule\UpdateScheduleController;
 use Modules\Schedule\Application\DeleteSchedule\DeleteScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleController;
+use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleMergeController;
+use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchController;
+use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchReviewController;
 use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestController;
 use Modules\Schedule\Application\ReviewChangeRequest\ReviewChangeRequestController;
-use Modules\Schedule\Application\ReviewMonthlySchedule\ReviewMonthlyScheduleController;
-use Modules\Schedule\Application\SubmitMonthlyScheduleToLeadership\SubmitMonthlyScheduleToLeadershipController;
-use Modules\Schedule\Application\SubmitMonthlyScheduleToTrainingOffice\SubmitMonthlyScheduleToTrainingOfficeController;
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
 use Modules\Schedule\Application\UpdateScheduleSemester\UpdateScheduleSemesterController;
 use Modules\Schedule\Application\DeleteScheduleSemester\DeleteScheduleSemesterController;
@@ -60,13 +60,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('monthly-schedule.assignment');
     Route::post('/monthly-schedules/{id}/assignment', AssignMonthlyScheduleController::class)
         ->name('monthly-schedule.assignment.save');
-    Route::post('/monthly-schedules/{id}/submit-to-training', SubmitMonthlyScheduleToTrainingOfficeController::class)
-        ->name('monthly-schedule.submit-training');
+    Route::get('/monthly-schedules/{id}/slots/{slotId}/merge-candidates', [AssignMonthlyScheduleMergeController::class, 'mergeCandidates'])
+        ->name('monthly-schedule.assignment.merge-candidates');
+    Route::post('/monthly-schedules/{id}/slots/{slotId}/merge', [AssignMonthlyScheduleMergeController::class, 'merge'])
+        ->name('monthly-schedule.assignment.merge');
+    Route::delete('/monthly-schedules/{id}/slot-groups/{groupId}/split', [AssignMonthlyScheduleMergeController::class, 'split'])
+        ->name('monthly-schedule.assignment.split');
 
-    Route::post('/monthly-schedules/{id}/review', ReviewMonthlyScheduleController::class)
-        ->name('monthly-schedule.review');
-    Route::post('/monthly-schedules/{id}/submit-to-leadership', SubmitMonthlyScheduleToLeadershipController::class)
-        ->name('monthly-schedule.submit-leadership');
+    // Aggregate department monthly assignment batch workflow
+    Route::post('/monthly-schedules/{id}/department-monthly-assignment-batches/submit', [DepartmentMonthlyAssignmentBatchController::class, 'submit'])
+        ->name('department-monthly-assignment-batches.submit');
+    Route::get('/department-monthly-assignment-batches', [DepartmentMonthlyAssignmentBatchController::class, 'index'])
+        ->name('department-monthly-assignment-batches.index');
+    Route::get('/department-monthly-assignment-batches/{id}', [DepartmentMonthlyAssignmentBatchController::class, 'show'])
+        ->name('department-monthly-assignment-batches.show');
+    Route::post('/department-monthly-assignment-batches/{id}/approve', [DepartmentMonthlyAssignmentBatchReviewController::class, 'approve'])
+        ->name('department-monthly-assignment-batches.approve');
+    Route::post('/department-monthly-assignment-batches/{id}/return', [DepartmentMonthlyAssignmentBatchReviewController::class, 'returnBatch'])
+        ->name('department-monthly-assignment-batches.return');
+
     Route::post('/change-requests/{id}/review', ReviewChangeRequestController::class)
         ->name('change-request.review');
     Route::post('/change-requests', CreateChangeRequestController::class)
