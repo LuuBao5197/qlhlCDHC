@@ -60,4 +60,9 @@ class DepartmentMonthlyAssignmentBatch extends Model
             'schedule_slot_id'
         )->withTimestamps();
     }
+
+    public function teachingSupportRequests(): HasMany
+    {
+        return $this->hasMany(TeachingSupportRequest::class, 'assignment_batch_id');
+    }
 }

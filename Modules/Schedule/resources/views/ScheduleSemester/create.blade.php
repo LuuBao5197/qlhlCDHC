@@ -1,6 +1,6 @@
 ﻿@extends('layouts.dashboard')
 
-@section('title', 'Tao lich tong quat hoc ky')
+@section('title', 'Tạo lịch tổng quát học kỳ')
 
 @section('content')
     @php

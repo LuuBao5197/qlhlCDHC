@@ -8,7 +8,9 @@ use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleView
 use Modules\Schedule\Models\DepartmentMonthlyAssignmentBatch;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
+use Modules\Schedule\Application\TeachingSupportRequest\TeachingSupportRequestService;
 use Modules\Training\Models\Room;
+use Modules\Training\Models\Department;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\SubjectLesson;
 use Modules\Training\Models\Teacher;
@@ -17,7 +19,8 @@ class AssignMonthlyScheduleController extends Controller
 {
     public function __construct(
         private AssignMonthlyScheduleHandler $handler,
-        private MonthlyAssignmentScopeResolver $scopeResolver
+        private MonthlyAssignmentScopeResolver $scopeResolver,
+        private TeachingSupportRequestService $teachingSupportRequestService
     ) {}
 
     /**
@@ -62,6 +65,9 @@ class AssignMonthlyScheduleController extends Controller
             ->where('department_id', $departmentId)
             ->where('month', $monthlySchedule->month)
             ->where('year', $monthlySchedule->year)
+            ->orderByRaw("CASE status WHEN 'approved' THEN 4 WHEN 'submitted' THEN 3 WHEN 'draft' THEN 2 WHEN 'returned' THEN 1 ELSE 0 END DESC")
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->first();
         $aggregateSubjectSlots = ScheduleSlot::query()
             ->with([
@@ -97,6 +103,9 @@ class AssignMonthlyScheduleController extends Controller
             ->orderBy('name')
             ->get();
 
+        $supportMeta = $this->teachingSupportRequestService->buildMonthlyAssignmentSupportMeta($monthlySchedule, $user);
+        $supportWorkload = $this->teachingSupportRequestService->buildDepartmentSupportWorkload($monthlySchedule, $user);
+
         $subjects = Subject::with('department')
             ->where('department_id', $departmentId)
             ->orderBy('code')
@@ -112,6 +121,10 @@ class AssignMonthlyScheduleController extends Controller
             ->get();
 
         $rooms = Room::query()->orderBy('code')->get();
+        $supportDepartments = Department::query()
+            ->where('id', '!=', (int) $departmentId)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
 
         return view('schedule::monthly-assignment', [
             'monthlySchedule' => $monthlySchedule,
@@ -125,6 +138,14 @@ class AssignMonthlyScheduleController extends Controller
             'subjects' => $subjects,
             'subjectLessons' => $subjectLessons,
             'rooms' => $rooms,
+            'supportDepartments' => $supportDepartments,
+            'supportSlotMeta' => $supportMeta['slot_meta'] ?? [],
+            'supportRequestSummary' => $supportMeta['summary'] ?? [],
+            'canCreateSupportRequest' => (bool) ($supportMeta['can_create_request'] ?? false),
+            'supportWorkloadRows' => $supportWorkload['rows'] ?? collect(),
+            'supportTeacherAvailabilityMap' => $supportWorkload['teacher_availability_map'] ?? [],
+            'supportWorkloadSummary' => $supportWorkload['summary'] ?? [],
+            'currentDepartmentId' => (int) $departmentId,
             'currentBatch' => $currentBatch,
             'canSubmitToTrainingOffice' => false,
             'isAggregateAssignment' => true,

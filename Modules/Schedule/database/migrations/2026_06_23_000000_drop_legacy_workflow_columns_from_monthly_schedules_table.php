@@ -12,11 +12,27 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('monthly_schedules', function (Blueprint $table): void {
-            $table->dropConstrainedForeignId('submitted_by');
-            $table->dropConstrainedForeignId('approved_by');
-            $table->dropConstrainedForeignId('reviewed_by');
+            foreach (['submitted_by', 'approved_by', 'reviewed_by'] as $column) {
+                if (! Schema::hasColumn('monthly_schedules', $column)) {
+                    continue;
+                }
 
-            $table->dropColumn([
+                try {
+                    $table->dropConstrainedForeignId($column);
+                } catch (\Throwable) {
+                    try {
+                        $table->dropForeign([$column]);
+                    } catch (\Throwable) {
+                    }
+
+                    try {
+                        $table->dropColumn($column);
+                    } catch (\Throwable) {
+                    }
+                }
+            }
+
+            $columnsToDrop = array_values(array_filter([
                 'status',
                 'submitted_at',
                 'approved_at',
@@ -24,7 +40,11 @@ return new class extends Migration
                 'reviewed_at',
                 'review_note',
                 'current_step',
-            ]);
+            ], fn (string $column): bool => Schema::hasColumn('monthly_schedules', $column)));
+
+            if ($columnsToDrop !== []) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 

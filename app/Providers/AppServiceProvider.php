@@ -3,9 +3,14 @@
 namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
+use Modules\Schedule\Application\TeachingSupportChangeRequest\TeachingSupportChangeRequestPolicy;
+use Modules\Schedule\Application\TeachingSupportRequest\TeachingSupportRequestPolicy;
+use Modules\Schedule\Models\TeachingSupportChangeRequest;
+use Modules\Schedule\Models\TeachingSupportRequest;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(TeachingSupportRequest::class, TeachingSupportRequestPolicy::class);
+        Gate::policy(TeachingSupportChangeRequest::class, TeachingSupportChangeRequestPolicy::class);
+
         Factory::guessFactoryNamesUsing(static function (string $modelName): string {
             if (Str::startsWith($modelName, 'Modules\\') && Str::contains($modelName, '\\Models\\')) {
                 return Str::replace('\\Models\\', '\\Database\\Factories\\', $modelName).'Factory';

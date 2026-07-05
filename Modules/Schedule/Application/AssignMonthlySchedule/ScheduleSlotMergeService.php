@@ -13,7 +13,10 @@ use Modules\Training\Models\Teacher;
 
 class ScheduleSlotMergeService
 {
-    public function getMergeCandidates(ScheduleSlot $baseSlot): Collection
+    /**
+     * @param array<int> $allowedMonthlyScheduleIds
+     */
+    public function getMergeCandidates(ScheduleSlot $baseSlot, array $allowedMonthlyScheduleIds = []): Collection
     {
         if (! $this->isMergeAnchorSlot($baseSlot)) {
             return collect();
@@ -30,7 +33,11 @@ class ScheduleSlotMergeService
         }
 
         return ScheduleSlot::query()
-            ->where('monthly_schedule_id', $baseSlot->monthly_schedule_id)
+            ->when(
+                $allowedMonthlyScheduleIds !== [],
+                fn ($query) => $query->whereIn('monthly_schedule_id', $allowedMonthlyScheduleIds),
+                fn ($query) => $query->where('monthly_schedule_id', $baseSlot->monthly_schedule_id)
+            )
             ->whereDate('date', optional($baseSlot->date)->format('Y-m-d'))
             ->where('period_number', $baseSlot->period_number)
             ->where('subject_id', $baseSlot->subject_id)
@@ -54,10 +61,6 @@ class ScheduleSlotMergeService
         }
 
         if (! $this->isMergeAnchorSlot($baseSlot) || ! $this->isMergeAnchorSlot($candidateSlot)) {
-            return false;
-        }
-
-        if ($baseSlot->monthly_schedule_id !== $candidateSlot->monthly_schedule_id) {
             return false;
         }
 
@@ -136,13 +139,14 @@ class ScheduleSlotMergeService
         ?int $teacherId = null,
         ?int $roomId = null,
         ?int $subjectLessonId = null,
+        ?string $content = null,
         ?string $note = null
     ): ScheduleSlotGroup
     {
         $slots = $this->normalizeSlots($slots);
         $this->validateMergeSlots($slots);
 
-        return DB::transaction(function () use ($slots, $teacherId, $roomId, $subjectLessonId, $note): ScheduleSlotGroup {
+        return DB::transaction(function () use ($slots, $teacherId, $roomId, $subjectLessonId, $content, $note): ScheduleSlotGroup {
             $resolvedTeacherId = $this->resolveTeacherId($slots, $teacherId);
             $resolvedRoomId = $this->resolveRoomId($slots, $roomId);
             $baseSlot = $slots->first();
@@ -153,24 +157,33 @@ class ScheduleSlotMergeService
                 ]);
             }
 
+            $this->validateResolvedResourceAvailability($slots, $resolvedTeacherId, $resolvedRoomId);
+
             $group = ScheduleSlotGroup::query()->create([
                 'monthly_schedule_id' => $baseSlot->monthly_schedule_id,
                 'date' => optional($baseSlot->date)->toDateString(),
                 'period_number' => $baseSlot->period_number,
                 'subject_id' => $baseSlot->subject_id,
-                'subject_lesson_id' => $baseSlot->subject_lesson_id,
+                'subject_lesson_id' => $subjectLessonId ?? $baseSlot->subject_lesson_id,
                 'teacher_id' => $resolvedTeacherId,
                 'room_id' => $resolvedRoomId,
                 'status' => 'active',
-                'note' => $note,
+                'note' => $note ?? $baseSlot->note,
                 'created_by' => auth()->id(),
             ]);
+
+            $resolvedContent = $content ?? $baseSlot->content;
+            $resolvedNote = $note ?? $baseSlot->note;
 
             foreach ($slots as $slot) {
                 /** @var ScheduleSlot $slot */
                 $slot->schedule_slot_group_id = $group->id;
+                $slot->subject_id = $baseSlot->subject_id;
+                $slot->subject_lesson_id = $subjectLessonId ?? $baseSlot->subject_lesson_id;
                 $slot->teacher_id = $resolvedTeacherId;
                 $slot->room_id = $resolvedRoomId;
+                $slot->content = $resolvedContent;
+                $slot->note = $resolvedNote;
                 $slot->save();
             }
 
@@ -294,6 +307,59 @@ class ScheduleSlotMergeService
         }
 
         return $roomIds->first() ? (int) $roomIds->first() : null;
+    }
+
+    private function validateResolvedResourceAvailability(Collection $slots, ?int $teacherId, ?int $roomId): void
+    {
+        /** @var ScheduleSlot|null $baseSlot */
+        $baseSlot = $slots->first();
+        if (! $baseSlot instanceof ScheduleSlot) {
+            return;
+        }
+
+        $slotIds = $slots
+            ->pluck('id')
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $date = optional($baseSlot->date)->format('Y-m-d');
+        $period = $baseSlot->period_number;
+
+        if ($date === null || $period === null) {
+            return;
+        }
+
+        if ($teacherId !== null) {
+            $teacherConflict = ScheduleSlot::query()
+                ->where('teacher_id', $teacherId)
+                ->whereDate('date', $date)
+                ->where('period_number', $period)
+                ->whereNotIn('id', $slotIds)
+                ->first();
+
+            if ($teacherConflict) {
+                throw ValidationException::withMessages([
+                    'teacher_id' => 'Giang vien da duoc phan cong o cung ngay tiet nay.',
+                ]);
+            }
+        }
+
+        if ($roomId !== null) {
+            $roomConflict = ScheduleSlot::query()
+                ->where('room_id', $roomId)
+                ->whereDate('date', $date)
+                ->where('period_number', $period)
+                ->whereNotIn('id', $slotIds)
+                ->first();
+
+            if ($roomConflict) {
+                throw ValidationException::withMessages([
+                    'room_id' => 'Phong hoc da duoc su dung o cung ngay tiet nay.',
+                ]);
+            }
+        }
     }
 
     private function isPracticeSlot(ScheduleSlot $slot): bool

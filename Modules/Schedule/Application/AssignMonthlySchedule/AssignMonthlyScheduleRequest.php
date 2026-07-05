@@ -4,9 +4,13 @@ namespace Modules\Schedule\Application\AssignMonthlySchedule;
 
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Validator;
+use Modules\Schedule\Models\DepartmentMonthlyAssignmentBatch;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
+use Modules\Schedule\Models\TeachingSupportRequest;
+use Modules\Training\Models\Room;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\Teacher;
 
@@ -23,14 +27,6 @@ class AssignMonthlyScheduleRequest extends FormRequest
             return false;
         }
 
-        if ($user->isAdmin() || $user->isTrainingOffice()) {
-            return true;
-        }
-
-        if (! $user->isDepartmentStaff()) {
-            return false;
-        }
-
         $scheduleId = (int) $this->route('id');
         if ($scheduleId <= 0) {
             return true;
@@ -41,7 +37,29 @@ class AssignMonthlyScheduleRequest extends FormRequest
             return false;
         }
 
-        $departmentId = $monthlySchedule->department_id ?? $monthlySchedule->trainingClass?->department_id;
+        $departmentId = $user->department_id;
+        if ($departmentId === null) {
+            $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $user);
+            $departmentId = $scope['department_id'] ?? $monthlySchedule->department_id ?? $monthlySchedule->trainingClass?->department_id;
+        }
+
+        $currentBatch = DepartmentMonthlyAssignmentBatch::query()
+            ->where('department_id', $departmentId)
+            ->where('month', (int) $monthlySchedule->month)
+            ->where('year', (int) $monthlySchedule->year)
+            ->first();
+
+        if ($currentBatch && in_array($currentBatch->status, ['submitted', 'approved'], true)) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $user->isTrainingOffice()) {
+            return true;
+        }
+
+        if (! $user->isDepartmentStaff()) {
+            return false;
+        }
 
         if ($departmentId === null || $user->department_id === null) {
             return true;
@@ -56,15 +74,13 @@ class AssignMonthlyScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'slots' => ['required', 'array', 'min:1'],
-            'slots.*.id' => ['required', 'integer', 'exists:schedule_slots,id'],
-            'slots.*.teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
-            'slots.*.subject_id' => ['nullable', 'integer', 'exists:subjects,id'],
-            'slots.*.subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
-            'slots.*.room_id' => ['nullable', 'integer', 'exists:rooms,id'],
-            'slots.*.content' => ['nullable', 'string', 'max:500'],
-            'slots.*.note' => ['nullable', 'string', 'max:500'],
-            'slots.*.slot_status' => ['nullable', 'string', 'max:50'],
+            'changes' => ['required', 'array', 'max:5000'],
+            'changes.*.slot_id' => ['required', 'integer', 'distinct', 'exists:schedule_slots,id'],
+            'changes.*.teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
+            'changes.*.subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
+            'changes.*.room_id' => ['nullable', 'integer', 'exists:rooms,id'],
+            'changes.*.content' => ['nullable', 'string', 'max:500'],
+            'changes.*.note' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -79,7 +95,6 @@ class AssignMonthlyScheduleRequest extends FormRequest
             $monthlySchedule = MonthlySchedule::query()
                 ->with(['trainingClass.department', 'plan'])
                 ->find($scheduleId);
-
             if (! $monthlySchedule) {
                 return;
             }
@@ -87,26 +102,21 @@ class AssignMonthlyScheduleRequest extends FormRequest
             $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $this->user());
             if ($scope === null) {
                 $validator->errors()->add(
-                    'slots',
+                    'changes',
                     'Khong xac dinh duoc khoa hien tai de tong hop phan cong.'
                 );
                 return;
             }
 
-            $departmentId = $scope['department_id'];
-            $departmentSubjectIds = $scope['department_subject_ids'];
-            $aggregateMonthlyScheduleIds = $scope['monthly_schedule_ids'];
-
-            $submittedSlots = $this->input('slots', []);
-
-            $slotIds = collect($submittedSlots)
-                ->pluck('id')
+            $submittedChanges = array_values((array) $this->input('changes', []));
+            $slotIds = collect($submittedChanges)
+                ->pluck('slot_id')
                 ->filter(fn ($id) => is_numeric($id))
                 ->map(fn ($id) => (int) $id)
                 ->values()
                 ->all();
 
-            $scheduleSlots = ScheduleSlot::query()
+            $submittedSlots = ScheduleSlot::query()
                 ->with([
                     'monthlySchedule.plan',
                     'monthlySchedule.trainingClass.department',
@@ -117,43 +127,70 @@ class AssignMonthlyScheduleRequest extends FormRequest
                     'subjectLesson',
                     'room',
                 ])
-                ->whereIn('monthly_schedule_id', $aggregateMonthlyScheduleIds)
+                ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
                 ->where('slot_type', 'subject')
-                ->when(
-                    $departmentSubjectIds !== [],
-                    fn ($query) => $query->whereIn('subject_id', $departmentSubjectIds)
-                )
+                ->where('assignment_source', 'internal')
                 ->whereIn('id', $slotIds)
                 ->get()
                 ->keyBy('id');
 
             $submittedSlotsById = [];
-            foreach ($submittedSlots as $index => $slotData) {
-                $slotId = isset($slotData['id']) && is_numeric($slotData['id']) ? (int) $slotData['id'] : null;
+            foreach ($submittedChanges as $index => $change) {
+                $slotId = isset($change['slot_id']) && is_numeric($change['slot_id'])
+                    ? (int) $change['slot_id']
+                    : null;
+
                 if ($slotId === null) {
                     continue;
                 }
 
                 $submittedSlotsById[$slotId] = [
                     'index' => $index,
-                    'data' => $slotData,
+                    'data' => $change,
                 ];
             }
 
             foreach ($submittedSlotsById as $slotId => $slotInfo) {
-                if ($scheduleSlots->has($slotId)) {
+                if ($submittedSlots->has($slotId)) {
                     continue;
                 }
 
                 $validator->errors()->add(
-                    "slots.{$slotInfo['index']}.id",
+                    "changes.{$slotInfo['index']}.slot_id",
                     'Tiet hoc khong thuoc lich thang dang cap nhat.'
                 );
             }
 
-            $submittedSlotIds = array_keys($submittedSlotsById);
+            $lockedSupportSlotIds = ScheduleSlot::query()
+                ->whereIn('id', array_keys($submittedSlotsById))
+                ->where(function ($query): void {
+                    $query->where('assignment_source', 'department_support')
+                        ->orWhereHas('teachingSupportRequestItem.request', function ($nested): void {
+                            $nested->whereIn('status', [
+                                TeachingSupportRequest::STATUS_PENDING_PDT,
+                                TeachingSupportRequest::STATUS_ASSIGNED_TO_DEPARTMENT,
+                                TeachingSupportRequest::STATUS_DEPARTMENT_ASSIGNING,
+                                TeachingSupportRequest::STATUS_COMPLETED,
+                            ]);
+                        });
+                })
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            $teacherIdsForLabels = collect($submittedSlots)
+            foreach ($lockedSupportSlotIds as $lockedSlotId) {
+                $slotInfo = $submittedSlotsById[$lockedSlotId] ?? null;
+                if ($slotInfo === null) {
+                    continue;
+                }
+
+                $validator->errors()->add(
+                    "changes.{$slotInfo['index']}.slot_id",
+                    'Tiet hoc dang nam trong workflow ho tro lien khoa va khong the cap nhat boi phan cong no bo.'
+                );
+            }
+
+            $teacherIdsForLabels = collect($submittedChanges)
                 ->pluck('teacher_id')
                 ->filter(fn ($id) => is_numeric($id))
                 ->map(fn ($id) => (int) $id)
@@ -167,40 +204,34 @@ class AssignMonthlyScheduleRequest extends FormRequest
                 ->keyBy('id')
                 ->all();
 
-            $subjectIdsForLabels = collect($submittedSlots)
-                ->pluck('subject_id')
+            $roomIdsForLabels = collect($submittedChanges)
+                ->pluck('room_id')
                 ->filter(fn ($id) => is_numeric($id))
                 ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->values()
                 ->all();
 
-            $subjectsById = Subject::query()
-                ->whereIn('id', $subjectIdsForLabels)
+            $roomsById = Room::query()
+                ->whereIn('id', $roomIdsForLabels)
                 ->get()
                 ->keyBy('id')
                 ->all();
 
             $teacherAssignments = [];
+            $roomAssignments = [];
+            $submittedSlotIds = array_keys($submittedSlotsById);
 
-            foreach ($submittedSlots as $index => $slot) {
-                $slotId = isset($slot['id']) ? (int) $slot['id'] : null;
-                if ($slotId === null || ! $scheduleSlots->has($slotId)) {
+            foreach ($submittedChanges as $index => $change) {
+                $slotId = isset($change['slot_id']) ? (int) $change['slot_id'] : null;
+                if ($slotId === null || ! $submittedSlots->has($slotId)) {
                     continue;
                 }
 
-                $scheduleSlot = $scheduleSlots[$slotId];
+                $scheduleSlot = $submittedSlots[$slotId];
                 $isEventSlot = ($scheduleSlot->slot_type ?? 'subject') === 'event';
-                $subjectId = $slot['subject_id'] ?? null;
 
-                if (! $isEventSlot && $subjectId !== null && $departmentId !== null && ! in_array((int) $subjectId, $departmentSubjectIds, true)) {
-                    $validator->errors()->add(
-                        "slots.{$index}.subject_id",
-                        'Mon hoc duoc chon khong thuoc khoa phu trach.'
-                    );
-                }
-
-                $teacherId = $slot['teacher_id'] ?? null;
+                $teacherId = $change['teacher_id'] ?? null;
                 if ($teacherId === null || $teacherId === '') {
                     continue;
                 }
@@ -208,8 +239,8 @@ class AssignMonthlyScheduleRequest extends FormRequest
                 $teacherId = (int) $teacherId;
                 $date = $scheduleSlot->date?->format('Y-m-d');
                 $period = $scheduleSlot->period_number;
-                $conflictKey = "{$teacherId}_{$date}_{$period}";
                 $groupId = $this->getActiveScheduleSlotGroupId($scheduleSlot);
+                $conflictKey = "{$teacherId}_{$date}_{$period}";
 
                 $teacherAssignments[$conflictKey][] = [
                     'index' => $index,
@@ -234,20 +265,62 @@ class AssignMonthlyScheduleRequest extends FormRequest
                     $conflictPayload = $submittedSlotsById[$conflictSlot->id]['data'] ?? [];
 
                     $validator->errors()->add(
-                        "slots.{$index}.teacher_id",
+                        "changes.{$index}.teacher_id",
                         $this->buildTeacherConflictMessage(
                             $scheduleSlot,
-                            $slot,
+                            $change,
                             $conflictSlot,
                             $conflictPayload,
                             $teachersById,
-                            $subjectsById
+                            []
+                        )
+                    );
+                }
+
+                $roomId = $change['room_id'] ?? null;
+                if ($roomId === null || $roomId === '') {
+                    continue;
+                }
+
+                $roomId = (int) $roomId;
+                $roomConflictKey = "{$roomId}_{$date}_{$period}";
+                $roomAssignments[$roomConflictKey][] = [
+                    'index' => $index,
+                    'slot' => $scheduleSlot,
+                    'group_id' => $groupId,
+                ];
+
+                $existingRoomConflicts = ScheduleSlot::query()
+                    ->with(['scheduleSlotGroup', 'trainingClass', 'room', 'subjectModel', 'subjectLesson'])
+                    ->where('room_id', $roomId)
+                    ->whereDate('date', $date)
+                    ->where('period_number', $period)
+                    ->whereNotIn('id', $submittedSlotIds)
+                    ->get();
+
+                $blockingRoomConflicts = $existingRoomConflicts->filter(
+                    fn (ScheduleSlot $conflictSlot): bool => ! $this->isSameActiveMergeGroup($scheduleSlot, $conflictSlot)
+                );
+
+                if ($blockingRoomConflicts->isNotEmpty()) {
+                    $conflictSlot = $blockingRoomConflicts->first();
+                    $conflictPayload = $submittedSlotsById[$conflictSlot->id]['data'] ?? [];
+
+                    $validator->errors()->add(
+                        "changes.{$index}.room_id",
+                        $this->buildRoomConflictMessage(
+                            $scheduleSlot,
+                            $change,
+                            $conflictSlot,
+                            $conflictPayload,
+                            $roomsById,
+                            []
                         )
                     );
                 }
             }
 
-            $activeGroupIds = collect($scheduleSlots->all())
+            $activeGroupIds = collect($submittedSlots->all())
                 ->filter(fn (ScheduleSlot $slot) => $this->getActiveScheduleSlotGroupId($slot) !== null)
                 ->map(fn (ScheduleSlot $slot) => $this->getActiveScheduleSlotGroupId($slot))
                 ->filter()
@@ -303,14 +376,58 @@ class AssignMonthlyScheduleRequest extends FormRequest
                         $conflictPayload = $submittedSlotsById[$conflictAssignment['slot']->id]['data'] ?? [];
 
                         $validator->errors()->add(
-                            'slots.' . $assignment['index'] . '.teacher_id',
+                            'changes.' . $assignment['index'] . '.teacher_id',
                             $this->buildTeacherConflictMessage(
                                 $assignment['slot'],
                                 $currentPayload,
                                 $conflictAssignment['slot'],
                                 $conflictPayload,
                                 $teachersById,
-                                $subjectsById
+                                []
+                            )
+                        );
+                    }
+                }
+            }
+
+            foreach ($roomAssignments as $assignments) {
+                if (count($assignments) < 2) {
+                    continue;
+                }
+
+                $groupIds = collect($assignments)
+                    ->pluck('group_id')
+                    ->filter(fn ($groupId) => $groupId !== null)
+                    ->map(fn ($groupId) => (int) $groupId)
+                    ->unique()
+                    ->values();
+
+                $groupId = $groupIds->count() === 1 ? (int) $groupIds->first() : null;
+                $groupStatus = $groupId !== null
+                    ? ($assignments[0]['slot']->scheduleSlotGroup?->status ?? null)
+                    : null;
+
+                if ($groupId === null || $groupStatus !== 'active') {
+                    foreach ($assignments as $assignment) {
+                        $conflictAssignment = collect($assignments)
+                            ->first(fn (array $item): bool => $item['index'] !== $assignment['index']);
+
+                        if (! $conflictAssignment) {
+                            continue;
+                        }
+
+                        $currentPayload = $submittedSlotsById[$assignment['slot']->id]['data'] ?? [];
+                        $conflictPayload = $submittedSlotsById[$conflictAssignment['slot']->id]['data'] ?? [];
+
+                        $validator->errors()->add(
+                            'changes.' . $assignment['index'] . '.room_id',
+                            $this->buildRoomConflictMessage(
+                                $assignment['slot'],
+                                $currentPayload,
+                                $conflictAssignment['slot'],
+                                $conflictPayload,
+                                $roomsById,
+                                []
                             )
                         );
                     }
@@ -325,11 +442,12 @@ class AssignMonthlyScheduleRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'slots.required' => 'Khong co du lieu tiet hoc de cap nhat.',
-            'slots.*.id.exists' => 'Co tiet hoc khong ton tai trong he thong.',
-            'slots.*.teacher_id.exists' => 'Giang vien duoc chon khong hop le.',
-            'slots.*.subject_id.exists' => 'Mon hoc duoc chon khong hop le.',
-            'slots.*.room_id.exists' => 'Phong hoc duoc chon khong hop le.',
+            'changes.required' => 'Khong co du lieu tiet hoc de cap nhat.',
+            'changes.*.slot_id.distinct' => 'Tiet hoc bi gui trung.',
+            'changes.*.slot_id.exists' => 'Co tiet hoc khong ton tai trong he thong.',
+            'changes.*.teacher_id.exists' => 'Giang vien duoc chon khong hop le.',
+            'changes.*.subject_lesson_id.exists' => 'Bai hoc duoc chon khong hop le.',
+            'changes.*.room_id.exists' => 'Phong hoc duoc chon khong hop le.',
         ];
     }
 
@@ -372,7 +490,15 @@ class AssignMonthlyScheduleRequest extends FormRequest
             return;
         }
 
-        $referenceSlot = $slotsInGroup->first();
+        $submittedGroupSlots = $slotsInGroup
+            ->filter(fn (ScheduleSlot $slot): bool => isset($submittedSlotsById[$slot->id]))
+            ->values();
+
+        if ($submittedGroupSlots->isEmpty()) {
+            return;
+        }
+
+        $referenceSlot = $submittedGroupSlots->first();
         if (! $referenceSlot instanceof ScheduleSlot) {
             return;
         }
@@ -381,25 +507,6 @@ class AssignMonthlyScheduleRequest extends FormRequest
         $referencePayload = $submittedSlotsById[$referenceSlot->id]['data'] ?? [];
         $dateLabel = $this->formatGroupDateLabel($referenceSlot);
         $periodLabel = $referenceSlot->period_number !== null ? (string) $referenceSlot->period_number : '-';
-
-        $missingSlotIds = $slotsInGroup
-            ->pluck('id')
-            ->filter(fn ($id) => ! isset($submittedSlotsById[$id]))
-            ->values();
-
-        if ($missingSlotIds->isNotEmpty()) {
-            $message = sprintf(
-                'Nhom ghep lop ngay %s tiet %s phai duoc luu day du tat ca cac tiet trong nhom.',
-                $dateLabel,
-                $periodLabel
-            );
-
-            if ($referenceIndex !== null) {
-                $validator->errors()->add("slots.{$referenceIndex}.teacher_id", $message);
-            }
-
-            return;
-        }
 
         $eventSlotIds = $slotsInGroup
             ->filter(fn (ScheduleSlot $slot) => ($slot->slot_type ?? 'subject') === 'event')
@@ -414,7 +521,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
                 }
 
                 $validator->errors()->add(
-                    "slots.{$slotIndex}.slot_status",
+                    "changes.{$slotIndex}.slot_id",
                     sprintf(
                         'Tiet su kien ngay %s tiet %s khong duoc thuoc nhom ghep lop.',
                         $dateLabel,
@@ -446,9 +553,9 @@ class AssignMonthlyScheduleRequest extends FormRequest
                     $slotIndex = $submittedSlotsById[$slot->id]['index'] ?? null;
                     if ($slotIndex !== null) {
                         $validator->errors()->add(
-                            "slots.{$slotIndex}.slot_status",
+                            "changes.{$slotIndex}.slot_id",
                             sprintf(
-                                'Tiết su kien ngay %s tiet %s khong duoc thuoc nhom ghep lop.',
+                                'Tiet su kien ngay %s tiet %s khong duoc thuoc nhom ghep lop.',
                                 $dateLabel,
                                 $periodLabel
                             )
@@ -467,7 +574,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
                     }
 
                     $validator->errors()->add(
-                        "slots.{$slotIndex}.{$field}",
+                        "changes.{$slotIndex}.{$field}",
                         sprintf(
                             'Nhom ghep lop ngay %s tiet %s phai dung cung %s.',
                             $dateLabel,
@@ -529,9 +636,6 @@ class AssignMonthlyScheduleRequest extends FormRequest
 
     /**
      * @param array<int, Teacher> $teachersById
-     * @param array<int, Subject> $subjectsById
-     * @param array<string, mixed> $currentPayload
-     * @param array<string, mixed> $conflictPayload
      */
     private function buildTeacherConflictMessage(
         ScheduleSlot $currentSlot,
@@ -580,6 +684,55 @@ class AssignMonthlyScheduleRequest extends FormRequest
     }
 
     /**
+     * @param array<int, Room> $roomsById
+     */
+    private function buildRoomConflictMessage(
+        ScheduleSlot $currentSlot,
+        array $currentPayload,
+        ?ScheduleSlot $conflictSlot,
+        array $conflictPayload,
+        array $roomsById,
+        array $subjectsById
+    ): string {
+        $roomId = $currentPayload['room_id'] ?? $currentSlot->room_id;
+        $roomLabel = $this->resolveRoomLabel($roomId, $roomsById);
+
+        $currentClassLabel = $this->resolveClassLabel($currentSlot, $currentPayload);
+        $currentSubjectLabel = $this->resolveSubjectLabel($currentSlot, $currentPayload, $subjectsById);
+        $currentDateLabel = $currentSlot->date?->format('d/m/Y') ?? '-';
+        $currentPeriodLabel = $currentSlot->period_number !== null ? (string) $currentSlot->period_number : '-';
+
+        if (! $conflictSlot instanceof ScheduleSlot) {
+            return sprintf(
+                'Phong %s da duoc dung cho lop %s, mon %s vao ngay %s, tiet %s. Khong the tiep tuc xep cung phong o cung thoi gian, tru khi cac lop thuoc cung mot nhom ghep dang hoat dong.',
+                $roomLabel,
+                $currentClassLabel,
+                $currentSubjectLabel,
+                $currentDateLabel,
+                $currentPeriodLabel
+            );
+        }
+
+        $conflictClassLabel = $this->resolveClassLabel($conflictSlot, $conflictPayload);
+        $conflictSubjectLabel = $this->resolveSubjectLabel($conflictSlot, $conflictPayload, $subjectsById);
+        $conflictDateLabel = $conflictSlot->date?->format('d/m/Y') ?? '-';
+        $conflictPeriodLabel = $conflictSlot->period_number !== null ? (string) $conflictSlot->period_number : '-';
+
+        return sprintf(
+            'Phong %s da duoc dung cho lop %s, mon %s vao ngay %s, tiet %s. Khong the tiep tuc xep cung phong cho lop %s, mon %s vao ngay %s, tiet %s, tru khi cac lop thuoc cung mot nhom ghep dang hoat dong.',
+            $roomLabel,
+            $currentClassLabel,
+            $currentSubjectLabel,
+            $currentDateLabel,
+            $currentPeriodLabel,
+            $conflictClassLabel,
+            $conflictSubjectLabel,
+            $conflictDateLabel,
+            $conflictPeriodLabel
+        );
+    }
+
+    /**
      * @param array<int, Teacher> $teachersById
      */
     private function resolveTeacherLabel(mixed $teacherId, array $teachersById): string
@@ -610,6 +763,37 @@ class AssignMonthlyScheduleRequest extends FormRequest
         return 'Giang vien ID: ' . $teacherId;
     }
 
+    /**
+     * @param array<int, Room> $roomsById
+     */
+    private function resolveRoomLabel(mixed $roomId, array $roomsById): string
+    {
+        if (! is_numeric($roomId)) {
+            return 'Phong hoc chua xac dinh';
+        }
+
+        $roomId = (int) $roomId;
+        $room = $roomsById[$roomId] ?? null;
+        if ($room instanceof Room) {
+            $roomCode = trim((string) ($room->code ?? ''));
+            $roomName = trim((string) ($room->name ?? ''));
+
+            if ($roomCode !== '' && $roomName !== '') {
+                return $roomCode === $roomName ? $roomCode : $roomCode . ' - ' . $roomName;
+            }
+
+            if ($roomCode !== '') {
+                return $roomCode;
+            }
+
+            if ($roomName !== '') {
+                return $roomName;
+            }
+        }
+
+        return 'Phong ID: ' . $roomId;
+    }
+
     private function resolveClassLabel(ScheduleSlot $slot, array $slotData = []): string
     {
         $trainingClass = $slot->trainingClass;
@@ -630,7 +814,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             }
         }
 
-        $classId = $slotData['class_id'] ?? $slot->class_id;
+        $classId = Arr::get($slotData, 'class_id', $slot->class_id);
         if (is_numeric($classId)) {
             return 'Lop ID: ' . (int) $classId;
         }
@@ -643,7 +827,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
      */
     private function resolveSubjectLabel(ScheduleSlot $slot, array $slotData, array $subjectsById): string
     {
-        $subjectId = $slotData['subject_id'] ?? $slot->subject_id;
+        $subjectId = Arr::get($slotData, 'subject_id', $slot->subject_id);
         if (is_numeric($subjectId)) {
             $subjectId = (int) $subjectId;
             $subject = $subjectsById[$subjectId] ?? null;
@@ -665,7 +849,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             }
         }
 
-        $subjectLabel = $slotData['subject'] ?? $slot->subject ?? null;
+        $subjectLabel = Arr::get($slotData, 'subject', $slot->subject ?? null);
         if (is_string($subjectLabel) && trim($subjectLabel) !== '') {
             return trim($subjectLabel);
         }

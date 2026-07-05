@@ -34,7 +34,15 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 404);
         }
 
-        $candidates = $this->mergeService->getMergeCandidates($slot)
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        if ($scope === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Khong xac dinh duoc khoa hien tai de tim tiet co the ghep.',
+            ], 422);
+        }
+
+        $candidates = $this->mergeService->getMergeCandidates($slot, $scope['monthly_schedule_ids'])
             ->loadMissing(['trainingClass', 'subjectModel', 'subjectLesson', 'teacher', 'room']);
 
         return response()->json([
@@ -61,12 +69,21 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 404);
         }
 
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        if ($scope === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Khong xac dinh duoc khoa hien tai de ghep lop.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'candidate_slot_ids' => ['required', 'array', 'min:1'],
             'candidate_slot_ids.*' => ['required', 'integer', 'distinct', 'exists:schedule_slots,id'],
             'teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
             'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
+            'content' => ['nullable', 'string', 'max:500'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -78,14 +95,14 @@ class AssignMonthlyScheduleMergeController extends Controller
 
         $slots = collect([$baseSlot]);
         $candidateSlots = ScheduleSlot::query()
-            ->where('monthly_schedule_id', $monthlySchedule->id)
+            ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
             ->whereIn('id', $candidateIds)
             ->get();
 
         if ($candidateSlots->count() !== count($candidateIds)) {
             return response()->json([
                 'success' => false,
-                'message' => 'One or more candidate slots do not belong to the selected monthly schedule.',
+                'message' => 'Mot hoac nhieu tiet duoc chon khong thuoc pham vi tong hop hien tai.',
             ], 422);
         }
 
@@ -97,6 +114,7 @@ class AssignMonthlyScheduleMergeController extends Controller
                 isset($validated['teacher_id']) ? (int) $validated['teacher_id'] : null,
                 isset($validated['room_id']) ? (int) $validated['room_id'] : null,
                 isset($validated['subject_lesson_id']) ? (int) $validated['subject_lesson_id'] : null,
+                $validated['content'] ?? null,
                 $validated['note'] ?? null
             );
         } catch (ValidationException $exception) {
@@ -112,6 +130,9 @@ class AssignMonthlyScheduleMergeController extends Controller
             'message' => 'Created merge group successfully.',
             'group_id' => $group->id,
             'slot_ids' => $group->scheduleSlots->pluck('id')->values()->all(),
+            'teacher_id' => $group->teacher_id,
+            'room_id' => $group->room_id,
+            'subject_lesson_id' => $group->subject_lesson_id,
         ]);
     }
 
@@ -125,11 +146,32 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 404);
         }
 
-        $group = ScheduleSlotGroup::query()
-            ->where('monthly_schedule_id', $monthlySchedule->id)
-            ->find($groupId);
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        if ($scope === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Khong xac dinh duoc khoa hien tai de tach ghep lop.',
+            ], 422);
+        }
+
+        $group = ScheduleSlotGroup::query()->find($groupId);
 
         if (! $group) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Merge group not found in the selected monthly schedule.',
+            ], 404);
+        }
+
+        $groupMonthlyScheduleIds = $group->scheduleSlots()
+            ->pluck('monthly_schedule_id')
+            ->filter(fn ($monthlyScheduleId) => is_numeric($monthlyScheduleId))
+            ->map(fn ($monthlyScheduleId) => (int) $monthlyScheduleId)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($groupMonthlyScheduleIds === [] || array_diff($groupMonthlyScheduleIds, $scope['monthly_schedule_ids']) !== []) {
             return response()->json([
                 'success' => false,
                 'message' => 'Merge group not found in the selected monthly schedule.',

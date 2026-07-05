@@ -2,15 +2,21 @@
 
 namespace Modules\Schedule\Application\AssignMonthlySchedule;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Modules\Schedule\Application\Shared\TeacherAvailabilityService;
 use Modules\Schedule\Models\MonthlySchedule;
-use Modules\Schedule\Models\ScheduleSlotGroup;
 use Modules\Schedule\Models\ScheduleSlot;
-use Modules\Training\Models\Subject;
+use Modules\Schedule\Models\ScheduleSlotGroup;
 use Throwable;
 
 class AssignMonthlyScheduleHandler
 {
+    public function __construct(
+        private TeacherAvailabilityService $teacherAvailabilityService
+    ) {}
+
     /**
      * Save monthly slot assignments from department staff.
      */
@@ -21,82 +27,113 @@ class AssignMonthlyScheduleHandler
         $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
 
         if ($scope === null) {
-            return back()->withInput()->with('error', 'Khong xac dinh duoc khoa hien tai de tong hop phan cong.');
+            return $this->respondFailure(
+                $request,
+                422,
+                'Khong xac dinh duoc khoa hien tai de tong hop phan cong.',
+                ['changes' => ['Khong xac dinh duoc khoa hien tai de tong hop phan cong.']]
+            );
         }
 
-        $slotIds = collect($validated['slots'] ?? [])->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $validIds = ScheduleSlot::query()
-            ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
-            ->whereIn('id', $slotIds)
-            ->pluck('id')
+        $submittedChanges = collect($validated['changes'] ?? [])->values();
+        $submittedChangeCount = $submittedChanges->count();
+        $slotIds = $submittedChanges
+            ->pluck('slot_id')
+            ->filter(fn ($slotId) => is_numeric($slotId))
+            ->map(fn ($slotId) => (int) $slotId)
+            ->unique()
+            ->values()
             ->all();
-        $validIdMap = array_flip($validIds);
+
+        $validSlots = ScheduleSlot::query()
+            ->with('scheduleSlotGroup')
+            ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
+            ->where('slot_type', 'subject')
+            ->where('assignment_source', 'internal')
+            ->whereIn('id', $slotIds)
+            ->get()
+            ->keyBy('id');
 
         try {
-            DB::transaction(function () use ($request, $monthlySchedule, $validated, $validIdMap, $validIds): void {
-                $subjectIds = collect($validated['slots'])->pluck('subject_id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
-                $subjects = Subject::query()
-                    ->whereIn('id', $subjectIds)
+            $updatedSlotIds = DB::transaction(function () use ($request, $monthlySchedule, $submittedChanges, $validSlots, $scope): array {
+                $lockedValidSlots = ScheduleSlot::query()
+                    ->with(['scheduleSlotGroup', 'trainingClass', 'teacher', 'subjectModel.department', 'subjectLesson', 'room'])
+                    ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
+                    ->where('slot_type', 'subject')
+                    ->where('assignment_source', 'internal')
+                    ->whereIn('id', $validSlots->keys()->all())
+                    ->lockForUpdate()
                     ->get()
                     ->keyBy('id');
 
-                foreach ($validated['slots'] as $slotData) {
-                    $slotId = (int) $slotData['id'];
-                    if (!isset($validIdMap[$slotId])) {
+                $availabilityChecks = [];
+
+                foreach ($submittedChanges as $index => $change) {
+                    $slotId = (int) $change['slot_id'];
+
+                    /** @var ScheduleSlot|null $slot */
+                    $slot = $lockedValidSlots->get($slotId);
+                    if (! $slot instanceof ScheduleSlot) {
                         continue;
                     }
 
-                    /** @var ScheduleSlot $slot */
-                    $slot = ScheduleSlot::query()->findOrFail($slotId);
-                    $isEventSlot = ($slot->slot_type ?? 'subject') === 'event';
+                    $teacherId = array_key_exists('teacher_id', $change)
+                        ? $this->normalizeNullableInteger($change['teacher_id'])
+                        : null;
 
-                    $subjectId = $slotData['subject_id'] ?? null;
-                    $subjectLabel = null;
-                    if (!$isEventSlot && $subjectId) {
-                        $subject = $subjects->get((int) $subjectId);
-                        $subjectLabel = $subject?->code ?: $subject?->name;
+                    if ($teacherId !== null) {
+                        $availabilityChecks[] = [
+                            'error_key' => 'changes.' . $index . '.teacher_id',
+                            'slot' => $slot,
+                            'teacher_id' => (int) $teacherId,
+                        ];
                     }
+                }
 
-                    if (!$isEventSlot) {
-                        if (array_key_exists('teacher_id', $slotData)) {
-                            $slot->teacher_id = $slotData['teacher_id'] ?? null;
-                        }
-                        if (array_key_exists('subject_id', $slotData)) {
-                            $slot->subject_id = $subjectId;
-                        }
-                        if (array_key_exists('subject_lesson_id', $slotData)) {
-                            $slot->subject_lesson_id = $slotData['subject_lesson_id'] ?? null;
-                        }
-                        if (array_key_exists('room_id', $slotData)) {
-                            $slot->room_id = $slotData['room_id'] ?? null;
-                        }
-                    }
+                if ($availabilityChecks !== []) {
+                    $this->teacherAvailabilityService->assertAssignmentsAreAvailable($availabilityChecks);
+                }
 
-                    if (array_key_exists('content', $slotData)) {
-                        $slot->content = $slotData['content'] ?? null;
-                    }
-                    if (array_key_exists('note', $slotData)) {
-                        $slot->note = $slotData['note'] ?? null;
-                    }
-                    if (array_key_exists('slot_status', $slotData)) {
-                        $slot->slot_status = $slotData['slot_status'] ?? 'planned';
+                $updatedSlotIds = [];
+                foreach ($submittedChanges as $change) {
+                    $slotId = (int) $change['slot_id'];
+
+                    /** @var ScheduleSlot|null $slot */
+                    $slot = $lockedValidSlots->get($slotId);
+                    if (! $slot instanceof ScheduleSlot) {
+                        continue;
                     }
 
-                    if (!$isEventSlot && $subjectLabel !== null) {
-                        $slot->subject = $subjectLabel;
+                    if (array_key_exists('teacher_id', $change)) {
+                        $slot->teacher_id = $this->normalizeNullableInteger($change['teacher_id']);
                     }
 
-                    if (!$isEventSlot && $monthlySchedule->class_id !== null && $slot->class_id === null) {
-                        $slot->class_id = $monthlySchedule->class_id;
+                    if (array_key_exists('subject_lesson_id', $change)) {
+                        $slot->subject_lesson_id = $this->normalizeNullableInteger($change['subject_lesson_id']);
                     }
 
-                    $slot->save();
+                    if (array_key_exists('room_id', $change)) {
+                        $slot->room_id = $this->normalizeNullableInteger($change['room_id']);
+                    }
+
+                    if (array_key_exists('content', $change)) {
+                        $slot->content = $this->normalizeNullableString($change['content']);
+                    }
+
+                    if (array_key_exists('note', $change)) {
+                        $slot->note = $this->normalizeNullableString($change['note']);
+                    }
+
+                    if ($slot->isDirty()) {
+                        $slot->save();
+                        $updatedSlotIds[] = $slot->id;
+                    }
                 }
 
                 $activeGroupIds = ScheduleSlot::query()
                     ->with('scheduleSlotGroup')
-                    ->where('monthly_schedule_id', $monthlySchedule->id)
-                    ->whereIn('id', $validIds)
+                    ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
+                    ->whereIn('id', $validSlots->keys()->all())
                     ->get()
                     ->filter(fn (ScheduleSlot $slot) => $slot->scheduleSlotGroup?->status === 'active')
                     ->pluck('schedule_slot_group_id')
@@ -140,11 +177,83 @@ class AssignMonthlyScheduleHandler
                 if ($touchUpdates !== []) {
                     $monthlySchedule->update($touchUpdates);
                 }
+
+                return array_values(array_unique($updatedSlotIds));
             });
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (Throwable $exception) {
-            return back()->withInput()->with('error', 'Khong the luu phan cong lich thang: ' . $exception->getMessage());
+            return $this->respondFailure(
+                $request,
+                500,
+                'Khong the luu phan cong lich thang: ' . $exception->getMessage()
+            );
         }
 
-        return back()->with('success', 'Da luu phan cong lich giang day theo thang thanh cong.');
+        $message = count($updatedSlotIds) === 0
+            ? sprintf(
+                'Khong co thay doi moi de luu. Da kiem tra %d tiet trong pham vi tong hop khoa + thang hien tai va khong phat hien conflict.',
+                $submittedChangeCount
+            )
+            : sprintf(
+                'Da luu phan cong lich giang day theo thang thanh cong. Cap nhat %d tiet.',
+                count($updatedSlotIds)
+            );
+
+        return $this->respondSuccess($request, $message, $updatedSlotIds);
+    }
+
+    private function normalizeNullableInteger(mixed $value): ?int
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function normalizeNullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = is_string($value) ? $value : (string) $value;
+
+        return trim($value) === '' ? null : $value;
+    }
+
+    /**
+     * @param array<string, mixed>|null $errors
+     */
+    private function respondFailure(AssignMonthlyScheduleRequest $request, int $status, string $message, ?array $errors = null): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            $payload = [
+                'success' => false,
+                'message' => $message,
+            ];
+
+            if ($errors !== null) {
+                $payload['errors'] = $errors;
+            }
+
+            return response()->json($payload, $status);
+        }
+
+        return back()->withInput()->with('error', $message);
+    }
+
+    private function respondSuccess(AssignMonthlyScheduleRequest $request, string $message, array $updatedSlotIds): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'updated_slot_ids' => array_values($updatedSlotIds),
+            ]);
+        }
+
+        return back()->with('success', $message);
     }
 }

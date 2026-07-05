@@ -38,6 +38,9 @@ class BuildOrRefreshDraftBatch
             ->where('department_id', $departmentId)
             ->where('month', $month)
             ->where('year', $year)
+            ->orderByRaw("CASE status WHEN 'approved' THEN 4 WHEN 'submitted' THEN 3 WHEN 'draft' THEN 2 WHEN 'returned' THEN 1 ELSE 0 END DESC")
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->lockForUpdate()
             ->first();
 

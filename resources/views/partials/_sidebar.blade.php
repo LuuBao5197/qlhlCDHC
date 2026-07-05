@@ -25,9 +25,30 @@
 
     @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
       <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('monthly-schedule.initialize.form') }}">
+          <span class="menu-icon"><i class="mdi mdi-calendar-plus"></i></span>
+          <span class="menu-title">Khoi tao lich thang</span>
+        </a>
+      </li>
+      <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('department-monthly-assignment-batches.index') }}">
           <span class="menu-icon"><i class="mdi mdi-clipboard-check-outline"></i></span>
           <span class="menu-title">Phê duyệt phân công</span>
+        </a>
+      </li>
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('teaching-support-requests.index') }}">
+          <span class="menu-icon"><i class="mdi mdi-handshake-outline"></i></span>
+          <span class="menu-title">Yêu cầu hỗ trợ liên khoa</span>
+        </a>
+      </li>
+    @endif
+
+    @if(auth()->check() && auth()->user()->isDepartmentStaff())
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('teaching-support-requests.inbox') }}">
+          <span class="menu-icon"><i class="mdi mdi-inbox"></i></span>
+          <span class="menu-title">Inbox hỗ trợ liên khoa</span>
         </a>
       </li>
     @endif

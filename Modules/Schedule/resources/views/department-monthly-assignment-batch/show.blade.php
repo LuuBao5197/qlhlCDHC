@@ -79,6 +79,13 @@
                         </div>
                     </div>
 
+                    @if ($status !== 'submitted')
+                        <div class="alert alert-warning mt-3 mb-0">
+                            Batch này đang ở trạng thái <strong>{{ $statusLabel }}</strong>, nên chưa có nút phê duyệt.
+                            Chỉ batch ở trạng thái <strong>Chờ duyệt</strong> mới có thể duyệt hoặc trả về.
+                        </div>
+                    @endif
+
                     <div class="row mt-3">
                         <div class="col-md-3 mb-2">
                             <div class="border rounded p-2 bg-light">

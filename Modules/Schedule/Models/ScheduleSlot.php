@@ -25,6 +25,8 @@ class ScheduleSlot extends Model
         'schedule_slot_group_id',
         'class_id',
         'teacher_id',
+        'assignment_source',
+        'teaching_support_request_item_id',
         'subject_id',
         'subject_lesson_id',
         'room_id',
@@ -64,6 +66,16 @@ class ScheduleSlot extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class, 'teacher_id');
+    }
+
+    public function teachingSupportRequestItem(): BelongsTo
+    {
+        return $this->belongsTo(TeachingSupportRequestItem::class, 'teaching_support_request_item_id');
+    }
+
+    public function teachingSupportChangeRequestItems(): HasMany
+    {
+        return $this->hasMany(TeachingSupportChangeRequestItem::class, 'schedule_slot_id');
     }
 
     public function subjectModel(): BelongsTo

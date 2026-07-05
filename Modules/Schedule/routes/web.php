@@ -10,6 +10,8 @@ use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleCont
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleMergeController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchReviewController;
+use Modules\Schedule\Application\TeachingSupportRequest\TeachingSupportRequestController;
+use Modules\Schedule\Application\TeachingSupportChangeRequest\TeachingSupportChangeRequestController;
 use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestController;
 use Modules\Schedule\Application\ReviewChangeRequest\ReviewChangeRequestController;
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
@@ -70,6 +72,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Aggregate department monthly assignment batch workflow
     Route::post('/monthly-schedules/{id}/department-monthly-assignment-batches/submit', [DepartmentMonthlyAssignmentBatchController::class, 'submit'])
         ->name('department-monthly-assignment-batches.submit');
+    Route::post('/monthly-schedules/{id}/teaching-support-requests', [TeachingSupportRequestController::class, 'store'])
+        ->name('teaching-support-requests.store');
+    Route::get('/monthly-schedules/{id}/teaching-support-requests/modal', [TeachingSupportRequestController::class, 'monthlyAssignmentModal'])
+        ->name('monthly-schedule.teaching-support-requests.modal');
     Route::get('/department-monthly-assignment-batches', [DepartmentMonthlyAssignmentBatchController::class, 'index'])
         ->name('department-monthly-assignment-batches.index');
     Route::get('/department-monthly-assignment-batches/{id}', [DepartmentMonthlyAssignmentBatchController::class, 'show'])
@@ -78,6 +84,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('department-monthly-assignment-batches.approve');
     Route::post('/department-monthly-assignment-batches/{id}/return', [DepartmentMonthlyAssignmentBatchReviewController::class, 'returnBatch'])
         ->name('department-monthly-assignment-batches.return');
+
+    Route::get('/teaching-support-requests', [TeachingSupportRequestController::class, 'index'])
+        ->name('teaching-support-requests.index');
+    Route::get('/teaching-support-requests/inbox', [TeachingSupportRequestController::class, 'inbox'])
+        ->name('teaching-support-requests.inbox');
+    Route::get('/teaching-support-requests/{id}', [TeachingSupportRequestController::class, 'show'])
+        ->name('teaching-support-requests.show');
+    Route::post('/teaching-support-requests/{id}/review', [TeachingSupportRequestController::class, 'review'])
+        ->name('teaching-support-requests.review');
+    Route::post('/teaching-support-requests/{id}/withdraw', [TeachingSupportRequestController::class, 'withdraw'])
+        ->name('teaching-support-requests.withdraw');
+    Route::post('/teaching-support-requests/{id}/confirm', [TeachingSupportRequestController::class, 'confirm'])
+        ->name('teaching-support-requests.confirm');
+    Route::post('/teaching-support-request-items/{id}/assign', [TeachingSupportRequestController::class, 'assignItem'])
+        ->name('teaching-support-request-items.assign');
+    Route::get('/teaching-support-requests/{id}/change-requests/create', [TeachingSupportChangeRequestController::class, 'create'])
+        ->name('teaching-support-change-requests.create');
+    Route::post('/teaching-support-requests/{id}/change-requests', [TeachingSupportChangeRequestController::class, 'store'])
+        ->name('teaching-support-change-requests.store');
+    Route::get('/teaching-support-change-requests/{id}', [TeachingSupportChangeRequestController::class, 'show'])
+        ->name('teaching-support-change-requests.show');
+    Route::post('/teaching-support-change-requests/{id}/review', [TeachingSupportChangeRequestController::class, 'review'])
+        ->name('teaching-support-change-requests.review');
 
     Route::post('/change-requests/{id}/review', ReviewChangeRequestController::class)
         ->name('change-request.review');

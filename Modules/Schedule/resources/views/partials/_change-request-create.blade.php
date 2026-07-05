@@ -23,7 +23,7 @@
     $changeRequestDraftData = $monthlySchedules->map(function ($schedule) use ($teachersById, $trainingTeachersById) {
         return [
             'id' => $schedule->id,
-            'label' => '#'.$schedule->id.' - '.($schedule->class_name ?? 'Lop').
+            'label' => '#'.$schedule->id.' - '.($schedule->class_name ?? 'Lớp').
                 ' ('.$schedule->month.'/'.$schedule->year.')',
             'class_name' => $schedule->class_name,
             'month' => $schedule->month,
@@ -96,18 +96,18 @@
 
 @if ($canDepartmentAssign)
     <div class="border rounded p-3 mt-3 bg-light">
-        <h6 class="mb-2">Tao phieu de nghi thay doi moi</h6>
+        <h6 class="mb-2">Tạo phiếu đề nghị thay đổi mới</h6>
         <form method="POST" action="{{ route('change-request.store') }}">
             @csrf
             <input type="hidden" name="selected_slots_json" id="selectedSlotsJsonInput" value="[]">
 
             <div class="border rounded bg-white p-2 mb-3">
-                <h6 class="mb-2">Buoc 1: Chon tiet can thay doi</h6>
+                <h6 class="mb-2">Bước 1: Chọn tiết cần thay đổi</h6>
                 <div class="row">
                     <div class="col-md-4 mb-2">
-                        <label class="mb-1">Lich thang</label>
+                        <label class="mb-1">Lịch tháng</label>
                         <select id="draftMonthlySchedule" name="monthly_schedule_id" class="form-control form-control-sm" required>
-                            <option value="">-- Chon lich thang --</option>
+                            <option value="">-- Chọn lịch tháng --</option>
                             @foreach ($monthlySchedules as $monthlySchedule)
                                 <option value="{{ $monthlySchedule->id }}"
                                     @selected((int) old('monthly_schedule_id') === (int) $monthlySchedule->id)>
@@ -118,7 +118,7 @@
                         </select>
                     </div>
                     <div class="col-md-4 mb-2">
-                        <label class="mb-1">Ngay hoc</label>
+                        <label class="mb-1">Ngày học</label>
                         @include('schedule::partials._date-picker-field', [
                             'label' => '',
                             'name' => 'slot_filter_date',
@@ -128,15 +128,15 @@
                             'value' => '',
                             'inputClass' => 'form-control-sm',
                             'wrapperClass' => 'mb-0',
-                            'buttonLabel' => 'Lich',
+                            'buttonLabel' => 'Lịch',
                         ])
                     </div>
                     <div class="col-md-4 mb-2">
-                        <label class="mb-1">Tiet hoc</label>
+                        <label class="mb-1">Tiết học</label>
                         <select id="slotFilterPeriod" class="form-control form-control-sm">
-                            <option value="">Tat ca tiet</option>
+                            <option value="">Tất cả tiết</option>
                             @for ($period = 1; $period <= 9; $period++)
-                                <option value="{{ $period }}">Tiet {{ $period }}</option>
+                                <option value="{{ $period }}">Tiết {{ $period }}</option>
                             @endfor
                         </select>
                     </div>
@@ -144,13 +144,13 @@
 
                 <div class="row">
                     <div class="col-md-4 mb-2">
-                        <label class="mb-1">Lop (tim nhanh)</label>
-                        <input type="text" id="slotFilterClass" class="form-control form-control-sm" placeholder="Nhap ma/ten lop">
+                        <label class="mb-1">Lớp (tìm nhanh)</label>
+                        <input type="text" id="slotFilterClass" class="form-control form-control-sm" placeholder="Nhập mã/tên lớp">
                     </div>
                     <div class="col-md-8 mb-2 d-flex align-items-end justify-content-end gap-2">
-                        <span id="selectedSlotSummary" class="badge badge-info mr-2">Da chon 0 tiet</span>
-                        <button type="button" class="btn btn-sm btn-outline-primary mr-2" id="clearSlotFilterBtn">Bo loc</button>
-                        <button type="button" class="btn btn-sm btn-primary" id="openChangeEditorBtn">Tao phieu tu tiet da chon</button>
+                        <span id="selectedSlotSummary" class="badge badge-info mr-2">Đã chọn 0 tiết</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary mr-2" id="clearSlotFilterBtn">Bỏ lọc</button>
+                        <button type="button" class="btn btn-sm btn-primary" id="openChangeEditorBtn">Tạo phiếu từ tiết đã chọn</button>
                     </div>
                 </div>
 
@@ -158,19 +158,20 @@
                     <table class="table table-sm table-bordered" id="draftSlotTable">
                         <thead>
                             <tr>
-                                <th style="width: 45px;">Chon</th>
-                                <th>Ngay</th>
-                                <th>Tiet</th>
-                                <th>Lop</th>
-                                <th>Mon/Bai hoc</th>
-                                <th>Giang vien hien tai</th>
-                                <th>Theo ke hoach</th>
-                                <th>Phong hien tai</th>
+                                <th style="width: 45px;">Chọn</th>
+                                <th>Ngày</th>
+                                <th>Tiết</th>
+                                <th>Lớp</th>
+                                <th>Môn học</th>
+                                <th>Bài học</th>
+                                <th>Giảng viên hiện tại</th>
+                                <th>Theo kế hoạch</th>
+                                <th>Phòng hiện tại</th>
                             </tr>
                         </thead>
                         <tbody id="draftSlotTableBody">
                             <tr>
-                                <td colspan="8" class="text-muted text-center">Chon lich thang de hien thi tiet hoc.</td>
+                                <td colspan="9" class="text-muted text-center">Chọn lịch tháng để hiển thị tiết học.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -181,7 +182,7 @@
                 <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="changeRequestModalLabel">Buoc 2: Chinh sua chi tiet truoc khi tao phieu</h5>
+                            <h5 class="modal-title" id="changeRequestModalLabel">Bước 2: Chỉnh sửa chi tiết trước khi tạo phiếu</h5>
                             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                 <span aria-hidden="true">&times;</span>
                             </button>
@@ -190,17 +191,17 @@
                             <div id="changeEditorSection" class="border rounded bg-white p-2">
                                 <div class="row">
                                     <div class="col-md-4 mb-2">
-                                        <label class="mb-1">Che do ap dung khi duyet</label>
+                                        <label class="mb-1">Chế độ áp dụng khi duyệt</label>
                                         <select name="apply_mode" class="form-control form-control-sm">
                                             <option value="all_or_none" @selected($changeModeOld === 'all_or_none')>all_or_none</option>
                                             <option value="best_effort" @selected($changeModeOld === 'best_effort')>best_effort</option>
                                         </select>
                                     </div>
                                     <div class="col-md-8 mb-2">
-                                        <label class="mb-1">Ly do de nghi thay doi</label>
+                                        <label class="mb-1">Lý do đề nghị thay đổi</label>
                                         <input type="text" name="reason" class="form-control form-control-sm"
                                             value="{{ old('reason') }}" maxlength="1000"
-                                            placeholder="Nhap ly do tao phieu de nghi" required>
+                                            placeholder="Nhập lý do tạo phiếu đề nghị" required>
                                     </div>
                                 </div>
 
@@ -208,34 +209,34 @@
                                     <table class="table table-sm table-bordered" id="selectedSlotEditorTable">
                                         <thead>
                                             <tr>
-                                                <th>Ngay</th>
-                                                <th>Tiet</th>
-                                                <th>Lop</th>
-                                                <th>Mon/Bai hoc</th>
-                                                <th>Giang vien moi</th>
-                                                <th>Bai hoc moi</th>
-                                                <th>Noi dung moi</th>
-                                                <th>Phong moi</th>
-                                                <th>Ghi chu moi</th>
+                                                <th>Ngày</th>
+                                                <th>Tiết</th>
+                                                <th>Lớp</th>
+                                                <th>Môn học</th>
+                                                <th>Giảng viên mới</th>
+                                                <th>Bài học mới</th>
+                                                <th>Nội dung mới</th>
+                                                <th>Phòng mới</th>
+                                                <th>Ghi chú mới</th>
                                             </tr>
                                         </thead>
                                         <tbody id="selectedSlotEditorTableBody">
                                             <tr>
-                                                <td colspan="9" class="text-muted text-center">Chua co tiet duoc chon.</td>
+                                                <td colspan="9" class="text-muted text-center">Chưa có tiết được chọn.</td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
 
                                 <div id="slotChangePreview" class="border rounded bg-light p-2 mb-2">
-                                    <div class="text-muted">Chua co thay doi hop le de hien thi doi chieu truoc/sau.</div>
+                                    <div class="text-muted">Chưa có thay đổi hợp lệ để hiển thị đối chiếu trước/sau.</div>
                                 </div>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <small class="text-muted mr-auto" id="modalSelectedSlotSummary">Da chon 0 tiet</small>
-                            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Dong</button>
-                            <button type="submit" class="btn btn-sm btn-primary">Tao phieu thay doi</button>
+                            <small class="text-muted mr-auto" id="modalSelectedSlotSummary">Đã chọn 0 tiết</small>
+                            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Đóng</button>
+                            <button type="submit" class="btn btn-sm btn-primary">Tạo phiếu thay đổi</button>
                         </div>
                     </div>
                 </div>
@@ -314,6 +315,20 @@
                 return `ID ${normalizedId}`;
             };
 
+            const resolveLessonLabelById = (lessonId) => {
+                const normalizedId = normalizeNullableNumber(lessonId);
+                if (!normalizedId) {
+                    return null;
+                }
+
+                const lesson = (subjectLessons || []).find((item) => Number(item.id) === Number(normalizedId));
+                if (lesson) {
+                    return `B${lesson.lesson_no ?? '?'}: ${lesson.title}`;
+                }
+
+                return `ID ${normalizedId}`;
+            };
+
             const buildLessonOptionsHtml = (currentLessonId, slotSubjectId) => {
                 const currentId = normalizeNullableNumber(currentLessonId);
                 const subjectId = normalizeNullableNumber(slotSubjectId);
@@ -326,8 +341,8 @@
                             .filter((item) => !!item)
                             .join(' - ');
                         const base = subjectLabel
-                            ? `${subjectLabel} | B${lesson.lesson_no}: ${lesson.title}`
-                            : `B${lesson.lesson_no}: ${lesson.title}`;
+                            ? `${subjectLabel} | B${lesson.lesson_no ?? '?'}: ${lesson.title}`
+                            : `B${lesson.lesson_no ?? '?'}: ${lesson.title}`;
                         const suffix = Number(lesson.id) === currentId ? ' (hien tai)' : '';
                         const selected = Number(lesson.id) === currentId ? ' selected' : '';
                         return `<option value="${lesson.id}"${selected}>${escapeHtml(base + suffix)}</option>`;
@@ -339,7 +354,7 @@
                 const currentId = normalizeNullableNumber(currentRoomId);
                 return ['<option value="">-- Xoa phong hoc --</option>']
                     .concat((rooms || []).map((room) => {
-                        const label = room.label || ('Phong #' + room.id);
+                        const label = room.label || ('Phòng #' + room.id);
                         const suffix = Number(room.id) === currentId ? ' (hien tai)' : '';
                         const selected = Number(room.id) === currentId ? ' selected' : '';
                         return `<option value="${room.id}"${selected}>${escapeHtml(label + suffix)}</option>`;
@@ -406,7 +421,7 @@
                 const schedule = getCurrentSchedule();
 
                 if (!schedule) {
-                    tableBody.innerHTML = '<tr><td colspan="8" class="text-muted text-center">Chon lich thang de hien thi tiet hoc.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="9" class="text-muted text-center">Chọn lịch tháng để hiển thị tiết học.</td></tr>';
                     selectedSlotIds.clear();
                     draftBySlotId.clear();
                     selectedSlotsJsonInput.value = '[]';
@@ -418,7 +433,7 @@
                 const filteredSlots = (schedule.slots || []).filter(slotMatchesFilter);
 
                 if (!filteredSlots.length) {
-                    tableBody.innerHTML = '<tr><td colspan="8" class="text-muted text-center">Khong co tiet hoc nao phu hop bo loc.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="9" class="text-muted text-center">Khong co tiet hoc nao phu hop bo loc.</td></tr>';
                     updateSelectedSummary();
                     return;
                 }
@@ -426,6 +441,7 @@
                 tableBody.innerHTML = filteredSlots.map((slot) => {
                     const checked = selectedSlotIds.has(Number(slot.id)) ? 'checked' : '';
                     const teacherLabel = slot.teacher_label || resolveTeacherLabelById(slot.teacher_id) || '-';
+                    const lessonLabel = resolveLessonLabelById(slot.subject_lesson_id) || '-';
 
                     return `
                         <tr data-slot-id="${slot.id}">
@@ -433,9 +449,10 @@
                                 <input type="checkbox" class="draft-slot-check" ${checked}>
                             </td>
                             <td>${escapeHtml(slot.date || '-')}</td>
-                            <td>Tiet ${escapeHtml(slot.period_number || '-')}</td>
+                            <td>Tiết ${escapeHtml(slot.period_number || '-')}</td>
                             <td>${escapeHtml(slot.class_name || '-')}</td>
                             <td>${escapeHtml(slot.subject || '-')}</td>
+                            <td>${escapeHtml(lessonLabel)}</td>
                             <td>${escapeHtml(teacherLabel)}</td>
                             <td>${escapeHtml(slot.content || '-')}</td>
                             <td>${escapeHtml(slot.room_name || '-')}</td>
@@ -487,7 +504,7 @@
                     return `
                         <tr data-edit-slot-id="${slotId}">
                             <td>${escapeHtml(slot.date || '-')}</td>
-                            <td>Tiet ${escapeHtml(slot.period_number || '-')}</td>
+                            <td>Tiết ${escapeHtml(slot.period_number || '-')}</td>
                             <td>${escapeHtml(slot.class_name || '-')}</td>
                             <td>${escapeHtml(slot.subject || '-')}</td>
                             <td>
@@ -605,30 +622,28 @@
                     if (!oldSlot) return '';
 
                     const oldSummary = [
-                        `Ngay: ${oldSlot.date || '-'}`,
-                        `Tiet: ${oldSlot.period_number || '-'}`,
-                        `Lop: ${oldSlot.class_name || '-'}`,
+                        `Ngày: ${oldSlot.date || '-'}`,
+                        `Tiết: ${oldSlot.period_number || '-'}`,
+                        `Lớp: ${oldSlot.class_name || '-'}`,
                         `Giang vien: ${oldSlot.teacher_label || resolveTeacherLabelById(oldSlot.teacher_id) || '-'}`,
+                        `Bài học: ${resolveLessonLabelById(oldSlot.subject_lesson_id) || '-'}`,
                         `Noi dung: ${oldSlot.content || '-'}`,
-                        `Phong: ${oldSlot.room_name || '-'}`,
+                        `Phòng: ${oldSlot.room_name || '-'}`,
                         `Ghi chu: ${oldSlot.note || '-'}`,
                     ].join('<br>');
 
                     const teacherLabel = resolveTeacherLabelById(item.new_payload.teacher_id);
-                    const lessonTarget = (subjectLessons || []).find((lesson) => Number(lesson.id) === Number(item.new_payload.subject_lesson_id));
-                    const lessonLabel = lessonTarget
-                        ? `B${lessonTarget.lesson_no}: ${lessonTarget.title}`
-                        : null;
+                    const lessonLabel = resolveLessonLabelById(item.new_payload.subject_lesson_id);
                     const roomTarget = (rooms || []).find((room) => Number(room.id) === Number(item.new_payload.room_id));
 
                     const newSummary = [
-                        `Ngay: ${oldSlot.date || '-'}`,
-                        `Tiet: ${oldSlot.period_number || '-'}`,
-                        `Lop: ${oldSlot.class_name || '-'}`,
+                        `Ngày: ${oldSlot.date || '-'}`,
+                        `Tiết: ${oldSlot.period_number || '-'}`,
+                        `Lớp: ${oldSlot.class_name || '-'}`,
                         `Giang vien: ${teacherLabel ?? '-'}`,
-                        `Bai hoc: ${lessonLabel ?? '-'}`,
+                        `Bài học: ${lessonLabel ?? '-'}`,
                         `Noi dung: ${item.new_payload.content ?? oldSlot.content ?? '-'}`,
-                        `Phong: ${roomTarget?.label ?? oldSlot.room_name ?? '-'}`,
+                        `Phòng: ${roomTarget?.label ?? oldSlot.room_name ?? '-'}`,
                         `Ghi chu: ${item.new_payload.note ?? oldSlot.note ?? '-'}`,
                     ].join('<br>');
 
@@ -745,7 +760,7 @@
             createForm?.addEventListener('submit', (event) => {
                 if (!selectedSlotIds.size) {
                     event.preventDefault();
-                    alert('Vui long thuc hien Buoc 1 va bam "Tao phieu tu tiet da chon" truoc khi submit.');
+                    alert('Vui lòng thực hiện Bước 1 và bấm "Tạo phiếu từ tiết đã chọn" trước khi gửi.');
                     return;
                 }
 
@@ -776,8 +791,8 @@
                         conflictMsg =
                             `Phat hien trung giang vien:\n` +
                             `  GV: ${teacherLabel}\n` +
-                            `  - Tiet ${slot.period_number}, ngay ${slot.date}, lop: ${slot.class_name || ('#' + slot.id)}\n` +
-                            `  - Tiet ${other.period_number}, ngay ${other.date}, lop: ${other.class_name || ('#' + other.id)}\n` +
+                            `  - Tiết ${slot.period_number}, ngày ${slot.date}, lớp: ${slot.class_name || ('#' + slot.id)}\n` +
+                            `  - Tiết ${other.period_number}, ngày ${other.date}, lớp: ${other.class_name || ('#' + other.id)}\n` +
                             `Vui long chinh sua lai truoc khi tao phieu.`;
                         break;
                     }
@@ -804,15 +819,15 @@
 
 @if ($canHolidayRescheduleRequest)
     <div class="border rounded p-3 mt-3 bg-white">
-        <h6 class="mb-2">Tao phieu doi lich do nghi le/tet</h6>
+        <h6 class="mb-2">Tạo phiếu đổi lịch do nghỉ lễ/tết</h6>
         <form method="POST" action="{{ route('change-request.holiday-reschedule.store') }}">
             @csrf
 
             <div class="row">
                 <div class="col-md-4 mb-2">
-                    <label class="mb-1">Lich thang</label>
+                    <label class="mb-1">Lịch tháng</label>
                     <select name="monthly_schedule_id" class="form-control form-control-sm" required>
-                        <option value="">-- Chon lich thang --</option>
+                        <option value="">-- Chọn lịch tháng --</option>
                         @foreach ($monthlySchedules as $monthlySchedule)
                             <option value="{{ $monthlySchedule->id }}"
                                 @selected((int) old('monthly_schedule_id') === (int) $monthlySchedule->id)>
@@ -824,7 +839,7 @@
                 </div>
 
                 <div class="col-md-4 mb-2">
-                    <label class="mb-1">Khoang ngay nghi (tu)</label>
+                    <label class="mb-1">Khoảng ngày nghỉ (từ)</label>
                     @include('schedule::partials._date-picker-field', [
                         'label' => '',
                         'name' => 'holiday_start_date',
@@ -834,12 +849,12 @@
                         'value' => old('holiday_start_date'),
                         'inputClass' => 'form-control-sm',
                         'wrapperClass' => 'mb-0',
-                        'buttonLabel' => 'Lich',
+                        'buttonLabel' => 'Lịch',
                     ])
                 </div>
 
                 <div class="col-md-4 mb-2">
-                    <label class="mb-1">Khoang ngay nghi (den)</label>
+                    <label class="mb-1">Khoảng ngày nghỉ (đến)</label>
                     @include('schedule::partials._date-picker-field', [
                         'label' => '',
                         'name' => 'holiday_end_date',
@@ -849,27 +864,27 @@
                         'value' => old('holiday_end_date'),
                         'inputClass' => 'form-control-sm',
                         'wrapperClass' => 'mb-0',
-                        'buttonLabel' => 'Lich',
+                        'buttonLabel' => 'Lịch',
                     ])
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-2">
-                    <label class="mb-1">Danh sach ngay nghi roi rac (YYYY-MM-DD, cach nhau boi dau phay)</label>
+                    <label class="mb-1">Danh sách ngày nghỉ rời rạc (YYYY-MM-DD, cách nhau bởi dấu phẩy)</label>
                     <input type="text" name="holiday_dates_csv" class="form-control form-control-sm"
                         value="{{ old('holiday_dates_csv') }}"
-                        placeholder="Vi du: 2026-09-02, 2026-09-03">
+                        placeholder="Ví dụ: 2026-09-02, 2026-09-03">
                     @if (($holidayCalendars ?? collect())->isNotEmpty())
                         <small class="text-muted d-block mt-1">
-                            Ngay nghi dang khai bao:
+                            Ngày nghỉ đang khai báo:
                             {{ $holidayCalendars->map(fn($item) => optional($item->date)->format('Y-m-d'))->filter()->implode(', ') }}
                         </small>
                     @endif
                 </div>
 
                 <div class="col-md-3 mb-2">
-                    <label class="mb-1">Ngay dich de doi lich</label>
+                    <label class="mb-1">Ngày đích để đổi lịch</label>
                     @include('schedule::partials._date-picker-field', [
                         'label' => '',
                         'name' => 'target_date',
@@ -879,14 +894,14 @@
                         'value' => old('target_date'),
                         'inputClass' => 'form-control-sm',
                         'wrapperClass' => 'mb-0',
-                        'buttonLabel' => 'Lich',
+                        'buttonLabel' => 'Lịch',
                         'required' => true,
-                        'help' => 'Ngay bat dau tim lich thay the (thuong la ngay ngay sau khoang nghi).',
+                        'help' => 'Ngày bắt đầu tìm lịch thay thế (thường là ngày ngay sau khoảng nghỉ).',
                     ])
                 </div>
 
                 <div class="col-md-3 mb-2">
-                    <label class="mb-1">Che do ap dung khi duyet</label>
+                    <label class="mb-1">Chế độ áp dụng khi duyệt</label>
                     <select name="apply_mode" class="form-control form-control-sm">
                         <option value="best_effort" @selected(old('apply_mode', 'best_effort') === 'best_effort')>best_effort</option>
                         <option value="all_or_none" @selected(old('apply_mode', 'best_effort') === 'all_or_none')>all_or_none</option>
@@ -896,18 +911,18 @@
 
             <div class="row">
                 <div class="col-md-10 mb-2">
-                    <label class="mb-1">Ly do</label>
+                    <label class="mb-1">Lý do</label>
                     <input type="text" name="reason" class="form-control form-control-sm"
                         value="{{ old('reason') }}" maxlength="1000"
-                        placeholder="Vi du: Nghi le quoc gia, doi lich hoc trong 7 ngay tiep theo" required>
+                        placeholder="Ví dụ: Nghỉ lễ quốc gia, đổi lịch học trong 7 ngày tiếp theo" required>
                 </div>
                 <div class="col-md-2 mb-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-sm btn-warning w-100">Tao phieu doi lich</button>
+                    <button type="submit" class="btn btn-sm btn-warning w-100">Tạo phiếu đổi lịch</button>
                 </div>
             </div>
 
             <small class="text-muted d-block mt-1">
-                He thong se tim ngay thay the tu ngay dich, toi da {{ (int) config('schedule.holiday_reschedule.max_shift_days', 7) }} ngay,
+                Hệ thống sẽ tìm ngày thay thế từ ngày đích, tối đa {{ (int) config('schedule.holiday_reschedule.max_shift_days', 7) }} ngày,
                 bo qua T7/CN va cac ngay khong lam viec trong holiday calendar.
             </small>
         </form>

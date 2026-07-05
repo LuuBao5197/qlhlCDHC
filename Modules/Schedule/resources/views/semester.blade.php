@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Lich hoc ky')
+@section('title', 'Lịch học kỳ')
 
 @section('content')
 @php
@@ -15,13 +15,13 @@
             'key' => $date->toDateString(),
             'label' => $date->format('d/m'),
             'day' => match ($dow) {
-                1 => 'Thu 2',
-                2 => 'Thu 3',
-                3 => 'Thu 4',
-                4 => 'Thu 5',
-                5 => 'Thu 6',
-                6 => 'Thu 7',
-                default => 'Chu nhat',
+                1 => 'Thứ 2',
+                2 => 'Thứ 3',
+                3 => 'Thứ 4',
+                4 => 'Thứ 5',
+                5 => 'Thứ 6',
+                6 => 'Thứ 7',
+                default => 'Chủ nhật',
             },
         ];
     });
@@ -59,37 +59,37 @@
         <div style="padding: 20px; border-bottom: 1px solid #e2e8f0;">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                 <div>
-                    <h2 style="margin: 0; font-weight: 800; color: #1e293b;">Lich hoc ky</h2>
+                    <h2 style="margin: 0; font-weight: 800; color: #1e293b;">Lịch học kỳ</h2>
                     <p style="margin: 5px 0 0; color: #64748b;">
-                        Hoc ky: {{ $plan->semester ?? '-' }} | Nam hoc: {{ $plan->year ?? '-' }}
-                        @if($className) | Lop: <strong>{{ $className }}</strong> @endif
+                        Học kỳ: {{ $plan->semester ?? '-' }} | Năm học: {{ $plan->year ?? '-' }}
+                        @if($className) | Lớp: <strong>{{ $className }}</strong> @endif
                     </p>
                 </div>
                 @auth
                     @if($plan && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
                         <a href="{{ route('schedule.semester-events.index', $plan->id) }}" class="btn btn-sm btn-outline-primary">
-                            Quan ly su kien hoc ky
+                            Quản lý sự kiện học kỳ
                         </a>
                     @endif
                 @endauth
             </div>
 
             <div class="legend mt-3">
-                <span class="legend-item"><span class="legend-swatch" style="background:#ffedd5;"></span>Nghi le</span>
-                <span class="legend-item"><span class="legend-swatch" style="background:#dbeafe;"></span>On thi</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#ffedd5;"></span>Nghỉ lễ</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#dbeafe;"></span>Ôn thi</span>
                 <span class="legend-item"><span class="legend-swatch" style="background:#fee2e2;"></span>Thi</span>
-                <span class="legend-item"><span class="legend-swatch" style="background:#ede9fe;"></span>Su kien khac</span>
+                <span class="legend-item"><span class="legend-swatch" style="background:#ede9fe;"></span>Sự kiện khác</span>
             </div>
         </div>
 
         @if (!$plan || $dates->isEmpty())
-            <div class="p-4 text-muted">Chua co du lieu lich hoc ky de hien thi.</div>
+            <div class="p-4 text-muted">Chưa có dữ liệu lịch học kỳ để hiển thị.</div>
         @else
             <div class="table-container" onclick="openScheduleModal()">
                 <table class="schedule-table">
                     <thead>
                         <tr>
-                            <th class="sticky-col">Tiet</th>
+                            <th class="sticky-col">Tiết</th>
                             @foreach($dateHeaders as $header)
                                 <th>
                                     <div class="date-header">
@@ -103,7 +103,7 @@
                     <tbody>
                         @foreach($periods as $period)
                             <tr>
-                                <td class="sticky-col">Tiet {{ $period }}</td>
+                                <td class="sticky-col">Tiết {{ $period }}</td>
                                 @foreach($dateHeaders as $header)
                                     @php
                                         $dateKey = $header['key'];

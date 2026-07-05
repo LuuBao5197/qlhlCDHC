@@ -89,7 +89,6 @@ class InitializeMonthlyScheduleHandler
                     'month' => $targetMonth,
                     'year' => $targetYear,
                     'created_by' => $request->user()?->id,
-                    'status' => 'draft',
                     'created_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ]);

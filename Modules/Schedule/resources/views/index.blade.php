@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Man hinh can bo phong dao tao')
+@section('title', 'Điều hướng phân công giảng dạy')
 
 @section('content')
     @php
@@ -15,7 +15,7 @@
                 <div class="card-body">
                     <h4 class="card-title mb-1">Điều hướng phân công giảng dạy</h4>
                     <p class="text-muted mb-0">
-                        Khoa đi vào phân công tổng hợp theo tháng; Phòng Đào tạo và quản trị viên đi vào hộp chờ phê duyệt batch.
+                        Khoa đi vào phân công tổng hợp theo tháng; PDT và quản trị viên đi vào hộp chờ phê duyệt batch.
                     </p>
                 </div>
             </div>

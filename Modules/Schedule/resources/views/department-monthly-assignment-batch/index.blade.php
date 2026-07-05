@@ -143,6 +143,9 @@
                             @php
                                 $batchStatus = $batch['status'] ?? 'draft';
                                 $batchStatusClass = $statusClasses[$batchStatus] ?? 'badge-secondary';
+                                $batchCanReview = $batchStatus === 'submitted';
+                                $batchActionLabel = $batchCanReview ? 'Xem và phê duyệt' : 'Xem chi tiết';
+                                $batchActionClass = $batchCanReview ? 'btn-outline-primary' : 'btn-outline-secondary';
                             @endphp
                             <tr>
                                 <td>
@@ -185,8 +188,8 @@
                                 </td>
                                 <td>
                                     <a href="{{ route('department-monthly-assignment-batches.show', $batch['id']) }}"
-                                        class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-eye mr-1"></i>Xem và phê duyệt
+                                        class="btn {{ $batchActionClass }} btn-sm">
+                                        <i class="fas fa-eye mr-1"></i>{{ $batchActionLabel }}
                                     </a>
                                 </td>
                             </tr>

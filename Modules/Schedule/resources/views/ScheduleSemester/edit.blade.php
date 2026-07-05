@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Sua lich tong quat hoc ky')
+@section('title', 'Sửa lịch tổng quát học kỳ')
 
 @section('content')
     @php
@@ -199,25 +199,25 @@
                                     value="{{ old('year', $plan->year) }}" required>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Ngay bat dau</label>
+                                <label class="form-label">Ngày bắt đầu</label>
                                 @include('schedule::partials._date-picker-field', [
                                     'name' => 'start_date',
                                     'field' => 'start_date',
                                     'value' => old('start_date', $plan->effective_from?->toDateString()),
                                     'required' => true,
                                     'min' => $minAllowedPlanDate,
-                                    'buttonLabel' => 'Lich',
+                                    'buttonLabel' => 'Lịch',
                                 ])
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Ngay ket thuc</label>
+                                <label class="form-label">Ngày kết thúc</label>
                                 @include('schedule::partials._date-picker-field', [
                                     'name' => 'end_date',
                                     'field' => 'end_date',
                                     'value' => old('end_date', $plan->effective_to?->toDateString()),
                                     'required' => true,
                                     'min' => $minAllowedPlanDate,
-                                    'buttonLabel' => 'Lich',
+                                    'buttonLabel' => 'Lịch',
                                 ])
                             </div>
                         </div>
@@ -370,7 +370,7 @@
                 if (endDisplay && end && !validatePlanDate(endDisplay, end)) valid = false;
                 if (start && end && start.value && end.value && end.value < start.value) {
                     if (endDisplay) {
-                        endDisplay.setCustomValidity('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
+                        endDisplay.setCustomValidity('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.');
                     }
                     valid = false;
                 }
@@ -773,7 +773,7 @@
                 if (!parsedEnd) errors.push('Thieu hoac sai ngay ket thuc.');
 
                 if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
-                    errors.push('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
+                    errors.push('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.');
                 }
 
                 if (!Number.isInteger(periodFrom) || periodFrom < 1 || periodFrom > 9) {

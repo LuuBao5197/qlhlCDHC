@@ -26,3 +26,4 @@ Thumbs.db
 .codex/config.toml
 AGENTS.md
 package-lock.json
+/.agents

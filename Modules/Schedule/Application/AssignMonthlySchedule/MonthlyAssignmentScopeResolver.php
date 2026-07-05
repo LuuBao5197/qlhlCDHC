@@ -74,6 +74,10 @@ class MonthlyAssignmentScopeResolver
 
     private function resolveDepartmentId(MonthlySchedule $anchorMonthlySchedule, ?User $user = null): ?int
     {
+        if ($user?->isDepartmentStaff() && $user->department_id !== null) {
+            return (int) $user->department_id;
+        }
+
         $departmentId = $anchorMonthlySchedule->scheduleSlots
             ->filter(fn ($slot) => $slot->subjectModel?->department_id !== null)
             ->map(fn ($slot) => (int) $slot->subjectModel->department_id)
