@@ -50,6 +50,12 @@
     @endif
 
     @forelse ($requests as $requestModel)
+        @php
+            $activeMergeGroupCounts = $requestModel->items
+                ->filter(fn ($item) => ($item->scheduleSlot?->scheduleSlotGroup?->status ?? '') === 'active')
+                ->groupBy(fn ($item) => (string) ($item->scheduleSlot?->schedule_slot_group_id ?? 0))
+                ->map(fn ($group) => $group->count());
+        @endphp
         <div class="card shadow-sm mb-3">
             <div class="card-header bg-light d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                 <div>
@@ -67,6 +73,9 @@
             <div class="card-body">
                 <form method="POST" action="{{ route('teaching-support-requests.confirm', $requestModel->id) }}">
                     @csrf
+                    <div class="small text-muted mb-2">
+                        Tiết ghép sẽ tự đồng bộ cùng giảng viên trong một nhóm.
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm mb-0">
                             <thead class="thead-light">
@@ -85,11 +94,24 @@
                                 @foreach ($requestModel->items as $item)
                                     @php
                                         $teacherAvailabilityByItem = $teacherAvailabilityMap[$item->id] ?? [];
+                                        $mergeGroupId = $item->scheduleSlot?->schedule_slot_group_id ?? null;
+                                        $mergeGroupStatus = $item->scheduleSlot?->scheduleSlotGroup?->status ?? '';
+                                        $isMerged = !empty($mergeGroupId) && $mergeGroupStatus === 'active';
+                                        $mergeGroupCount = (int) ($activeMergeGroupCounts[(string) $mergeGroupId] ?? 0);
+                                        $mergeGroupLabel = 'Tiết ghép' . ($mergeGroupCount > 1 ? ' - ' . $mergeGroupCount . ' lớp' : '');
                                     @endphp
-                                    <tr>
+                                    <tr data-merge-group-id="{{ $mergeGroupId ?? '' }}"
+                                        data-merge-group-status="{{ $mergeGroupStatus }}">
                                         <td>{{ $item->scheduleSlot?->date?->format('d/m/Y') ?? '-' }}</td>
                                         <td>{{ $item->scheduleSlot?->period_number ?? '-' }}</td>
-                                        <td>{{ $item->scheduleSlot?->trainingClass?->code ?? '-' }}</td>
+                                        <td>
+                                            <div class="font-weight-bold">{{ $item->scheduleSlot?->trainingClass?->code ?? '-' }}</div>
+                                            @if ($isMerged)
+                                                <span class="badge badge-primary merge-group-pill mt-1">
+                                                    {{ $mergeGroupLabel }}
+                                                </span>
+                                            @endif
+                                        </td>
                                         <td>{{ $item->scheduleSlot?->subjectModel?->code ?? '-' }}</td>
                                         <td>
                                             @php
@@ -105,6 +127,7 @@
                                             <input type="hidden" name="assignments[{{ $loop->index }}][request_item_id]"
                                                 value="{{ $item->id }}">
                                             <select name="assignments[{{ $loop->index }}][teacher_id]"
+                                                data-support-teacher-select="1"
                                                 class="form-control form-control-sm" required>
                                                 <option value="">-- Chọn giảng viên --</option>
                                                 @foreach ($requestModel->assignedSupportingDepartment?->teachers ?? collect() as $teacher)
@@ -150,4 +173,100 @@
             Không có nhiệm vụ hỗ trợ nào đang chờ khoa hiện tại xử lý.
         </div>
     @endforelse
+
+    <style>
+        .merge-group-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+            line-height: 1.1;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function syncMergedTeacherSelects(select) {
+                if (!select) {
+                    return;
+                }
+
+                var row = select.closest('tr');
+                if (!row) {
+                    return;
+                }
+
+                if (row.getAttribute('data-merge-group-status') !== 'active') {
+                    return;
+                }
+
+                var groupId = row.getAttribute('data-merge-group-id');
+                if (!groupId) {
+                    return;
+                }
+
+                var form = select.closest('form');
+                if (!form) {
+                    return;
+                }
+
+                var value = select.value;
+                form.querySelectorAll('tr[data-merge-group-id="' + groupId + '"][data-merge-group-status="active"] select[data-support-teacher-select="1"]')
+                    .forEach(function(otherSelect) {
+                        if (otherSelect !== select) {
+                            otherSelect.value = value;
+                        }
+                    });
+            }
+
+            function syncInitialMergedTeacherSelects() {
+                document.querySelectorAll('form[action*="teaching-support-requests/confirm"]').forEach(function(form) {
+                    var grouped = {};
+                    form.querySelectorAll('tr[data-merge-group-id][data-merge-group-status="active"] select[data-support-teacher-select="1"]')
+                        .forEach(function(select) {
+                            var row = select.closest('tr');
+                            if (!row) {
+                                return;
+                            }
+
+                            var groupId = row.getAttribute('data-merge-group-id');
+                            if (!groupId) {
+                                return;
+                            }
+
+                            if (!grouped[groupId]) {
+                                grouped[groupId] = [];
+                            }
+
+                            grouped[groupId].push(select);
+                        });
+
+                    Object.keys(grouped).forEach(function(groupId) {
+                        var selects = grouped[groupId];
+                        if (!selects.length) {
+                            return;
+                        }
+
+                        var selectedValue = selects.find(function(select) {
+                            return select.value !== '';
+                        })?.value || selects[0].value || '';
+
+                        selects.forEach(function(select) {
+                            select.value = selectedValue;
+                        });
+                    });
+                });
+            }
+
+            document.addEventListener('change', function(event) {
+                var select = event.target.closest('select[data-support-teacher-select="1"]');
+                if (select) {
+                    syncMergedTeacherSelects(select);
+                }
+            });
+
+            syncInitialMergedTeacherSelects();
+        });
+    </script>
 @endsection

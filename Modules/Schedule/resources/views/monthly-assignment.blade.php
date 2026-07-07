@@ -50,9 +50,11 @@
         $supportTeacherAvailabilityMap = $supportTeacherAvailabilityMap ?? [];
         $supportWorkloadSummary = $supportWorkloadSummary ?? [];
         $currentDepartmentId = (int) ($currentDepartmentId ?? 0);
+        $supportRequestDisabledReason = 'Màn này đang khóa do batch đã gửi/đã phê duyệt.';
         $supportCanManageAssignments = auth()->check()
             && auth()->user()->isDepartmentStaff()
             && (int) auth()->user()->department_id === $currentDepartmentId;
+        $supportRequestCanOpen = $supportCanManageAssignments && ! $batchReadOnly;
         $supportRequestStoreUrl = route('teaching-support-requests.store', $monthlySchedule->id);
         $supportRequestIndexUrl = route('teaching-support-requests.index');
         $supportRequestQueueUrl = auth()->check() && auth()->user()->isDepartmentStaff()
@@ -110,10 +112,17 @@
                             @endif
                         @endif
 
-                        @if ($canCreateSupportRequest)
-                            <button type="button" class="btn btn-warning btn-sm mr-2 mb-2" id="openSupportRequestModal">
+                        @if ($supportCanManageAssignments)
+                            <button type="button" class="btn btn-warning btn-sm mr-2 mb-2"
+                                id="openSupportRequestModal" @disabled(! $supportRequestCanOpen)
+                                title="{{ $supportRequestCanOpen ? 'Tạo đề nghị hỗ trợ mới' : $supportRequestDisabledReason }}">
                                 <i class="fas fa-hands-helping mr-1"></i>Đề nghị khoa hỗ trợ
                             </button>
+                            @if (! $supportRequestCanOpen)
+                                <span class="small text-muted align-self-center mb-2">
+                                    {{ $supportRequestDisabledReason }}
+                                </span>
+                            @endif
                         @endif
 
                         @if ($supportCanManageAssignments || $canCreateSupportRequest)
@@ -971,7 +980,7 @@
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info">
-                            Chọn các tiết chưa có giảng viên và đã có bài học rõ ràng để gửi đề nghị. Hệ thống sẽ tự gom các nhóm ghép active thành một đơn vị.
+                            Chọn các tiết chưa có giảng viên, đã có bài học và phòng học rõ ràng để gửi đề nghị. Hệ thống sẽ tự gom các nhóm ghép active thành một đơn vị.
                         </div>
 
                         <div class="form-group">
@@ -3498,8 +3507,8 @@
                 });
             }
 
-            function getSupportSelectedRows() {
-                return Array.prototype.slice.call(document.querySelectorAll('.slot-check:checked'))
+            function getSupportSelectionState() {
+                var checkedRows = Array.prototype.slice.call(document.querySelectorAll('.slot-check:checked'))
                     .map(function(checkbox) {
                         return checkbox.closest('tr');
                     })
@@ -3514,6 +3523,23 @@
                             lessonReady &&
                             (!teacherSelect || teacherSelect.value === '');
                     });
+                var validRows = checkedRows.filter(function(row) {
+                    var roomSelect = getRoomSelect(row);
+                    return roomSelect ? roomSelect.value !== '' : false;
+                });
+
+                return {
+                    checkedRows: checkedRows,
+                    validRows: validRows,
+                    invalidRows: checkedRows.filter(function(row) {
+                        var roomSelect = getRoomSelect(row);
+                        return !roomSelect || roomSelect.value === '';
+                    })
+                };
+            }
+
+            function getSupportSelectedRows() {
+                return getSupportSelectionState().validRows;
             }
 
             function getSupportSelectedSlotIds() {
@@ -3532,13 +3558,20 @@
                     return;
                 }
 
-                var rows = getSupportSelectedRows();
-                if (!rows.length) {
+                var selectionState = getSupportSelectionState();
+                if (!selectionState.checkedRows.length) {
                     supportRequestSelectionInfo.textContent = 'Chưa chọn tiết nào.';
                     return;
                 }
 
-                supportRequestSelectionInfo.textContent = 'Đã chọn ' + rows.length +
+                if (selectionState.invalidRows.length) {
+                    supportRequestSelectionInfo.textContent = 'Đã chọn ' + selectionState.validRows.length +
+                        ' tiết hợp lệ; có ' + selectionState.invalidRows.length +
+                        ' tiết chưa có phòng học.';
+                    return;
+                }
+
+                supportRequestSelectionInfo.textContent = 'Đã chọn ' + selectionState.validRows.length +
                     ' tiết hợp lệ để gửi đề nghị hỗ trợ.';
             }
 
@@ -3700,12 +3733,27 @@
                     }
                 }
 
-                var slotIds = getSupportSelectedSlotIds();
+                var selectionState = getSupportSelectionState();
+                var slotIds = selectionState.validRows
+                    .map(function(row) {
+                        var slotId = row.getAttribute('data-slot-id');
+                        return slotId ? parseInt(slotId, 10) : null;
+                    })
+                    .filter(function(slotId) {
+                        return Number.isInteger(slotId) && slotId > 0;
+                    });
                 var departmentId = supportDepartmentSelect ? supportDepartmentSelect.value : '';
                 var note = supportRequestNote ? supportRequestNote.value.trim() : '';
 
                 if (!slotIds.length) {
-                    setSupportRequestModalError('Vui lòng chọn ít nhất 1 tiết chưa có giảng viên.');
+                    setSupportRequestModalError(selectionState.checkedRows.length
+                        ? 'Các tiết được chọn phải có phòng học trước khi gửi đề nghị hỗ trợ.'
+                        : 'Vui lòng chọn ít nhất 1 tiết chưa có giảng viên.');
+                    return;
+                }
+
+                if (selectionState.invalidRows.length) {
+                    setSupportRequestModalError('Các tiết được chọn phải có phòng học trước khi gửi đề nghị hỗ trợ.');
                     return;
                 }
 

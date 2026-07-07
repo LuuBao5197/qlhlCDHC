@@ -129,7 +129,9 @@ class TeachingSupportRequestService
             'support_department_options' => $supportDepartmentOptions,
             'summary' => $summary,
             'can_create_request' => $this->canCreateRequestFromScope($scope)
-                && $slots->contains(fn (ScheduleSlot $slot): bool => ($slot->teacher_id === null) && ($slot->assignment_source ?? 'internal') === 'internal'),
+                && $slots->contains(fn (ScheduleSlot $slot): bool => ($slot->teacher_id === null)
+                    && ($slot->assignment_source ?? 'internal') === 'internal'
+                    && $slot->room_id !== null),
         ];
     }
 
@@ -493,6 +495,7 @@ class TeachingSupportRequestService
             $this->ensureSlotsHaveClearSubjectLessons($slots);
             $slots = $this->expandActiveMergeGroups($slots, $scope['monthly_schedule_ids'], $scope['department_subject_ids']);
             $this->ensureSlotsHaveClearSubjectLessons($slots);
+            $this->ensureSlotsHaveRooms($slots);
 
             $this->ensureNoDuplicateActiveRequest($slots);
 
@@ -1243,6 +1246,25 @@ class TeachingSupportRequestService
             throw ValidationException::withMessages([
                 'slot_ids' => sprintf(
                     'Tiet hoc #%d chua co bai hoc ro rang nen khong the tao de nghi ho tro.',
+                    (int) $invalidSlot->id
+                ),
+            ]);
+        }
+    }
+
+    /**
+     * @param EloquentCollection<int, ScheduleSlot> $slots
+     */
+    private function ensureSlotsHaveRooms(EloquentCollection $slots): void
+    {
+        $invalidSlot = $slots->first(function (ScheduleSlot $slot): bool {
+            return $slot->room_id === null;
+        });
+
+        if ($invalidSlot instanceof ScheduleSlot) {
+            throw ValidationException::withMessages([
+                'slot_ids' => sprintf(
+                    'Tiet hoc #%d chua co phong hoc nen khong the tao de nghi ho tro.',
                     (int) $invalidSlot->id
                 ),
             ]);
