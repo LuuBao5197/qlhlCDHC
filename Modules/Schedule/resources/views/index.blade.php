@@ -52,7 +52,7 @@
                     return null;
                 }
 
-                $assignedCount = $subjectSlots->filter(fn ($slot) => !empty($slot->teacher_id))->count();
+                $assignedCount = $subjectSlots->filter(fn ($slot) => !empty($slot->teacher_id) || !empty($slot->assignment_type))->count();
 
                 return [
                     'monthly_schedule_id' => $monthlySchedule->id,

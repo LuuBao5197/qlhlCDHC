@@ -13,6 +13,8 @@ use Modules\Training\Models\Teacher;
 
 class ScheduleSlotGroup extends Model
 {
+    public const ASSIGNMENT_TYPE_SELF_STUDY = 'self_study';
+
     protected $table = 'schedule_slot_groups';
 
     protected $fillable = [
@@ -22,6 +24,7 @@ class ScheduleSlotGroup extends Model
         'subject_id',
         'subject_lesson_id',
         'teacher_id',
+        'assignment_type',
         'room_id',
         'status',
         'note',

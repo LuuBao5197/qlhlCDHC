@@ -21,7 +21,7 @@
                 'plan_name' => $first['monthly_schedule_plan_name'] ?? null,
             ];
         })->values();
-        $assignedSlotCount = $slots->filter(fn ($slot) => ! empty($slot['teacher_id']))->count();
+        $assignedSlotCount = $slots->filter(fn ($slot) => ! empty($slot['teacher_id']) || ! empty($slot['assignment_type']))->count();
         $unassignedSlotCount = max(($batchData['slot_count'] ?? 0) - $assignedSlotCount, 0);
         $activeMergeGroupCount = $slots
             ->filter(fn ($slot) => ! empty($slot['merge_group_id']) && ($slot['merge_group_status'] ?? '') === 'active')
@@ -252,7 +252,7 @@
                                         <span class="badge badge-secondary">Event</span>
                                     @elseif (($slot['slot_status'] ?? '') === 'cancelled')
                                         <span class="badge badge-danger">Cancelled</span>
-                                    @elseif (! empty($slot['teacher_id']))
+                                    @elseif (! empty($slot['teacher_id']) || ! empty($slot['assignment_type']))
                                         <span class="badge badge-success">Đã phân công</span>
                                     @else
                                         <span class="badge badge-warning">Chưa phân công</span>

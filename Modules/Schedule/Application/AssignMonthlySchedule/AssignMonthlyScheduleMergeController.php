@@ -34,6 +34,13 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 404);
         }
 
+        if ($slot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
         $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
         if ($scope === null) {
             return response()->json([
@@ -69,6 +76,16 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 404);
         }
 
+        if ($baseSlot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tiet tu nghien cuu khong duoc ghep lop.',
+                'errors' => [
+                    'slots.0' => ['Tiet tu nghien cuu khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
+
         $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
         if ($scope === null) {
             return response()->json([
@@ -81,11 +98,35 @@ class AssignMonthlyScheduleMergeController extends Controller
             'candidate_slot_ids' => ['required', 'array', 'min:1'],
             'candidate_slot_ids.*' => ['required', 'integer', 'distinct', 'exists:schedule_slots,id'],
             'teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
+            'assignment_type' => ['nullable', 'string', 'in:self_study'],
             'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
             'content' => ['nullable', 'string', 'max:500'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $assignmentType = $validated['assignment_type'] ?? null;
+        $subjectLessonId = $validated['subject_lesson_id'] ?? null;
+
+        if ($assignmentType === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY && $subjectLessonId !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tiet tu nghien cuu khong duoc chon bai hoc.',
+                'errors' => [
+                    'subject_lesson_id' => ['Tiet tu nghien cuu khong duoc chon bai hoc.'],
+                ],
+            ], 422);
+        }
+
+        if ($assignmentType !== ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY && $subjectLessonId === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tiet hoc phai co bai hoc.',
+                'errors' => [
+                    'subject_lesson_id' => ['Tiet hoc phai co bai hoc.'],
+                ],
+            ], 422);
+        }
 
         $candidateIds = collect($validated['candidate_slot_ids'])
             ->map(fn ($value) => (int) $value)
@@ -106,14 +147,25 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 422);
         }
 
+        if ($candidateSlots->contains(fn (ScheduleSlot $slot) => $slot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tiet tu nghien cuu khong duoc ghep lop.',
+                'errors' => [
+                    'candidate_slot_ids' => ['Tiet tu nghien cuu khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
+
         $slots = $slots->concat($candidateSlots)->values();
 
         try {
             $group = $this->mergeService->createMergeGroup(
                 $slots,
                 isset($validated['teacher_id']) ? (int) $validated['teacher_id'] : null,
+                $assignmentType,
                 isset($validated['room_id']) ? (int) $validated['room_id'] : null,
-                isset($validated['subject_lesson_id']) ? (int) $validated['subject_lesson_id'] : null,
+                $subjectLessonId !== null ? (int) $subjectLessonId : null,
                 $validated['content'] ?? null,
                 $validated['note'] ?? null
             );
@@ -131,6 +183,7 @@ class AssignMonthlyScheduleMergeController extends Controller
             'group_id' => $group->id,
             'slot_ids' => $group->scheduleSlots->pluck('id')->values()->all(),
             'teacher_id' => $group->teacher_id,
+            'assignment_type' => $group->assignment_type,
             'room_id' => $group->room_id,
             'subject_lesson_id' => $group->subject_lesson_id,
         ]);
@@ -210,10 +263,20 @@ class AssignMonthlyScheduleMergeController extends Controller
                 ? 'B' . $candidate->subjectLesson->lesson_no . ': ' . $candidate->subjectLesson->title
                 : null,
             'teacher_id' => $candidate->teacher_id,
-            'teacher_name' => $candidate->teacher?->name,
+            'assignment_type' => $candidate->assignment_type,
+            'teacher_name' => $this->resolveTeacherName($candidate),
             'room_id' => $candidate->room_id,
             'room_code' => $candidate->room?->code,
             'slot_status' => $candidate->slot_status,
         ];
+    }
+
+    private function resolveTeacherName(ScheduleSlot $slot): ?string
+    {
+        if ($slot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return 'Lớp tự nghiên cứu';
+        }
+
+        return $slot->teacher?->name;
     }
 }

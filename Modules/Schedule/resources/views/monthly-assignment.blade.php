@@ -27,7 +27,22 @@
         $currentBatchStatusClass = $currentBatchStatusClasses[$currentBatchStatus] ?? 'badge-secondary';
         $batchReadOnly = in_array($currentBatchStatus, ['submitted', 'approved'], true);
         $batchCanSubmit = in_array($currentBatchStatus, ['draft', 'returned'], true) || !$currentBatch;
-        $currentAssignedSlotCount = $aggregateSlots->filter(fn($slot) => !empty($slot->teacher_id))->count();
+        $specialTeacherOptions = [
+            \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY => 'Lớp tự nghiên cứu',
+        ];
+        $getTeacherSelectValue = function ($slot): string {
+            $assignmentType = $slot->assignment_type ?? null;
+
+            if ($assignmentType === \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+                return '__assignment:' . $assignmentType . '__';
+            }
+
+            return !empty($slot->teacher_id) ? (string) $slot->teacher_id : '';
+        };
+        $isAssignedSlot = function ($slot): bool {
+            return !empty($slot->teacher_id) || !empty($slot->assignment_type);
+        };
+        $currentAssignedSlotCount = $aggregateSlots->filter(fn($slot) => $isAssignedSlot($slot))->count();
         $currentUnassignedSlotCount = max($subjectSlotCount - $currentAssignedSlotCount, 0);
         $currentActiveMergeGroupCount = $aggregateSlots
             ->filter(
@@ -371,6 +386,14 @@
                                         <div class="bulk-search-picker-mount mr-2 mb-1" id="bulkTeacherPickerMount"></div>
                                         <select id="bulkTeacher" class="d-none" @disabled($batchReadOnly)>
                                             <option value="">-- Chọn GV --</option>
+                                            <optgroup label="Lớp tự nghiên cứu">
+                                                @foreach ($specialTeacherOptions as $value => $label)
+                                                    <option value="__assignment:{{ $value }}__"
+                                                        data-search="{{ $label }}">
+                                                        {{ $label }}
+                                                    </option>
+                                                @endforeach
+                                            </optgroup>
                                             @foreach ($teachers as $teacher)
                                                 <option value="{{ $teacher->id }}"
                                                     data-search="{{ trim(($teacher->name ?? '') . ' ' . ($teacher->teacher_code ?? '') . ' ' . ($teacher->employee_code ?? '')) }}">
@@ -506,15 +529,25 @@
                                                                 @php
                                                                     $isEvent =
                                                                         ($slot->slot_type ?? 'subject') === 'event';
+                                                                    $assignmentType = $slot->assignment_type ?? null;
+                                                                    $canMergeSlot =
+                                                                        !$isEvent &&
+                                                                        $assignmentType !== \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY;
                                                                     $supportMeta = $supportSlotMeta[$slot->id] ?? null;
                                                                     $supportLocked = (bool) ($supportMeta['locked'] ?? false);
                                                                     $idx = $flatIndex++;
                                                                     $oldSlot = $oldSlots[$idx] ?? null;
-                                                                    $hasTeacher =
-                                                                        !$isEvent &&
-                                                                        !empty(
-                                                                            $oldSlot['teacher_id'] ?? $slot->teacher_id
-                                                                        );
+                                                                    $selectedTeacherValue = $oldSlot['assignment_type']
+                                                                        ?? $slot->assignment_type
+                                                                        ?? null;
+                                                                    if ($selectedTeacherValue === null || $selectedTeacherValue === '') {
+                                                                        $selectedTeacherValue = !empty($oldSlot['teacher_id'] ?? $slot->teacher_id)
+                                                                            ? (string) ($oldSlot['teacher_id'] ?? $slot->teacher_id)
+                                                                            : '';
+                                                                    } elseif ($selectedTeacherValue === \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+                                                                        $selectedTeacherValue = '__assignment:' . $selectedTeacherValue . '__';
+                                                                    }
+                                                                    $hasTeacher = !$isEvent && !blank($selectedTeacherValue);
                                                                     $rowClass = $isEvent
                                                                         ? 'slot-event'
                                                                         : ($hasTeacher
@@ -545,6 +578,7 @@
                                                                     data-source-cohort-id="{{ $slot->monthlySchedule?->plan?->training_batch_id ?? '' }}"
                                                                     data-merge-group-id="{{ $mergeGroupId ?? '' }}"
                                                                     data-merge-group-status="{{ $mergeGroupStatus }}"
+                                                                    data-assignment-type="{{ $slot->assignment_type ?? '' }}"
                                                                     data-support-requestable="{{ $hasClearSubjectLesson ? '1' : '0' }}"
                                                                     data-class="{{ $slot->trainingClass?->code ?? '' }}"
                                                                     data-class-id="{{ $slot->class_id }}"
@@ -569,7 +603,7 @@
                                                                         @if ($isMerged && !$supportLocked)
                                                                             <span class="badge badge-success ml-1"
                                                                                 style="font-size: 10px;">Đã ghép</span>
-                                                                            @if (!$batchReadOnly && !$supportLocked)
+                                                                            @if ($canMergeSlot && !$batchReadOnly && !$supportLocked)
                                                                                 <button type="button"
                                                                                     class="btn btn-link btn-sm p-0 ml-1 split-merge-group-btn"
                                                                                     data-slot-id="{{ $slot->id }}"
@@ -578,7 +612,7 @@
                                                                                     Tách ghép
                                                                                 </button>
                                                                             @endif
-                                                                        @elseif (!$isEvent && !$batchReadOnly && !$supportLocked)
+                                                                        @elseif ($canMergeSlot && !$batchReadOnly && !$supportLocked)
                                                                             <button type="button"
                                                                                 class="btn btn-link btn-sm p-0 ml-1 merge-slot-btn"
                                                                                 data-slot-id="{{ $slot->id }}"
@@ -627,10 +661,19 @@
                                                                         @else
                                                                             <select data-field="teacher_id"
                                                                                 class="form-control form-control-sm"
-                                                                                data-initial-value="{{ (string) ($slot->teacher_id ?? '') }}"
+                                                                                data-initial-value="{{ $selectedTeacherValue }}"
                                                                                 @disabled($batchReadOnly)>
                                                                                 <option value="">-- Chọn GV --
                                                                                 </option>
+                                                                                <optgroup label="Lớp tự nghiên cứu">
+                                                                                    @foreach ($specialTeacherOptions as $value => $label)
+                                                                                        <option value="__assignment:{{ $value }}__"
+                                                                                            data-search="{{ $label }}"
+                                                                                            @selected($selectedTeacherValue === '__assignment:' . $value . '__')>
+                                                                                            {{ $label }}
+                                                                                        </option>
+                                                                                    @endforeach
+                                                                                </optgroup>
                                                                                 @foreach ($teachers as $teacher)
                                                                                     @php $selectedTeacher = $oldSlot['teacher_id'] ?? $slot->teacher_id; @endphp
                                                                                     <option value="{{ $teacher->id }}"
@@ -1645,6 +1688,9 @@
             var supportTeacherSelects = Array.prototype.slice.call(document.querySelectorAll('.support-teacher-select'));
             var supportAssignmentRows = Array.prototype.slice.call(document.querySelectorAll('tr[data-support-item-id]'));
             var supportTeacherAvailabilityMap = @json($supportTeacherAvailabilityMap);
+            var specialTeacherOptionValues = {
+                '__assignment:self_study__': 'self_study'
+            };
             var mergeModalEl = document.getElementById('mergeSlotModal');
             var mergeModalError = document.getElementById('mergeSlotModalError');
             var mergeModalInfo = document.getElementById('mergeSlotModalInfo');
@@ -1696,6 +1742,61 @@
 
             function getSupportTeacherAvailability(rowId, teacherId) {
                 return !!(supportTeacherAvailabilityMap && supportTeacherAvailabilityMap[String(rowId)] && supportTeacherAvailabilityMap[String(rowId)][String(teacherId)] !== false);
+            }
+
+            function isSpecialTeacherOptionValue(value) {
+                return !!(value && Object.prototype.hasOwnProperty.call(specialTeacherOptionValues, String(value)));
+            }
+
+            function resolveAssignmentTypeFromTeacherOption(value) {
+                return isSpecialTeacherOptionValue(value) ? specialTeacherOptionValues[String(value)] : null;
+            }
+
+            function syncSubjectLessonState(row) {
+                if (!row || row.dataset.slotType === 'event') {
+                    return false;
+                }
+
+                var lessonSelect = getSubjectLessonSelect(row);
+                if (!lessonSelect) {
+                    return false;
+                }
+
+                var teacherSelect = getTeacherSelect(row);
+                var assignmentType = teacherSelect ? resolveAssignmentTypeFromTeacherOption(teacherSelect.value) : null;
+                var isSpecialAssignment = !!assignmentType;
+                var changed = false;
+
+                row.setAttribute('data-assignment-type', assignmentType || '');
+                lessonSelect.disabled = isSpecialAssignment;
+                if (isSpecialAssignment && lessonSelect.value !== '') {
+                    setSelectValue(lessonSelect, '', false);
+                    changed = true;
+                }
+
+                row.setAttribute('data-support-requestable', lessonSelect.value !== '' ? '1' : '0');
+                if (changed) {
+                    syncRowDirtyState(row);
+                }
+
+                var mergeGroupId = getRowMergeGroupId(row);
+                var mergeGroupStatus = getRowMergeGroupStatus(row);
+                var actionCell = getMergeActionCell(row);
+                if (actionCell && !row.classList.contains('slot-event')) {
+                    if (mergeGroupId && mergeGroupStatus === 'active') {
+                        if (canMergeRow(row)) {
+                            renderMergedActionCell(row, mergeGroupId);
+                        } else {
+                            clearMergeControls(actionCell);
+                        }
+                    } else if (canMergeRow(row)) {
+                        renderUnmergedActionCell(row);
+                    } else {
+                        clearMergeControls(actionCell);
+                    }
+                }
+
+                return isSpecialAssignment;
             }
 
             function clearSupportRowError(row) {
@@ -1898,6 +1999,14 @@
                 return row.getAttribute('data-merge-group-status') || '';
             }
 
+            function canMergeRow(row) {
+                if (!row || row.dataset.slotType === 'event') {
+                    return false;
+                }
+
+                return row.getAttribute('data-assignment-type') !== 'self_study';
+            }
+
             function getRowSourceMonthlyScheduleId(row) {
                 return row.getAttribute('data-source-monthly-schedule-id') || currentMonthlyScheduleId;
             }
@@ -2023,11 +2132,15 @@
                 var roomSelect = getRoomSelect(row);
                 var contentInput = getContentInput(row);
                 var noteInput = getNoteInput(row);
+                var teacherValue = teacherSelect ? teacherSelect.value : '';
+                var assignmentType = resolveAssignmentTypeFromTeacherOption(teacherValue);
+                var subjectLessonId = lessonSelect && lessonSelect.value !== '' ? toNullableInt(lessonSelect.value) : null;
 
                 return {
                     slot_id: toNullableInt(getSlotId(row)),
-                    teacher_id: teacherSelect && teacherSelect.value !== '' ? toNullableInt(teacherSelect.value) : null,
-                    subject_lesson_id: lessonSelect && lessonSelect.value !== '' ? toNullableInt(lessonSelect.value) : null,
+                    teacher_id: teacherValue !== '' && !assignmentType ? toNullableInt(teacherValue) : null,
+                    assignment_type: assignmentType,
+                    subject_lesson_id: assignmentType ? null : subjectLessonId,
                     room_id: roomSelect && roomSelect.value !== '' ? toNullableInt(roomSelect.value) : null,
                     content: contentInput && contentInput.value !== '' ? contentInput.value : null,
                     note: noteInput && noteInput.value !== '' ? noteInput.value : null
@@ -2481,6 +2594,7 @@
                 if (!row) {
                     return {
                         teacher_id: null,
+                        assignment_type: null,
                         room_id: null,
                         subject_id: null,
                         subject_lesson_id: null,
@@ -2495,12 +2609,16 @@
                 var lessonSelect = getSubjectLessonSelect(row);
                 var contentInput = getContentInput(row);
                 var noteInput = getNoteInput(row);
+                var teacherValue = teacherSelect ? teacherSelect.value : '';
+                var assignmentType = resolveAssignmentTypeFromTeacherOption(teacherValue);
+                var subjectLessonId = lessonSelect ? toNullableInt(lessonSelect.value) : null;
 
                 return {
-                    teacher_id: teacherSelect ? toNullableInt(teacherSelect.value) : null,
+                    teacher_id: teacherValue !== '' && !assignmentType ? toNullableInt(teacherValue) : null,
+                    assignment_type: assignmentType,
                     room_id: roomSelect ? toNullableInt(roomSelect.value) : null,
                     subject_id: subjectInput ? toNullableInt(subjectInput.value) : null,
-                    subject_lesson_id: lessonSelect ? toNullableInt(lessonSelect.value) : null,
+                    subject_lesson_id: assignmentType ? null : subjectLessonId,
                     content: contentInput ? contentInput.value : null,
                     note: noteInput ? noteInput.value : null
                 };
@@ -2566,7 +2684,7 @@
                 var map = {};
                 allRows.forEach(function(row) {
                     var sel = getTeacherSelect(row);
-                    if (!sel || !sel.value) {
+                    if (!sel || !sel.value || isSpecialTeacherOptionValue(sel.value)) {
                         return;
                     }
 
@@ -2590,6 +2708,10 @@
 
             function canAssignTeacherToRow(row, teacherId, usedMap) {
                 if (!teacherId) {
+                    return true;
+                }
+
+                if (isSpecialTeacherOptionValue(teacherId)) {
                     return true;
                 }
 
@@ -2683,6 +2805,12 @@
 
                     Array.prototype.slice.call(sel.options).forEach(function(opt) {
                         if (!opt.value) {
+                            opt.disabled = false;
+                            opt.hidden = false;
+                            return;
+                        }
+
+                        if (isSpecialTeacherOptionValue(opt.value)) {
                             opt.disabled = false;
                             opt.hidden = false;
                             return;
@@ -2796,6 +2924,7 @@
             filterClass.addEventListener('input', applyFilters);
             filterSess.addEventListener('change', applyFilters);
             applyFilters();
+            allRows.forEach(syncSubjectLessonState);
             allRows.forEach(markRowAssignedState);
             refreshTeacherOptions();
             refreshRoomOptions();
@@ -2836,6 +2965,10 @@
                     if (row) {
                         syncActiveMergeGroupField(row, '[data-field="teacher_id"]', e.target.value, {
                             dispatchChange: false
+                        });
+                        syncSubjectLessonState(row);
+                        getActiveMergeGroupRows(row).forEach(function(groupRow) {
+                            syncSubjectLessonState(groupRow);
                         });
                         markRowAssignedState(row);
                         getActiveMergeGroupRows(row).forEach(markRowAssignedState);
@@ -2945,12 +3078,15 @@
                     }
 
                     setSelectValue(sel, teacherId);
+                    syncSubjectLessonState(row);
                     syncRowDirtyState(row);
-                    var key = getSlotKey(row);
-                    if (!usedMap[key]) {
-                        usedMap[key] = {};
+                    if (!isSpecialTeacherOptionValue(teacherId)) {
+                        var key = getSlotKey(row);
+                        if (!usedMap[key]) {
+                            usedMap[key] = {};
+                        }
+                        usedMap[key][String(teacherId)] = true;
                     }
-                    usedMap[key][String(teacherId)] = true;
                     markRowAssignedState(row);
                     assigned++;
                 });
@@ -3037,6 +3173,9 @@
                 allRows.forEach(function(row) {
                     var sel = getTeacherSelect(row);
                     if (sel && sel.value) {
+                        if (isSpecialTeacherOptionValue(sel.value)) {
+                            return;
+                        }
                         var key = row.dataset.subjectId + '_' + row.dataset.classId;
                         if (!teacherMap[key]) teacherMap[key] = sel.value;
                     }
@@ -3129,7 +3268,7 @@
 
             function renderMergedActionCell(row, groupId) {
                 var actionCell = getMergeActionCell(row);
-                if (!actionCell) {
+                if (!actionCell || !canMergeRow(row)) {
                     return;
                 }
 
@@ -3149,7 +3288,7 @@
 
             function renderUnmergedActionCell(row) {
                 var actionCell = getMergeActionCell(row);
-                if (!actionCell) {
+                if (!actionCell || !canMergeRow(row)) {
                     return;
                 }
 
@@ -3165,8 +3304,8 @@
                 );
             }
 
-            function applyMergeGroupToRows(slotIds, groupId, teacherId, roomId, subjectLessonId, subjectId, content,
-                note) {
+            function applyMergeGroupToRows(slotIds, groupId, teacherId, assignmentType, roomId, subjectLessonId,
+                subjectId, content, note) {
                 (slotIds || []).forEach(function(slotId) {
                     var row = document.querySelector('tr[data-slot-id="' + escapeHtml(slotId) + '"]');
                     if (!row) {
@@ -3176,11 +3315,16 @@
                     row.setAttribute('data-merge-group-id', groupId || '');
                     row.setAttribute('data-merge-group-status', 'active');
                     setInputValue(getFieldElement(row, 'subject_id'), subjectId);
-                    setSelectValue(getTeacherSelect(row), teacherId, false);
+                    setSelectValue(
+                        getTeacherSelect(row),
+                        assignmentType ? '__assignment:' + assignmentType + '__' : teacherId,
+                        false
+                    );
                     setSelectValue(getRoomSelect(row), roomId, false);
                     setSelectValue(getSubjectLessonSelect(row), subjectLessonId, false);
                     setInputValue(getContentInput(row), content);
                     setInputValue(getNoteInput(row), note);
+                    syncSubjectLessonState(row);
                     markRowAssignedState(row);
                     renderMergedActionCell(row, groupId);
                     syncRowDirtyState(row);
@@ -3370,6 +3514,7 @@
                         body: JSON.stringify({
                             candidate_slot_ids: checkedIds,
                             teacher_id: basePayload.teacher_id,
+                            assignment_type: basePayload.assignment_type,
                             room_id: basePayload.room_id,
                             subject_lesson_id: basePayload.subject_lesson_id,
                             content: basePayload.content,
@@ -3386,6 +3531,7 @@
                         payload.slot_ids || [],
                         payload.group_id || '',
                         payload.teacher_id,
+                        payload.assignment_type,
                         payload.room_id,
                         payload.subject_lesson_id,
                         basePayload.subject_id,
@@ -3434,7 +3580,7 @@
                 }
             }
 
-            document.addEventListener('click', function(e) {
+            document.addEventListener('click', async function(e) {
                 var confirmMergeBtn = e.target.closest('#confirmMergeSlotBtn');
                 if (confirmMergeBtn) {
                     if (!currentMergeBaseSlotId) {
@@ -3446,6 +3592,16 @@
 
                 var mergeBtn = e.target.closest('.merge-slot-btn');
                 if (mergeBtn) {
+                    if (dirtyRows.size > 0) {
+                        var savedBeforeMerge = await saveAssignmentChanges({
+                            silentIfClean: true
+                        });
+
+                        if (!savedBeforeMerge) {
+                            return;
+                        }
+                    }
+
                     var slotId = mergeBtn.getAttribute('data-slot-id');
                     if (!slotId) {
                         return;

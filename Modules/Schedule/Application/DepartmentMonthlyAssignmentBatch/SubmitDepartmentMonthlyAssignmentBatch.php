@@ -71,13 +71,35 @@ class SubmitDepartmentMonthlyAssignmentBatch
         $errors = [];
 
         $unassignedTeacherCount = $subjectSlots
-            ->filter(fn (ScheduleSlot $slot): bool => blank($slot->teacher_id))
+            ->filter(fn (ScheduleSlot $slot): bool => $this->isUnassignedTeacherSlot($slot))
             ->count();
 
         if ($unassignedTeacherCount > 0) {
             $errors['batch'] = sprintf(
                 'Khong the gui PDT: con %d tiet chua duoc phan cong giang vien.',
                 $unassignedTeacherCount
+            );
+        }
+
+        $missingLessonCount = $subjectSlots
+            ->filter(fn (ScheduleSlot $slot): bool => $this->isMissingRequiredLesson($slot))
+            ->count();
+
+        if ($missingLessonCount > 0) {
+            $errors['lesson_missing'] = sprintf(
+                'Khong the gui PDT: con %d tiet chua duoc chon bai hoc.',
+                $missingLessonCount
+            );
+        }
+
+        $specialWithLessonCount = $subjectSlots
+            ->filter(fn (ScheduleSlot $slot): bool => $this->hasForbiddenLessonOnSelfStudy($slot))
+            ->count();
+
+        if ($specialWithLessonCount > 0) {
+            $errors['lesson_forbidden'] = sprintf(
+                'Khong the gui PDT: con %d tiet tu nghien cuu co chon bai hoc.',
+                $specialWithLessonCount
             );
         }
 
@@ -101,10 +123,14 @@ class SubmitDepartmentMonthlyAssignmentBatch
     {
         $slotsWithResource = $slots
             ->filter(function (ScheduleSlot $slot) use ($field): bool {
-                $resourceId = $slot->{$field} ?? null;
+            $resourceId = $slot->{$field} ?? null;
 
-                return $resourceId !== null && $resourceId !== '' && $slot->date !== null && $slot->period_number !== null;
-            })
+            if ($field === 'teacher_id' && ! $this->isTeacherResourceAssigned($slot)) {
+                return false;
+            }
+
+            return $resourceId !== null && $resourceId !== '' && $slot->date !== null && $slot->period_number !== null;
+        })
             ->values();
 
         if ($slotsWithResource->isEmpty()) {
@@ -149,6 +175,34 @@ class SubmitDepartmentMonthlyAssignmentBatch
         }
 
         return false;
+    }
+
+    private function isTeacherResourceAssigned(ScheduleSlot $slot): bool
+    {
+        return $slot->teacher_id !== null
+            || ($slot->assignment_type ?? null) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY;
+    }
+
+    private function isUnassignedTeacherSlot(ScheduleSlot $slot): bool
+    {
+        return ! $this->isTeacherResourceAssigned($slot)
+            && blank($slot->assignment_type)
+            && blank($slot->teacher_id);
+    }
+
+    private function isMissingRequiredLesson(ScheduleSlot $slot): bool
+    {
+        if (($slot->assignment_type ?? null) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return false;
+        }
+
+        return blank($slot->subject_lesson_id);
+    }
+
+    private function hasForbiddenLessonOnSelfStudy(ScheduleSlot $slot): bool
+    {
+        return ($slot->assignment_type ?? null) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY
+            && ! blank($slot->subject_lesson_id);
     }
 
     /**

@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ScheduleSlot extends Model
 {
+    public const ASSIGNMENT_TYPE_SELF_STUDY = 'self_study';
+
     protected $table = 'schedule_slots';
 
     protected $fillable = [
@@ -25,6 +27,7 @@ class ScheduleSlot extends Model
         'schedule_slot_group_id',
         'class_id',
         'teacher_id',
+        'assignment_type',
         'assignment_source',
         'teaching_support_request_item_id',
         'subject_id',

@@ -267,7 +267,7 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
 
         $slots = $batch->batchSlots->map->scheduleSlot->filter();
         $slotCount = (int) $batch->batch_slots_count;
-        $assignedSlotCount = $slots->filter(fn ($slot) => ! empty($slot?->teacher_id))->count();
+        $assignedSlotCount = $slots->filter(fn ($slot) => ! $this->isUnassignedSlot($slot))->count();
         $sourceMonthlyScheduleCount = $slots->pluck('monthly_schedule_id')->filter()->unique()->count();
         $sourcePlanCount = $slots->map(fn ($slot) => $slot?->monthlySchedule?->plan_id)->filter()->unique()->count();
         $activeMergeGroupCount = $slots
@@ -380,7 +380,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
                         ? 'B' . $slot->subjectLesson->lesson_no . ': ' . $slot->subjectLesson->title
                         : null,
                     'teacher_id' => $slot?->teacher_id,
-                    'teacher_name' => $slot?->teacher?->name,
+                    'assignment_type' => $slot?->assignment_type,
+                    'teacher_name' => $this->resolveTeacherName($slot),
                     'room_id' => $slot?->room_id,
                     'room_code' => $slot?->room?->code,
                     'slot_type' => $slot?->slot_type,
@@ -403,5 +404,26 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
         }
 
         return 'Validation failed.';
+    }
+
+    private function isUnassignedSlot(?\Modules\Schedule\Models\ScheduleSlot $slot): bool
+    {
+        if (! $slot) {
+            return true;
+        }
+
+        return blank($slot->teacher_id) && blank($slot->assignment_type);
+    }
+
+    private function resolveTeacherName(?\Modules\Schedule\Models\ScheduleSlot $slot): ?string
+    {
+        if (! $slot) {
+            return null;
+        }
+
+        return match ($slot->assignment_type) {
+            \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY => 'Lớp tự nghiên cứu',
+            default => $slot->teacher?->name,
+        };
     }
 }

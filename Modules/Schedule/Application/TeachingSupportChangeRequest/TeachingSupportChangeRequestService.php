@@ -124,6 +124,7 @@ class TeachingSupportChangeRequestService
             ->whereIn('monthly_schedule_id', $monthlyScheduleIds)
             ->where('slot_type', 'subject')
             ->whereNull('teacher_id')
+            ->whereNull('assignment_type')
             ->where('assignment_source', 'internal')
             ->whereHas('subjectModel', function ($query) use ($request): void {
                 $query->where('department_id', $request->requesting_department_id);

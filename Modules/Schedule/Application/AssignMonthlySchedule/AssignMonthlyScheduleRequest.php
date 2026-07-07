@@ -77,6 +77,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'changes' => ['required', 'array', 'max:5000'],
             'changes.*.slot_id' => ['required', 'integer', 'distinct', 'exists:schedule_slots,id'],
             'changes.*.teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
+            'changes.*.assignment_type' => ['nullable', 'string', 'in:self_study'],
             'changes.*.subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
             'changes.*.room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'changes.*.content' => ['nullable', 'string', 'max:500'],
@@ -230,51 +231,68 @@ class AssignMonthlyScheduleRequest extends FormRequest
 
                 $scheduleSlot = $submittedSlots[$slotId];
                 $isEventSlot = ($scheduleSlot->slot_type ?? 'subject') === 'event';
-
-                $teacherId = $change['teacher_id'] ?? null;
-                if ($teacherId === null || $teacherId === '') {
-                    continue;
-                }
-
-                $teacherId = (int) $teacherId;
                 $date = $scheduleSlot->date?->format('Y-m-d');
                 $period = $scheduleSlot->period_number;
                 $groupId = $this->getActiveScheduleSlotGroupId($scheduleSlot);
-                $conflictKey = "{$teacherId}_{$date}_{$period}";
 
-                $teacherAssignments[$conflictKey][] = [
-                    'index' => $index,
-                    'slot' => $scheduleSlot,
-                    'group_id' => $groupId,
-                ];
+                $teacherId = $change['teacher_id'] ?? null;
+                $assignmentType = $this->normalizeAssignmentType($change['assignment_type'] ?? null);
+                $subjectLessonId = array_key_exists('subject_lesson_id', $change)
+                    ? $this->normalizeNullableNumber($change['subject_lesson_id'])
+                    : null;
 
-                $existingConflicts = ScheduleSlot::query()
-                    ->with(['scheduleSlotGroup', 'trainingClass', 'teacher', 'subjectModel', 'subjectLesson'])
-                    ->where('teacher_id', $teacherId)
-                    ->whereDate('date', $date)
-                    ->where('period_number', $period)
-                    ->whereNotIn('id', $submittedSlotIds)
-                    ->get();
-
-                $blockingConflicts = $existingConflicts->filter(
-                    fn (ScheduleSlot $conflictSlot): bool => ! $this->isSameActiveMergeGroup($scheduleSlot, $conflictSlot)
-                );
-
-                if ($blockingConflicts->isNotEmpty()) {
-                    $conflictSlot = $blockingConflicts->first();
-                    $conflictPayload = $submittedSlotsById[$conflictSlot->id]['data'] ?? [];
-
+                if ($this->isSpecialAssignmentType($assignmentType) && $teacherId !== null && $teacherId !== '') {
                     $validator->errors()->add(
                         "changes.{$index}.teacher_id",
-                        $this->buildTeacherConflictMessage(
-                            $scheduleSlot,
-                            $change,
-                            $conflictSlot,
-                            $conflictPayload,
-                            $teachersById,
-                            []
-                        )
+                        'Tiet tu quan / tu nghien cuu khong duoc gan giang vien.'
                     );
+                }
+
+                if ($this->isSpecialAssignmentType($assignmentType) && $subjectLessonId !== null) {
+                    $validator->errors()->add(
+                        "changes.{$index}.subject_lesson_id",
+                        'Tiet tu nghien cuu khong duoc chon bai hoc.'
+                    );
+                }
+
+                if (! $this->isSpecialAssignmentType($assignmentType) && $teacherId !== null && $teacherId !== '') {
+                    $teacherId = (int) $teacherId;
+                    $conflictKey = "{$teacherId}_{$date}_{$period}";
+
+                    $teacherAssignments[$conflictKey][] = [
+                        'index' => $index,
+                        'slot' => $scheduleSlot,
+                        'group_id' => $groupId,
+                    ];
+
+                    $existingConflicts = ScheduleSlot::query()
+                        ->with(['scheduleSlotGroup', 'trainingClass', 'teacher', 'subjectModel', 'subjectLesson'])
+                        ->where('teacher_id', $teacherId)
+                        ->whereDate('date', $date)
+                        ->where('period_number', $period)
+                        ->whereNotIn('id', $submittedSlotIds)
+                        ->get();
+
+                    $blockingConflicts = $existingConflicts->filter(
+                        fn (ScheduleSlot $conflictSlot): bool => ! $this->isSameActiveMergeGroup($scheduleSlot, $conflictSlot)
+                    );
+
+                    if ($blockingConflicts->isNotEmpty()) {
+                        $conflictSlot = $blockingConflicts->first();
+                        $conflictPayload = $submittedSlotsById[$conflictSlot->id]['data'] ?? [];
+
+                        $validator->errors()->add(
+                            "changes.{$index}.teacher_id",
+                            $this->buildTeacherConflictMessage(
+                                $scheduleSlot,
+                                $change,
+                                $conflictSlot,
+                                $conflictPayload,
+                                $teachersById,
+                                []
+                            )
+                        );
+                    }
                 }
 
                 $roomId = $change['room_id'] ?? null;
@@ -446,6 +464,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'changes.*.slot_id.distinct' => 'Tiet hoc bi gui trung.',
             'changes.*.slot_id.exists' => 'Co tiet hoc khong ton tai trong he thong.',
             'changes.*.teacher_id.exists' => 'Giang vien duoc chon khong hop le.',
+            'changes.*.assignment_type.in' => 'Loai phan cong khong hop le.',
             'changes.*.subject_lesson_id.exists' => 'Bai hoc duoc chon khong hop le.',
             'changes.*.room_id.exists' => 'Phong hoc duoc chon khong hop le.',
         ];
@@ -537,6 +556,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'subject_id' => 'mon hoc',
             'subject_lesson_id' => 'bai hoc',
             'teacher_id' => 'giang vien',
+            'assignment_type' => 'loai phan cong',
             'room_id' => 'phong hoc',
             'slot_status' => 'trang thai tiet hoc',
         ];
@@ -605,6 +625,10 @@ class AssignMonthlyScheduleRequest extends FormRequest
             return is_string($value) ? trim($value) : $value;
         }
 
+        if ($field === 'assignment_type') {
+            return $this->normalizeAssignmentType($value);
+        }
+
         if ($value === '' || $value === null) {
             return null;
         }
@@ -614,6 +638,40 @@ class AssignMonthlyScheduleRequest extends FormRequest
         }
 
         return $value;
+    }
+
+    private function normalizeAssignmentType(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        return in_array($value, [
+            ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY,
+        ], true) ? $value : null;
+    }
+
+    private function normalizeNullableNumber(mixed $value): ?int
+    {
+        if ($value === '' || $value === null || $value === false) {
+            return null;
+        }
+
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    private function isSpecialAssignmentType(?string $assignmentType): bool
+    {
+        return $assignmentType === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY;
     }
 
     private function valuesDifferForGroup(mixed $firstValue, mixed $secondValue): bool

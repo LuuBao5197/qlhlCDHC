@@ -130,6 +130,7 @@ class TeachingSupportRequestService
             'summary' => $summary,
             'can_create_request' => $this->canCreateRequestFromScope($scope)
                 && $slots->contains(fn (ScheduleSlot $slot): bool => ($slot->teacher_id === null)
+                    && blank($slot->assignment_type)
                     && ($slot->assignment_source ?? 'internal') === 'internal'
                     && $slot->room_id !== null),
         ];
@@ -1141,6 +1142,7 @@ class TeachingSupportRequestService
             ->whereIn('monthly_schedule_id', $monthlyScheduleIds)
             ->where('slot_type', 'subject')
             ->whereNull('teacher_id')
+            ->whereNull('assignment_type')
             ->where('assignment_source', 'internal')
             ->whereNotNull('subject_lesson_id')
             ->when(

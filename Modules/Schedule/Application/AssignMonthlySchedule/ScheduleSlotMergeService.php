@@ -22,6 +22,10 @@ class ScheduleSlotMergeService
             return collect();
         }
 
+        if ($this->normalizeAssignmentType($baseSlot->assignment_type) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return collect();
+        }
+
         if (
             $baseSlot->monthly_schedule_id === null
             || $baseSlot->date === null
@@ -43,6 +47,7 @@ class ScheduleSlotMergeService
             ->where('subject_id', $baseSlot->subject_id)
             ->whereNull('schedule_slot_group_id')
             ->where('class_id', '!=', $baseSlot->class_id)
+            ->whereNull('assignment_type')
             ->when(
                 $baseSlot->subject_lesson_id !== null,
                 fn ($query) => $query->where('subject_lesson_id', $baseSlot->subject_lesson_id),
@@ -81,6 +86,10 @@ class ScheduleSlotMergeService
         }
 
         if (! $this->sameLesson($baseSlot, $candidateSlot)) {
+            return false;
+        }
+
+        if ($this->normalizeAssignmentType($baseSlot->assignment_type) !== $this->normalizeAssignmentType($candidateSlot->assignment_type)) {
             return false;
         }
 
@@ -137,6 +146,7 @@ class ScheduleSlotMergeService
     public function createMergeGroup(
         Collection|array $slots,
         ?int $teacherId = null,
+        ?string $assignmentType = null,
         ?int $roomId = null,
         ?int $subjectLessonId = null,
         ?string $content = null,
@@ -146,14 +156,27 @@ class ScheduleSlotMergeService
         $slots = $this->normalizeSlots($slots);
         $this->validateMergeSlots($slots);
 
-        return DB::transaction(function () use ($slots, $teacherId, $roomId, $subjectLessonId, $content, $note): ScheduleSlotGroup {
-            $resolvedTeacherId = $this->resolveTeacherId($slots, $teacherId);
+        return DB::transaction(function () use ($slots, $teacherId, $assignmentType, $roomId, $subjectLessonId, $content, $note): ScheduleSlotGroup {
+            $resolvedAssignmentType = $this->resolveAssignmentType($slots, $assignmentType);
+            $resolvedTeacherId = $resolvedAssignmentType === null
+                ? $this->resolveTeacherId($slots, $teacherId)
+                : null;
             $resolvedRoomId = $this->resolveRoomId($slots, $roomId);
             $baseSlot = $slots->first();
 
             if (! $baseSlot instanceof ScheduleSlot) {
                 throw ValidationException::withMessages([
                     'slots' => 'Danh sach tiet hoc khong hop le.',
+                ]);
+            }
+
+            $resolvedSubjectLessonId = $resolvedAssignmentType === null
+                ? ($subjectLessonId ?? $baseSlot->subject_lesson_id)
+                : null;
+
+            if ($resolvedAssignmentType === null && $resolvedSubjectLessonId === null) {
+                throw ValidationException::withMessages([
+                    'subject_lesson_id' => 'Tiet hoc phai co bai hoc.',
                 ]);
             }
 
@@ -164,8 +187,9 @@ class ScheduleSlotMergeService
                 'date' => optional($baseSlot->date)->toDateString(),
                 'period_number' => $baseSlot->period_number,
                 'subject_id' => $baseSlot->subject_id,
-                'subject_lesson_id' => $subjectLessonId ?? $baseSlot->subject_lesson_id,
+                'subject_lesson_id' => $resolvedSubjectLessonId,
                 'teacher_id' => $resolvedTeacherId,
+                'assignment_type' => $resolvedAssignmentType,
                 'room_id' => $resolvedRoomId,
                 'status' => 'active',
                 'note' => $note ?? $baseSlot->note,
@@ -179,8 +203,9 @@ class ScheduleSlotMergeService
                 /** @var ScheduleSlot $slot */
                 $slot->schedule_slot_group_id = $group->id;
                 $slot->subject_id = $baseSlot->subject_id;
-                $slot->subject_lesson_id = $subjectLessonId ?? $baseSlot->subject_lesson_id;
+                $slot->subject_lesson_id = $resolvedSubjectLessonId;
                 $slot->teacher_id = $resolvedTeacherId;
+                $slot->assignment_type = $resolvedAssignmentType;
                 $slot->room_id = $resolvedRoomId;
                 $slot->content = $resolvedContent;
                 $slot->note = $resolvedNote;
@@ -219,6 +244,10 @@ class ScheduleSlotMergeService
     private function isMergeAnchorSlot(ScheduleSlot $slot): bool
     {
         if ($slot->slot_type === 'event') {
+            return false;
+        }
+
+        if ($this->normalizeAssignmentType($slot->assignment_type) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
             return false;
         }
 
@@ -279,6 +308,29 @@ class ScheduleSlotMergeService
         }
 
         return $teacherIds->first() ? (int) $teacherIds->first() : null;
+    }
+
+    private function resolveAssignmentType(Collection $slots, ?string $assignmentType): ?string
+    {
+        $normalized = $this->normalizeAssignmentType($assignmentType);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        $assignmentTypes = $slots
+            ->pluck('assignment_type')
+            ->map(fn ($value) => $this->normalizeAssignmentType($value))
+            ->filter(fn ($value) => $value !== null)
+            ->unique()
+            ->values();
+
+        if ($assignmentTypes->count() > 1) {
+            throw ValidationException::withMessages([
+                'assignment_type' => 'Khong the tu dong chon loai phan cong khi cac tiet co nhieu loai khac nhau.',
+            ]);
+        }
+
+        return $assignmentTypes->first() ? (string) $assignmentTypes->first() : null;
     }
 
     private function resolveRoomId(Collection $slots, ?int $roomId): ?int
@@ -360,6 +412,20 @@ class ScheduleSlotMergeService
                 ]);
             }
         }
+    }
+
+    private function normalizeAssignmentType(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        return $value === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY ? $value : null;
     }
 
     private function isPracticeSlot(ScheduleSlot $slot): bool

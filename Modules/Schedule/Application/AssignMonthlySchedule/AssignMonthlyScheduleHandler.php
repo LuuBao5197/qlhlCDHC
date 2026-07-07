@@ -80,8 +80,11 @@ class AssignMonthlyScheduleHandler
                     $teacherId = array_key_exists('teacher_id', $change)
                         ? $this->normalizeNullableInteger($change['teacher_id'])
                         : null;
+                    $assignmentType = array_key_exists('assignment_type', $change)
+                        ? $this->normalizeAssignmentType($change['assignment_type'])
+                        : null;
 
-                    if ($teacherId !== null) {
+                    if ($teacherId !== null && $assignmentType === null) {
                         $availabilityChecks[] = [
                             'error_key' => 'changes.' . $index . '.teacher_id',
                             'slot' => $slot,
@@ -108,7 +111,13 @@ class AssignMonthlyScheduleHandler
                         $slot->teacher_id = $this->normalizeNullableInteger($change['teacher_id']);
                     }
 
-                    if (array_key_exists('subject_lesson_id', $change)) {
+                    if (array_key_exists('assignment_type', $change)) {
+                        $slot->assignment_type = $this->normalizeAssignmentType($change['assignment_type']);
+                    }
+
+                    if ($slot->assignment_type === \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+                        $slot->subject_lesson_id = null;
+                    } elseif (array_key_exists('subject_lesson_id', $change)) {
                         $slot->subject_lesson_id = $this->normalizeNullableInteger($change['subject_lesson_id']);
                     }
 
@@ -160,6 +169,7 @@ class AssignMonthlyScheduleHandler
                         $group->subject_id = $groupSlot->subject_id;
                         $group->subject_lesson_id = $groupSlot->subject_lesson_id;
                         $group->teacher_id = $groupSlot->teacher_id;
+                        $group->assignment_type = $groupSlot->assignment_type;
                         $group->room_id = $groupSlot->room_id;
                         $group->save();
                     }
@@ -221,6 +231,22 @@ class AssignMonthlyScheduleHandler
         $value = is_string($value) ? $value : (string) $value;
 
         return trim($value) === '' ? null : $value;
+    }
+
+    private function normalizeAssignmentType(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        return in_array($value, [
+            \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY,
+        ], true) ? $value : null;
     }
 
     /**
