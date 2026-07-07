@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\NotificationPresenter;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
@@ -177,5 +179,38 @@ class AppServiceProvider extends ServiceProvider
             'js/dashboard.js',
             'js/schedule-date-picker.js',
         ]);
+
+        View::composer('partials._navbar', function ($view): void {
+            $user = auth()->user();
+
+            if (! $user) {
+                $view->with([
+                    'dashboardNotifications' => collect(),
+                    'dashboardUnreadNotificationCount' => 0,
+                ]);
+
+                return;
+            }
+
+            if (! Schema::hasTable('notifications')) {
+                $view->with([
+                    'dashboardNotifications' => collect(),
+                    'dashboardUnreadNotificationCount' => 0,
+                ]);
+
+                return;
+            }
+
+            $notifications = $user->notifications()
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(fn ($notification) => NotificationPresenter::present($notification));
+
+            $view->with([
+                'dashboardNotifications' => $notifications,
+                'dashboardUnreadNotificationCount' => $user->unreadNotifications()->count(),
+            ]);
+        });
     }
 }

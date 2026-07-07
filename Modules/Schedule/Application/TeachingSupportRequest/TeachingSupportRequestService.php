@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\TeachingSupportRequest;
 
+use App\Services\InternalNotificationService;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -219,6 +220,10 @@ class TeachingSupportRequestService
                     'assigned_department_name' => $request?->assignedSupportingDepartment?->name ?? '-',
                     'proposed_department_name' => $request?->proposedSupportingDepartment?->name ?? '-',
                     'assigned_teacher_id' => (int) ($item->assigned_teacher_id ?? 0),
+                    'schedule_slot_group_id' => (int) ($slot?->schedule_slot_group_id ?? 0),
+                    'schedule_slot_group_status' => $slot?->scheduleSlotGroup?->status ?? null,
+                    'is_merged_group' => $slot?->scheduleSlotGroup?->status === 'active'
+                        && is_numeric($slot?->schedule_slot_group_id),
                     'class_code' => $slot?->trainingClass?->code ?? '-',
                     'class_name' => $slot?->trainingClass?->name ?? '-',
                     'subject_code' => $slot?->subjectModel?->code ?? '-',
@@ -245,6 +250,26 @@ class TeachingSupportRequestService
                     'pdt_note' => $request?->pdt_note,
                 ];
             });
+
+        $mergedGroupCounts = $rows
+            ->filter(fn (array $row): bool => (int) ($row['schedule_slot_group_id'] ?? 0) > 0 && ($row['schedule_slot_group_status'] ?? null) === 'active')
+            ->groupBy(fn (array $row): string => (string) ($row['schedule_slot_group_id'] ?? 0))
+            ->map(static fn (Collection $group): int => $group->count());
+
+        $rows = $rows->map(function (array $row) use ($mergedGroupCounts): array {
+            $groupId = (int) ($row['schedule_slot_group_id'] ?? 0);
+            $groupCount = (int) ($mergedGroupCounts[$groupId] ?? 0);
+
+            $row['merge_group_count'] = $groupCount;
+            $row['merge_group_label'] = ! empty($row['is_merged_group'])
+                ? 'Tiết ghép' . ($groupCount > 1 ? ' - ' . $groupCount . ' lớp' : '')
+                : null;
+            $row['merge_group_note'] = ! empty($row['is_merged_group'])
+                ? 'Giảng viên áp dụng cho toàn bộ nhóm ghép.'
+                : null;
+
+            return $row;
+        });
 
         return [
             'rows' => $rows,
@@ -527,6 +552,8 @@ class TeachingSupportRequestService
                 'occurred_at' => $now,
             ]);
 
+            app(InternalNotificationService::class)->notifyTeachingSupportRequestSubmitted($freshRequest, $actor);
+
             return $freshRequest;
         });
     }
@@ -597,6 +624,12 @@ class TeachingSupportRequestService
                     'action' => 'Hanh dong PDT khong hop le.',
                 ]);
             }
+
+            app(InternalNotificationService::class)->notifyTeachingSupportRequestReviewed(
+                $lockedRequest,
+                $actor,
+                $action === 'approve'
+            );
 
             return $lockedRequest->fresh([
                 'assignmentBatch',
@@ -783,6 +816,8 @@ class TeachingSupportRequestService
                 'occurred_at' => $now,
             ]);
 
+            app(InternalNotificationService::class)->notifyTeachingSupportRequestCompleted($lockedRequest, $actor);
+
             return $lockedRequest->fresh([
                 'assignmentBatch',
                 'requestingDepartment',
@@ -966,6 +1001,8 @@ class TeachingSupportRequestService
                 'occurred_at' => $now,
             ]);
 
+            app(InternalNotificationService::class)->notifyTeachingSupportRequestCompleted($request, $actor);
+
             return $request->fresh([
                 'assignmentBatch',
                 'requestingDepartment',
@@ -1062,6 +1099,8 @@ class TeachingSupportRequestService
                 'note' => $reason,
                 'occurred_at' => $now,
             ]);
+
+            app(InternalNotificationService::class)->notifyTeachingSupportRequestWithdrawn($lockedRequest, $actor);
 
             return $lockedRequest->fresh([
                 'assignmentBatch',

@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\TeachingSupportChangeRequest;
 
+use App\Services\InternalNotificationService;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -241,6 +242,8 @@ class TeachingSupportChangeRequestService
                 'occurred_at' => $now,
             ]);
 
+            app(InternalNotificationService::class)->notifyTeachingSupportChangeRequestSubmitted($changeRequest, $actor);
+
             return $changeRequest->fresh([
                 'teachingSupportRequest.requestingDepartment',
                 'requestingDepartment',
@@ -335,6 +338,12 @@ class TeachingSupportChangeRequestService
                     'note' => $pdtNote,
                 ]);
 
+                app(InternalNotificationService::class)->notifyTeachingSupportChangeRequestReviewed(
+                    $lockedChangeRequest,
+                    $actor,
+                    false
+                );
+
                 return $lockedChangeRequest->fresh([
                     'teachingSupportRequest',
                     'requestingDepartment',
@@ -397,6 +406,12 @@ class TeachingSupportChangeRequestService
                 'note' => $pdtNote,
                 'occurred_at' => $now,
             ]);
+
+            app(InternalNotificationService::class)->notifyTeachingSupportChangeRequestReviewed(
+                $lockedChangeRequest,
+                $actor,
+                true
+            );
 
             return $lockedChangeRequest->fresh([
                 'teachingSupportRequest.requestingDepartment',

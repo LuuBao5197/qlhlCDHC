@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\SubmitSemesterPlan;
 
+use App\Services\InternalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\ApprovalAction;
@@ -55,6 +56,8 @@ class SubmitSemesterPlanHandler
                     'acted_at' => $now,
                     'comment' => $request->input('comment'),
                 ]);
+
+                app(InternalNotificationService::class)->notifySemesterPlanSubmitted($plan, $request->user());
             });
         } catch (Throwable $exception) {
             return $this->errorResponse(

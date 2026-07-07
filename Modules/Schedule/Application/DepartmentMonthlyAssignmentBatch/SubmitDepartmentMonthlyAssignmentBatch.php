@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
+use App\Services\InternalNotificationService;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,8 @@ class SubmitDepartmentMonthlyAssignmentBatch
                 'review_note' => null,
             ]);
             $batch->save();
+
+            app(InternalNotificationService::class)->notifyDepartmentMonthlyAssignmentBatchSubmitted($batch, $actor);
 
             return $batch->fresh([
                 'department',

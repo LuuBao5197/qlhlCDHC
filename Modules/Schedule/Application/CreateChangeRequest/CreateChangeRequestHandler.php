@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\CreateChangeRequest;
 
+use App\Services\InternalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
@@ -84,6 +85,8 @@ class CreateChangeRequestHandler
                         'applied_at' => null,
                     ]);
                 }
+
+                app(InternalNotificationService::class)->notifyScheduleChangeRequestSubmitted($changeRequest, $request->user());
             });
         } catch (Throwable $exception) {
             return back()->withInput()->with(

@@ -49,50 +49,52 @@
         </div>
       </li>
       <li class="nav-item dropdown border-left">
-        <a class="nav-link count-indicator dropdown-toggle" id="notificationDropdown" href="#" data-toggle="dropdown">
+        <a class="nav-link count-indicator dropdown-toggle" id="notificationDropdown" href="#" data-toggle="dropdown" aria-expanded="false">
           <i class="mdi mdi-bell"></i>
-          <span class="count bg-danger"></span>
+          @if (($dashboardUnreadNotificationCount ?? 0) > 0)
+            <span class="count bg-danger">{{ $dashboardUnreadNotificationCount }}</span>
+@endif
         </a>
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list" aria-labelledby="notificationDropdown">
-          <h6 class="p-3 mb-0">Notifications</h6>
+          <h6 class="p-3 mb-0">Thong bao</h6>
           <div class="dropdown-divider"></div>
-          <a class="dropdown-item preview-item">
-            <div class="preview-thumbnail">
-              <div class="preview-icon bg-dark rounded-circle">
-                <i class="mdi mdi-calendar text-success"></i>
+
+          @forelse(($dashboardNotifications ?? collect()) as $notification)
+            @php($notificationUrl = \Illuminate\Support\Facades\Route::has('notifications.show') ? route('notifications.show', $notification['id']) : ($notification['url'] ?? url('/')))
+            <a class="dropdown-item preview-item {{ $notification['is_read'] ? '' : 'bg-light' }}" href="{{ $notificationUrl }}">
+              <div class="preview-thumbnail">
+                <div class="preview-icon bg-dark rounded-circle">
+                  <i class="mdi {{ $notification['icon'] }} {{ $notification['icon_color_class'] }}"></i>
+                </div>
               </div>
-            </div>
-            <div class="preview-item-content">
-              <p class="preview-subject mb-1">Event today</p>
-              <p class="text-muted ellipsis mb-0"> Just a reminder that you have an event today </p>
-            </div>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a class="dropdown-item preview-item">
-            <div class="preview-thumbnail">
-              <div class="preview-icon bg-dark rounded-circle">
-                <i class="mdi mdi-settings text-danger"></i>
+              <div class="preview-item-content">
+                <p class="preview-subject mb-1">
+                  {{ $notification['title'] }}
+                  @if (! $notification['is_read'])
+                    <span class="badge badge-danger ml-2">Moi</span>
+                  @endif
+                </p>
+                <p class="text-muted ellipsis mb-0">
+                  {{ $notification['excerpt'] }}
+                </p>
+                <p class="text-muted mb-0 small">
+                  <span class="badge {{ $notification['badge_class'] }}">{{ $notification['type_label'] }}</span>
+                  <span class="ml-2">{{ $notification['created_at_human'] }}</span>
+                </p>
               </div>
+            </a>
+            <div class="dropdown-divider"></div>
+          @empty
+            <div class="px-3 py-4 text-center text-muted">
+              Chua co thong bao nao.
             </div>
-            <div class="preview-item-content">
-              <p class="preview-subject mb-1">Settings</p>
-              <p class="text-muted ellipsis mb-0"> Update dashboard </p>
-            </div>
+            <div class="dropdown-divider"></div>
+          @endforelse
+
+          @php($allNotificationsUrl = \Illuminate\Support\Facades\Route::has('notifications.index') ? route('notifications.index') : url('/'))
+          <a class="dropdown-item preview-item justify-content-center" href="{{ $allNotificationsUrl }}">
+            <span class="preview-subject text-center font-weight-semibold">Xem tat ca thong bao</span>
           </a>
-          <div class="dropdown-divider"></div>
-          <a class="dropdown-item preview-item">
-            <div class="preview-thumbnail">
-              <div class="preview-icon bg-dark rounded-circle">
-                <i class="mdi mdi-link-variant text-warning"></i>
-              </div>
-            </div>
-            <div class="preview-item-content">
-              <p class="preview-subject mb-1">Launch Admin</p>
-              <p class="text-muted ellipsis mb-0"> New admin wow! </p>
-            </div>
-          </a>
-          <div class="dropdown-divider"></div>
-          <p class="p-3 mb-0 text-center">See all notifications</p>
         </div>
       </li>
       <li class="nav-item dropdown">

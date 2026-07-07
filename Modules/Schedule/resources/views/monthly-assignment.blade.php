@@ -36,6 +36,12 @@
             ->pluck('schedule_slot_group_id')
             ->unique()
             ->count();
+        $activeMergeGroupCounts = $aggregateSlots
+            ->filter(
+                fn($slot) => !empty($slot->schedule_slot_group_id) && $slot->scheduleSlotGroup?->status === 'active',
+            )
+            ->groupBy(fn($slot) => (string) ($slot->schedule_slot_group_id ?? 0))
+            ->map(fn($group) => $group->count());
         $supportRequestSummary = $supportRequestSummary ?? [];
         $supportSlotMeta = $supportSlotMeta ?? [];
         $supportDepartments = $supportDepartments ?? collect();
@@ -509,10 +515,15 @@
                                                                         $slot->schedule_slot_group_id ?? null;
                                                                     $mergeGroupStatus =
                                                                         $slot->scheduleSlotGroup?->status ?? '';
+                                                                    $mergeGroupCount =
+                                                                        (int) ($activeMergeGroupCounts[$mergeGroupId] ?? 0);
                                                                     $isMerged =
                                                                         !$isEvent &&
                                                                         !empty($mergeGroupId) &&
                                                                         $mergeGroupStatus === 'active';
+                                                                    $mergeGroupLabel = $isMerged
+                                                                        ? 'Tiết ghép' . ($mergeGroupCount > 1 ? ' - ' . $mergeGroupCount . ' lớp' : '')
+                                                                        : '';
                                                                     $hasClearSubjectLesson =
                                                                         !$isEvent &&
                                                                         $slot->subject_lesson_id !== null &&
@@ -568,11 +579,13 @@
                                                                         @endif
                                                                         <span
                                                                             class="class-pill">{{ $slot->trainingClass?->code ?? '-' }}</span>
-                                                                        <span class="badge badge-light border ml-1"
-                                                                            style="font-size: 10px; vertical-align: baseline;">
-                                                                            Kế hoạch:
-                                                                            {{ $slot->monthlySchedule?->plan?->name ?? '-' }}
-                                                                        </span>
+                                                                        @if ($isMerged)
+                                                                            <span class="badge badge-primary merge-group-pill ml-1"
+                                                                                style="font-size: 10px; vertical-align: baseline;">
+                                                                                <i class="fas fa-layer-group mr-1"></i>
+                                                                                {{ $mergeGroupLabel }}
+                                                                            </span>
+                                                                        @endif
                                                                         @if ($supportMeta)
                                                                             <div class="mt-1">
                                                                                 <span class="badge badge-warning support-status-pill">{{ $supportMeta['label'] ?? 'Hỗ trợ' }}</span>
@@ -993,7 +1006,7 @@
 
     @if ($supportCanManageAssignments || $canCreateSupportRequest)
         <div class="modal fade" id="supportRequestListModal" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+            <div class="modal-dialog modal-xl" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title font-weight-bold">
@@ -1218,6 +1231,24 @@
             color: #0c5460;
         }
 
+        .merge-group-pill {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            letter-spacing: .01em;
+        }
+
+        #supportRequestListModal tbody td:nth-child(3) {
+            padding-top: .45rem;
+            padding-bottom: .45rem;
+        }
+
+        #supportRequestListModal tbody td:nth-child(3) .class-pill,
+        #supportRequestListModal tbody td:nth-child(3) .merge-group-pill {
+            margin-bottom: .15rem;
+        }
+
         /* Row tint: assigned vs unassigned */
         .slot-assigned {
             background: #f0fff4 !important;
@@ -1440,32 +1471,19 @@
             border: 0;
             border-radius: .65rem;
             overflow: hidden;
-            max-height: calc(100vh - 2rem);
-            display: flex;
-            flex-direction: column;
         }
 
         #supportRequestListModal .modal-body {
             padding: 1rem;
-            min-height: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
         }
 
         #supportRequestListModal [data-support-request-modal-table] {
             max-width: 100%;
-            min-height: 0;
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
         }
 
         #supportRequestListModal [data-support-request-modal-table] .table-responsive {
-            max-height: calc(100vh - 320px);
+            max-height: calc(100vh - 340px);
             overflow: auto;
-            min-height: 0;
-            flex: 1 1 auto;
         }
 
         #supportRequestListModal table {
@@ -1530,16 +1548,12 @@
                 margin: .5rem auto;
             }
 
-            #supportRequestListModal .modal-body {
-                padding: .75rem;
-            }
-
             #supportRequestListModal table {
                 min-width: 980px;
             }
 
             #supportRequestListModal [data-support-request-modal-table] .table-responsive {
-                max-height: calc(100vh - 300px);
+                max-height: calc(100vh - 290px);
             }
 
             #supportRequestListModal [data-support-request-modal-pagination] {
@@ -3114,12 +3128,12 @@
 
                 var slotId = row.getAttribute('data-slot-id') || '';
                 actionCell.insertAdjacentHTML('afterbegin',
-                    '<span class="badge badge-success ml-1" style="font-size: 10px;">Đã ghép</span>' +
+                    '<span class="badge badge-success ml-1" style="font-size: 10px;">Tiết ghép</span>' +
                     '<button type="button" class="btn btn-link btn-sm p-0 ml-1 split-merge-group-btn"' +
                     ' data-slot-id="' + escapeHtml(slotId) + '"' +
                     ' data-group-id="' + escapeHtml(groupId || '') + '"' +
                     ' style="font-size: 10px; vertical-align: baseline;">' +
-                    'Tách ghép' +
+                    'Tách nhóm' +
                     '</button>'
                 );
             }

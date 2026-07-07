@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\ReviewChangeRequest;
 
+use App\Services\InternalNotificationService;
 use Illuminate\Support\Facades\DB;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
@@ -121,6 +122,12 @@ class ReviewChangeRequestHandler
                     'acted_at' => $now,
                     'comment' => $this->buildComment($validated),
                 ]);
+
+                app(InternalNotificationService::class)->notifyScheduleChangeRequestReviewed(
+                    $changeRequest,
+                    $request->user(),
+                    $isApproved
+                );
 
                 return [
                     'ok' => true,

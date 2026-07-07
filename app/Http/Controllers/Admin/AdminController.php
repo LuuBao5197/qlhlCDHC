@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\InternalNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Modules\Training\Models\Department;
@@ -97,6 +98,8 @@ class AdminController extends Controller
                     ]
                 );
             }
+
+            app(InternalNotificationService::class)->notifyApprovedUserRegistration($user, auth()->user());
         });
 
         return back()->with('success', 'User approved successfully.');
@@ -105,7 +108,10 @@ class AdminController extends Controller
     public function reject($id)
     {
         $user = User::findOrFail($id);
-        $user->update(['status' => User::STATUS_REJECTED]);
+        DB::transaction(function () use ($user): void {
+            $user->update(['status' => User::STATUS_REJECTED]);
+            app(InternalNotificationService::class)->notifyRejectedUserRegistration($user, auth()->user());
+        });
 
         return back()->with('success', 'User rejected successfully.');
     }

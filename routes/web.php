@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ManagementController;
 
 Route::get('/', function () {
@@ -24,6 +25,12 @@ Route::middleware('auth')->get('/home', function () {
 Route::middleware('auth')->get('/settings', function () {
     return view('settings.index');
 })->name('settings');
+
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::get('/{notification}', [NotificationController::class, 'show'])->name('show');
+    Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('read-all');
+});
 
 // Management UI route
 Route::middleware(['auth', 'management.access'])

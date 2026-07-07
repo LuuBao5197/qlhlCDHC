@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\InternalNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Modules\Training\Models\Department;
 
@@ -99,21 +101,27 @@ class AuthController extends Controller
             'employee_code.unique' => 'Mã giáo viên đã được sử dụng bởi tài khoản khác.',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => null,
-            'requested_role' => $validated['role'],
-            'department_id' => null,
-            'requested_department_id' => in_array($validated['role'], [User::ROLE_TEACHER, User::ROLE_DEPARTMENT_STAFF], true)
-                ? (int) $validated['department_id']
-                : null,
-            'employee_code' => $validated['role'] === User::ROLE_TEACHER
-                ? trim((string) $validated['employee_code'])
-                : null,
-            'status' => User::STATUS_PENDING,
-        ]);
+        $user = DB::transaction(function () use ($validated): User {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'role' => null,
+                'requested_role' => $validated['role'],
+                'department_id' => null,
+                'requested_department_id' => in_array($validated['role'], [User::ROLE_TEACHER, User::ROLE_DEPARTMENT_STAFF], true)
+                    ? (int) $validated['department_id']
+                    : null,
+                'employee_code' => $validated['role'] === User::ROLE_TEACHER
+                    ? trim((string) $validated['employee_code'])
+                    : null,
+                'status' => User::STATUS_PENDING,
+            ]);
+
+            app(InternalNotificationService::class)->notifyPendingUserRegistration($user);
+
+            return $user;
+        });
 
         // Don't auto-login pending users
         // Auth::login($user);

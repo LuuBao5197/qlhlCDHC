@@ -163,7 +163,7 @@
                         @endforeach
                     @empty
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">
+                            <td colspan="12" class="text-center text-muted py-4">
                                 Chưa có tiết nào khớp bộ lọc hiện tại.
                             </td>
                         </tr>
@@ -179,7 +179,7 @@
             / {{ $requests->total() }} tiết
         </div>
         <div>
-            {{ $requests->links() }}
+            {{ $requests->links('pagination::bootstrap-4') }}
         </div>
     </div>
 </div>

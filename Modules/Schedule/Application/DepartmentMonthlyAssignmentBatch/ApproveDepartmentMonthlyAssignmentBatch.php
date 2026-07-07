@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
+use App\Services\InternalNotificationService;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,8 @@ class ApproveDepartmentMonthlyAssignmentBatch
                 'review_note' => null,
             ]);
             $lockedBatch->save();
+
+            app(InternalNotificationService::class)->notifyDepartmentMonthlyAssignmentBatchReviewed($lockedBatch, $actor, true);
 
             return $lockedBatch->fresh([
                 'department',

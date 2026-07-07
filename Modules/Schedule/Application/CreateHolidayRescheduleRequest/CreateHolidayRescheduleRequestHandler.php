@@ -3,6 +3,7 @@
 namespace Modules\Schedule\Application\CreateHolidayRescheduleRequest;
 
 use Carbon\Carbon;
+use App\Services\InternalNotificationService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -205,6 +206,8 @@ class CreateHolidayRescheduleRequestHandler
                         'applied_at' => null,
                     ]);
                 }
+
+                app(InternalNotificationService::class)->notifyScheduleChangeRequestSubmitted($changeRequest, $request->user());
             });
         } catch (Throwable $exception) {
             return back()->withInput()->with(
