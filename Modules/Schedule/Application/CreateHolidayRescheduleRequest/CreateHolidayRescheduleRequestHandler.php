@@ -24,7 +24,7 @@ class CreateHolidayRescheduleRequestHandler
 
         $validated = $request->validated();
         $monthlyScheduleId = (int) $validated['monthly_schedule_id'];
-        $applyMode = (string) ($validated['apply_mode'] ?? 'best_effort');
+        $applyMode = 'all_or_none';
         $targetDate = Carbon::parse($validated['target_date'])->startOfDay();
 
         $holidayDates = $this->buildHolidayDateSet($validated);

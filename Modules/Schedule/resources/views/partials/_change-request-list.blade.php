@@ -8,6 +8,7 @@
         'day_of_week',
         'period_number',
         'teacher_id',
+        'assignment_type',
         'subject_id',
         'subject_lesson_id',
         'room_id',
@@ -22,6 +23,7 @@
         'day_of_week' => 'Thu',
         'period_number' => 'Tiet',
         'teacher_id' => 'Giảng viên',
+        'assignment_type' => 'Loai phan cong',
         'subject_id' => 'Môn học',
         'subject_lesson_id' => 'Bài học',
         'room_id' => 'Phòng học',
@@ -129,6 +131,15 @@
             }
 
             return $teacherId ? ('Không tìm thấy giảng viên (ID ' . $teacherId . ')') : (string) $value;
+        }
+
+        if ($field === 'assignment_type') {
+            $assignmentType = is_string($value) ? trim($value) : '';
+
+            return match ($assignmentType) {
+                \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY => 'Lop tu nghien cuu',
+                default => $assignmentType !== '' ? $assignmentType : '-',
+            };
         }
 
         if ($field === 'subject_id') {
@@ -422,21 +433,13 @@
                                     class="mb-2">
                                     @csrf
                                     <input type="hidden" name="action" value="approve">
-                                    <input type="hidden" name="apply_changes" value="0">
+                                    <input type="hidden" name="apply_changes" value="1">
+                                    <input type="hidden" name="apply_mode" value="all_or_none">
                                     <div class="form-group mb-2">
                                         <label class="mb-1 small font-weight-bold">Chế độ áp dụng thay đổi</label>
-                                        <select name="apply_mode" class="form-control form-control-sm">
-                                            <option value="all_or_none" @selected(($changeRequest->apply_mode ?? 'all_or_none') === 'all_or_none')>all_or_none - Lỗi 1 mục thì rollback tất cả</option>
-                                            <option value="best_effort" @selected(($changeRequest->apply_mode ?? 'all_or_none') === 'best_effort')>best_effort - Áp dụng tối đa, mục lỗi sẽ bỏ qua</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox"
-                                            name="apply_changes" value="1" checked
-                                            id="apply-{{ $changeRequest->id }}">
-                                        <label class="form-check-label" for="apply-{{ $changeRequest->id }}">
-                                            Áp dụng thay đổi vào lịch khi phê duyệt
-                                        </label>
+                                        <div class="form-control form-control-sm bg-light text-muted">
+                                            all_or_none - Lỗi 1 mục thì rollback tất cả
+                                        </div>
                                     </div>
                                     <div class="input-group input-group-sm">
                                         <input type="text" class="form-control" name="comment"

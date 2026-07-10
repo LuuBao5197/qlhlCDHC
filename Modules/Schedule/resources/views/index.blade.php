@@ -135,10 +135,19 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="mb-1">Phieu de nghi thay doi ke hoach giang day</h5>
-                    <small class="text-muted">UC6 phe duyet hoac tu choi phieu de nghi thay doi.</small>
-
-                    @include('schedule::partials._change-request-create')
+                    <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="mb-1">Phieu de nghi thay doi ke hoach giang day</h5>
+                            <small class="text-muted">UC6 phe duyet hoac tu choi phieu de nghi thay doi.</small>
+                        </div>
+                        @if ($canDepartmentAssign || $canReviewWorkflow)
+                            <div class="mt-2 mt-sm-0">
+                                <a href="{{ route('change-request.create') }}" class="btn btn-primary btn-sm">
+                                    Mo trang tao phieu rieng
+                                </a>
+                            </div>
+                        @endif
+                    </div>
 
                     @include('schedule::partials._change-request-list')
                 </div>

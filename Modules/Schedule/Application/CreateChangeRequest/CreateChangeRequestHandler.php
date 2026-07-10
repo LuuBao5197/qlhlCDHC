@@ -4,8 +4,10 @@ namespace Modules\Schedule\Application\CreateChangeRequest;
 
 use App\Services\InternalNotificationService;
 use Illuminate\Support\Facades\DB;
+use Modules\Schedule\Application\AssignMonthlySchedule\MonthlyAssignmentScopeResolver;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
+use Modules\Schedule\Models\TeachingSupportRequest;
 use Modules\Training\Models\ChangeRequest;
 use Throwable;
 
@@ -27,17 +29,52 @@ class CreateChangeRequestHandler
             ->values();
 
         $monthlySchedule = MonthlySchedule::query()->findOrFail($monthlyScheduleId);
+        $allowedMonthlyScheduleIds = MonthlySchedule::query()
+            ->where('month', (int) $monthlySchedule->month)
+            ->where('year', (int) $monthlySchedule->year)
+            ->pluck('id')
+            ->map(static fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        $departmentScope = $this->resolveDepartmentScope($monthlySchedule, $request->user());
+
+        if ($allowedMonthlyScheduleIds === []) {
+            return back()->withInput()->with('error', 'Khong xac dinh duoc batch thang da chon.');
+        }
+
+        if ($request->user()?->isDepartmentStaff() && $departmentScope === null) {
+            return back()->withInput()->with('error', 'Khong xac dinh duoc pham vi khoa hien tai de tao phieu thay doi.');
+        }
 
         $slotIds = $selectedSlots->pluck('slot_id')->unique()->values();
 
-        $slots = ScheduleSlot::query()
-            ->where('monthly_schedule_id', $monthlyScheduleId)
+        $slotsQuery = ScheduleSlot::query()
+            ->with(['subjectModel.department'])
+            ->where('slot_type', 'subject')
+            ->where('assignment_source', 'internal')
+            ->whereDoesntHave('teachingSupportRequestItems', function ($query): void {
+                $query->whereHas('request', function ($requestQuery): void {
+                    $requestQuery->whereIn('status', [
+                        TeachingSupportRequest::STATUS_PENDING_PDT,
+                        TeachingSupportRequest::STATUS_ASSIGNED_TO_DEPARTMENT,
+                        TeachingSupportRequest::STATUS_DEPARTMENT_ASSIGNING,
+                    ]);
+                });
+            })
+            ->whereIn('monthly_schedule_id', $allowedMonthlyScheduleIds)
             ->whereIn('id', $slotIds)
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
+
+        if (is_array($departmentScope) && isset($departmentScope['department_id'])) {
+            $slotsQuery->whereHas('subjectModel', function ($query) use ($departmentScope): void {
+                $query->where('department_id', (int) $departmentScope['department_id']);
+            });
+        }
+
+        $slots = $slotsQuery->get();
 
         if ($slots->count() !== $slotIds->count()) {
-            return back()->withInput()->with('error', 'Co slot ID khong thuoc lich thang da chon.');
+            return back()->withInput()->with('error', 'Co slot ID khong thuoc khoa hien tai hoac khong nam trong batch thang da chon.');
         }
 
         $slotMap = $slots->keyBy('id');
@@ -61,7 +98,7 @@ class CreateChangeRequestHandler
                     'new_payload' => $firstPayload,
                     'status' => 'pending',
                     'change_type' => 'general',
-                    'apply_mode' => (string) ($validated['apply_mode'] ?? 'all_or_none'),
+                    'apply_mode' => 'all_or_none',
                     'apply_changes' => true,
                     'apply_summary' => null,
                     'submitted_at' => now(),
@@ -106,6 +143,7 @@ class CreateChangeRequestHandler
         return [
             'class_id' => $slot->class_id,
             'teacher_id' => $slot->teacher_id,
+            'assignment_type' => $slot->assignment_type,
             'subject_id' => $slot->subject_id,
             'subject_lesson_id' => $slot->subject_lesson_id,
             'room_id' => $slot->room_id,
@@ -119,5 +157,14 @@ class CreateChangeRequestHandler
             'actual_content' => $slot->actual_content,
             'note' => $slot->note,
         ];
+    }
+
+    private function resolveDepartmentScope(MonthlySchedule $monthlySchedule, ?\App\Models\User $user): ?array
+    {
+        if (! $user || ! $user->isDepartmentStaff()) {
+            return null;
+        }
+
+        return app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $user);
     }
 }

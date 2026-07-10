@@ -13,6 +13,7 @@ use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMont
 use Modules\Schedule\Application\TeachingSupportRequest\TeachingSupportRequestController;
 use Modules\Schedule\Application\TeachingSupportChangeRequest\TeachingSupportChangeRequestController;
 use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestController;
+use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestPageController;
 use Modules\Schedule\Application\ReviewChangeRequest\ReviewChangeRequestController;
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
 use Modules\Schedule\Application\UpdateScheduleSemester\UpdateScheduleSemesterController;
@@ -110,6 +111,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/change-requests/{id}/review', ReviewChangeRequestController::class)
         ->name('change-request.review');
+    Route::get('/change-requests/create', CreateChangeRequestPageController::class)
+        ->name('change-request.create');
     Route::post('/change-requests', CreateChangeRequestController::class)
         ->name('change-request.store');
     Route::post('/change-requests/holiday-reschedule', CreateHolidayRescheduleRequestController::class)

@@ -39,7 +39,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
                 'holiday_end_date' => '2026-09-14',
                 'target_date' => '2026-09-15',
                 'reason' => 'Dieu chinh do nghi le',
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $response->assertRedirect('/schedules');
@@ -95,7 +95,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
                 'holiday_end_date' => '2026-05-01',
                 'target_date' => '2026-05-02',
                 'reason' => 'Doi sang thu bay theo template',
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $response->assertRedirect('/schedules');
@@ -141,7 +141,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
                 'holiday_end_date' => '2026-09-10',
                 'target_date' => '2026-09-11',
                 'reason' => 'Dieu chinh do nghi le',
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $response->assertRedirect('/schedules');
@@ -154,7 +154,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
         $this->assertNotNull($changeRequest);
         $this->assertSame('pending', $changeRequest->status);
         $this->assertSame($trainingOffice->id, $changeRequest->requested_by);
-        $this->assertSame('best_effort', $changeRequest->apply_mode);
+        $this->assertSame('all_or_none', $changeRequest->apply_mode);
 
         $this->assertDatabaseHas('change_request_items', [
             'change_request_id' => $changeRequest->id,
@@ -183,7 +183,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
                 'holiday_end_date' => '2026-11-03',
                 'target_date' => '2026-11-04',
                 'reason' => 'Dieu chinh do nghi le',
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $changeRequest = ChangeRequest::query()
@@ -198,7 +198,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
             ->post('/change-requests/' . $changeRequest->id . '/review', [
                 'action' => 'approve',
                 'apply_changes' => 1,
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
                 'comment' => 'Duyet',
             ]);
 
@@ -236,7 +236,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
                 'holiday_end_date' => '2026-12-01',
                 'target_date' => '2026-12-02',
                 'reason' => 'Dieu chinh do nghi le',
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $changeRequest = ChangeRequest::query()
@@ -251,7 +251,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
             ->post('/change-requests/' . $changeRequest->id . '/review', [
                 'action' => 'approve',
                 'apply_changes' => 1,
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $response->assertRedirect('/schedules');
@@ -354,7 +354,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
             'new_payload' => json_encode(['date' => '2026-05-02', 'day_of_week' => 7, 'period_number' => 1]),
             'status' => 'pending',
             'change_type' => 'holiday_reschedule',
-            'apply_mode' => 'best_effort',
+            'apply_mode' => 'all_or_none',
             'apply_changes' => 1,
             'apply_summary' => null,
             'submitted_at' => now(),
@@ -394,7 +394,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
             ->post('/change-requests/' . $changeRequestId . '/review', [
                 'action' => 'approve',
                 'apply_changes' => 1,
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
                 'comment' => 'Duyet batch holiday move',
             ]);
 
@@ -517,7 +517,7 @@ class HolidayRescheduleWorkflowTest extends TestCase
                 'holiday_end_date' => '2026-07-30',
                 'target_date' => '2026-07-31',
                 'reason' => 'Chain shift trong thang voi tran thang',
-                'apply_mode' => 'best_effort',
+                'apply_mode' => 'all_or_none',
             ]);
 
         $response->assertRedirect('/schedules');

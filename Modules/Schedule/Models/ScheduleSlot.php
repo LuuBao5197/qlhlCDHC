@@ -76,6 +76,11 @@ class ScheduleSlot extends Model
         return $this->belongsTo(TeachingSupportRequestItem::class, 'teaching_support_request_item_id');
     }
 
+    public function teachingSupportRequestItems(): HasMany
+    {
+        return $this->hasMany(TeachingSupportRequestItem::class, 'schedule_slot_id');
+    }
+
     public function teachingSupportChangeRequestItems(): HasMany
     {
         return $this->hasMany(TeachingSupportChangeRequestItem::class, 'schedule_slot_id');

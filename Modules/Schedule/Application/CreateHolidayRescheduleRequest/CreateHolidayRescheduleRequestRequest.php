@@ -49,7 +49,7 @@ class CreateHolidayRescheduleRequestRequest extends FormRequest
             'holiday_dates.*' => ['required', 'date'],
             'target_date' => ['required', 'date'],
             'reason' => ['required', 'string', 'max:1000'],
-            'apply_mode' => ['nullable', 'string', Rule::in(['all_or_none', 'best_effort'])],
+            'apply_mode' => ['nullable', 'string', Rule::in(['all_or_none'])],
         ];
     }
 
