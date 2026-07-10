@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('schedule_slot_id')->constrained('schedule_slots')->cascadeOnDelete();
             $table->foreignId('evaluator_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->unsignedSmallInteger('score')->nullable();
+            $table->enum('rating_level', ['tot', 'kha', 'trung_binh', 'yeu']);
             $table->text('comment')->nullable();
             $table->timestamps();
         });

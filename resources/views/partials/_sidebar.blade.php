@@ -25,6 +25,12 @@
 
     @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
       <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('duty-log.index') }}">
+          <span class="menu-icon"><i class="mdi mdi-clipboard-text"></i></span>
+          <span class="menu-title">Nhật ký trực ban</span>
+        </a>
+      </li>
+      <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('monthly-schedule.initialize.form') }}">
           <span class="menu-icon"><i class="mdi mdi-calendar-plus"></i></span>
           <span class="menu-title">Khoi tao lich thang</span>
@@ -40,6 +46,15 @@
         <a class="nav-link" href="{{ route('teaching-support-requests.index') }}">
           <span class="menu-icon"><i class="mdi mdi-handshake-outline"></i></span>
           <span class="menu-title">Yêu cầu hỗ trợ liên khoa</span>
+        </a>
+      </li>
+    @endif
+
+    @if(auth()->check() && auth()->user()->isTeacher())
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('teacher-slot-evaluations.index') }}">
+          <span class="menu-icon"><i class="mdi mdi-clipboard-check"></i></span>
+          <span class="menu-title">Đánh giá tiết học</span>
         </a>
       </li>
     @endif

@@ -18,7 +18,7 @@ class SlotEvaluationSeeder extends Seeder
                 ['schedule_slot_id' => $log->schedule_slot_id],
                 [
                     'evaluator_id' => $evaluator?->id,
-                    'score' => 85,
+                    'rating_level' => 'kha',
                     'comment' => 'Tiet hoc dat yeu cau, du lieu scaffold de demo danh gia',
                 ]
             );

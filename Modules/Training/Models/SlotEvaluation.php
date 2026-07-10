@@ -18,7 +18,7 @@ class SlotEvaluation extends Model
         'evaluator_id',
         'attendance_count',
         'absent_count',
-        'score',
+        'rating_level',
         'comment',
     ];
 

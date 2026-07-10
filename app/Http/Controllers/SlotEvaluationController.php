@@ -23,7 +23,9 @@ class SlotEvaluationController extends ApiCrudController
         return [
             'schedule_slot_id' => ['required', 'integer', 'exists:schedule_slots,id'],
             'evaluator_id' => ['nullable', 'integer', 'exists:users,id'],
-            'score' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'attendance_count' => ['nullable', 'integer', 'min:0'],
+            'absent_count' => ['nullable', 'integer', 'min:0'],
+            'rating_level' => ['required', 'in:tot,kha,trung_binh,yeu'],
             'comment' => ['nullable', 'string'],
         ];
     }

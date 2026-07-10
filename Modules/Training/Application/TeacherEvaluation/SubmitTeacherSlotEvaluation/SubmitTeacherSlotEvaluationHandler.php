@@ -51,15 +51,13 @@ class SubmitTeacherSlotEvaluationHandler
             $absentCount = array_key_exists('absent_count', $slotData) && $slotData['absent_count'] !== ''
                 ? (int) $slotData['absent_count']
                 : null;
-            $score = array_key_exists('score', $slotData) && $slotData['score'] !== ''
-                ? (int) $slotData['score']
-                : null;
+            $ratingLevel = (string) ($slotData['rating_level'] ?? '');
             $comment = array_key_exists('comment', $slotData)
                 ? trim((string) $slotData['comment'])
                 : null;
             $comment = $comment === '' ? null : $comment;
 
-            if ($attendanceCount === null && $absentCount === null && $score === null && $comment === null) {
+            if ($attendanceCount === null && $absentCount === null && $ratingLevel === '' && $comment === null) {
                 continue;
             }
 
@@ -71,7 +69,7 @@ class SubmitTeacherSlotEvaluationHandler
                 [
                     'attendance_count' => $attendanceCount,
                     'absent_count' => $absentCount,
-                    'score' => $score,
+                    'rating_level' => $ratingLevel,
                     'comment' => $comment,
                 ]
             );

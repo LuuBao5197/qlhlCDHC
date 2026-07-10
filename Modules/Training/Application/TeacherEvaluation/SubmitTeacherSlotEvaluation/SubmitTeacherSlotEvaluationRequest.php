@@ -23,8 +23,8 @@ class SubmitTeacherSlotEvaluationRequest extends FormRequest
             'slots' => ['nullable', 'array'],
             'slots.*.attendance_count' => ['nullable', 'integer', 'min:0'],
             'slots.*.absent_count' => ['nullable', 'integer', 'min:0'],
-            'slots.*.score' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'slots.*.comment' => ['nullable', 'string', 'max:2000'],
+            'slots.*.rating_level' => ['required', 'in:tot,kha,trung_binh,yeu'],
+            'slots.*.comment' => ['required', 'string', 'min:30', 'max:2000'],
         ];
     }
 
@@ -37,9 +37,10 @@ class SubmitTeacherSlotEvaluationRequest extends FormRequest
             'slots.*.attendance_count.min' => 'Quân số không được âm.',
             'slots.*.absent_count.integer' => 'Số vắng phải là số nguyên.',
             'slots.*.absent_count.min' => 'Số vắng không được âm.',
-            'slots.*.score.integer' => 'Điểm đánh giá phải là số nguyên.',
-            'slots.*.score.min' => 'Điểm đánh giá phải từ 0 đến 100.',
-            'slots.*.score.max' => 'Điểm đánh giá phải từ 0 đến 100.',
+            'slots.*.rating_level.required' => 'Vui lòng chọn xếp loại tiết học.',
+            'slots.*.rating_level.in' => 'Xếp loại tiết học không hợp lệ.',
+            'slots.*.comment.required' => 'Vui lòng nhập nhận xét tiết học.',
+            'slots.*.comment.min' => 'Nhận xét tiết học tối thiểu 30 ký tự.',
             'slots.*.comment.max' => 'Nhận xét tối đa 2000 ký tự.',
         ];
     }

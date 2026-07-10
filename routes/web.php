@@ -18,6 +18,16 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected redirect home
 Route::middleware('auth')->get('/home', function () {
+    $user = request()->user();
+
+    if ($user->isTrainingOffice() || $user->isAdmin()) {
+        return redirect()->route('duty-log.index');
+    }
+
+    if ($user->isTeacher()) {
+        return redirect()->route('teacher-slot-evaluations.index');
+    }
+
     return redirect()->route('schedule.index');
 });
 

@@ -58,8 +58,8 @@
         font-weight: 700;
     }
 
-    .slot-eval-score {
-        width: 90px;
+    .slot-eval-rating {
+        width: 120px;
         text-align: center;
     }
 
@@ -119,12 +119,33 @@
         border-radius: 4px;
         padding: 6px 10px;
     }
+
+    .slot-eval-field-error {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .slot-eval-rating.is-invalid {
+        border-color: #dc3545;
+    }
+
+    .slot-eval-comment.is-invalid {
+        border-color: #dc3545;
+    }
 </style>
 
 @php
     $periodLabels = [
         1 => 'Tiết 1', 2 => 'Tiết 2', 3 => 'Tiết 3', 4 => 'Tiết 4', 5 => 'Tiết 5',
         6 => 'Tiết 6', 7 => 'Tiết 7', 8 => 'Tiết 8', 9 => 'Tiết 9',
+    ];
+
+    $ratingLevels = [
+        'tot' => 'Tốt',
+        'kha' => 'Khá',
+        'trung_binh' => 'Trung bình',
+        'yeu' => 'Yếu',
     ];
 @endphp
 
@@ -189,7 +210,7 @@
                             <th style="width:100px;">Phòng</th>
                             <th style="width:100px;">Quân số</th>
                             <th style="width:100px;">Vắng</th>
-                            <th style="width:110px;">Điểm (0-100)</th>
+                            <th style="width:130px;">Xếp loại</th>
                             <th>Nhận xét</th>
                         </tr>
                     </thead>
@@ -198,6 +219,7 @@
                             @php
                                 $evaluation = $evaluations->get($slot->id);
                                 $slotKey = $slot->id;
+                                $defaultAttendanceCount = $evaluation?->attendance_count ?? $slot->trainingClass?->total_students;
                             @endphp
                             <tr>
                                 <td style="text-align:center;">{{ $periodLabels[$slot->period_number] ?? ('Tiết ' . $slot->period_number) }}</td>
@@ -222,7 +244,7 @@
                                         min="0"
                                         class="slot-eval-count"
                                         name="slots[{{ $slotKey }}][attendance_count]"
-                                        value="{{ old("slots.{$slotKey}.attendance_count", $evaluation?->attendance_count) }}"
+                                        value="{{ old("slots.{$slotKey}.attendance_count", $defaultAttendanceCount) }}"
                                         placeholder="QS"
                                     >
                                 </td>
@@ -237,22 +259,33 @@
                                     >
                                 </td>
                                 <td>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        class="slot-eval-score"
-                                        name="slots[{{ $slotKey }}][score]"
-                                        value="{{ old("slots.{$slotKey}.score", $evaluation?->score) }}"
-                                        placeholder="0-100"
+                                    <select
+                                        class="slot-eval-rating {{ $errors->has("slots.{$slotKey}.rating_level") ? 'is-invalid' : '' }}"
+                                        name="slots[{{ $slotKey }}][rating_level]"
                                     >
+                                        <option value="">Chọn</option>
+                                        @foreach ($ratingLevels as $ratingValue => $ratingLabel)
+                                            <option
+                                                value="{{ $ratingValue }}"
+                                                @selected(old("slots.{$slotKey}.rating_level", $evaluation?->rating_level) === $ratingValue)
+                                            >
+                                                {{ $ratingLabel }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error("slots.{$slotKey}.rating_level")
+                                        <div class="slot-eval-field-error">{{ $message }}</div>
+                                    @enderror
                                 </td>
                                 <td>
                                     <textarea
                                         name="slots[{{ $slotKey }}][comment]"
-                                        class="slot-eval-comment"
+                                        class="slot-eval-comment {{ $errors->has("slots.{$slotKey}.comment") ? 'is-invalid' : '' }}"
                                         placeholder="Nhận xét chất lượng tiết học..."
                                     >{{ old("slots.{$slotKey}.comment", $evaluation?->comment) }}</textarea>
+                                    @error("slots.{$slotKey}.comment")
+                                        <div class="slot-eval-field-error">{{ $message }}</div>
+                                    @enderror
                                 </td>
                             </tr>
                         @endforeach

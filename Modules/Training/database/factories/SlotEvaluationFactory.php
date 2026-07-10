@@ -24,7 +24,7 @@ class SlotEvaluationFactory extends Factory
         return [
             'schedule_slot_id' => fn () => $this->firstOrCreateScheduleSlot()->id,
             'evaluator_id' => User::factory(),
-            'score' => fake()->numberBetween(60, 100),
+            'rating_level' => fake()->randomElement(['tot', 'kha', 'trung_binh', 'yeu']),
             'comment' => fake()->sentence(),
         ];
     }

@@ -238,7 +238,7 @@
             >
         </form>
 
-        @if (auth()->user()?->isTrainingOffice())
+        @if (auth()->user()?->isTrainingOffice() || auth()->user()?->isAdmin())
             <a href="{{ route('duty-log.edit', ['date' => $date->toDateString()]) }}" class="btn-nhatky-neutral">
                 Chuyển sang trang chỉnh sửa
             </a>

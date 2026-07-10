@@ -14,6 +14,8 @@ class GetTeacherSlotEvaluationHandler
     {
         $user = $request->user();
 
+        abort_unless($user !== null && $user->isTeacher(), 403);
+
         $date = $request->input('date')
             ? Carbon::parse($request->input('date'))->toDateString()
             : Carbon::today()->toDateString();

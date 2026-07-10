@@ -15,6 +15,8 @@ class GetTeacherDailyLogHandler
     {
         $user = $request->user();
 
+        abort_unless($user !== null && ($user->isTrainingOffice() || $user->isAdmin()), 403);
+
         // Default to today if no date provided
         $date = $request->input('date')
             ? Carbon::parse($request->input('date'))->toDateString()
@@ -47,9 +49,8 @@ class GetTeacherDailyLogHandler
             ->get()
             ->keyBy('schedule_slot_id');
 
-        // Fetch existing daily summary written by the duty officer (auth user)
-        $dailySummary = TeacherDailySummary::where('teacher_id', $user->id)
-            ->where('log_date', $date)
+        // Fetch the shared training-office summary for this date.
+        $dailySummary = TeacherDailySummary::where('log_date', $date)
             ->first();
 
         $viewName = $isEditMode

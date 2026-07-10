@@ -15,7 +15,7 @@ class SubmitDailyLogRequest extends FormRequest
             return false;
         }
 
-        return $user->isTrainingOffice();
+        return $user->isTrainingOffice() || $user->isAdmin();
     }
 
     public function rules(): array
