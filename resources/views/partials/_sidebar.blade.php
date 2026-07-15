@@ -23,6 +23,15 @@
       </a>
     </li>
 
+    @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin() || auth()->user()->isLeadership() || auth()->user()->isDepartmentStaff() || auth()->user()->isTeacher()))
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('reports.teaching.overview') }}">
+          <span class="menu-icon"><i class="mdi mdi-chart-bar"></i></span>
+          <span class="menu-title">Báo cáo thống kê</span>
+        </a>
+      </li>
+    @endif
+
     @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('duty-log.index') }}">
