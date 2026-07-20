@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\Position;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,26 @@ class UserFactory extends Factory
      * The current password being used by the factory.
      */
     protected static ?string $password;
+
+    /**
+     * Gán Position mặc định theo role cuối cùng (sau khi test override ->create(['role' => ...])),
+     * ở tier cao nhất để giữ nguyên hành vi phê duyệt hiện có của các test không set position.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (User $user): void {
+            if ($user->position !== null) {
+                return;
+            }
+
+            $user->position = match ($user->role) {
+                User::ROLE_DEPARTMENT_STAFF => Position::DEPARTMENT_HEAD,
+                User::ROLE_TRAINING_OFFICE => Position::TRAINING_HEAD,
+                User::ROLE_LEADERSHIP => Position::PRINCIPAL,
+                default => null,
+            };
+        });
+    }
 
     /**
      * Define the model's default state.

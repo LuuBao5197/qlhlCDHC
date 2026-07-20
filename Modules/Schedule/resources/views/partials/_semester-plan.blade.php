@@ -32,6 +32,10 @@
                                 @php
                                     $statusClass = $statusStyles[$schedule->status] ?? 'badge-light';
                                 @endphp
+                                @php
+                                    $canSubmitPlan = $canReviewWorkflow && in_array($schedule->status, ['draft', 'returned', 'rejected'], true);
+                                    $canLeadershipReviewPlan = $canLeadershipReview && $schedule->status === 'submitted' && $schedule->current_step === 'leadership_review';
+                                @endphp
                                 <tr>
                                     <td>{{ $schedule->id }}</td>
                                     <td>
@@ -84,7 +88,7 @@
                                             @endif
 
                                             {{-- UC4 Submit --}}
-                                            @if ($canReviewWorkflow && in_array($schedule->status, ['draft', 'returned', 'rejected'], true))
+                                            @if ($canSubmitPlan)
                                                 <form method="POST"
                                                     action="{{ route('schedule.submit', $schedule->id) }}"
                                                     style="flex: 1; min-width: 280px;">
@@ -97,10 +101,45 @@
                                                         </div>
                                                     </div>
                                                 </form>
-                                            @elseif (!$canReviewWorkflow)
-                                                <span class="text-muted text-nowrap">Khong co quyen thao tac</span>
-                                            @else
-                                                <span class="text-muted text-nowrap">Khong co thao tac phu hop</span>
+                                            @endif
+
+                                            {{-- Ban Giam hieu duyet --}}
+                                            @if ($canLeadershipReviewPlan)
+                                                <div class="d-flex flex-column" style="flex: 1; min-width: 280px;">
+                                                    <form method="POST"
+                                                        action="{{ route('schedule.leadership-review', $schedule->id) }}"
+                                                        class="mb-2">
+                                                        @csrf
+                                                        <input type="hidden" name="action" value="approve">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="text" class="form-control" name="comment"
+                                                                placeholder="Nhan xet phe duyet (optional)">
+                                                            <div class="input-group-append">
+                                                                <button type="submit" class="btn btn-success">BGH Phe duyet</button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                    <form method="POST"
+                                                        action="{{ route('schedule.leadership-review', $schedule->id) }}">
+                                                        @csrf
+                                                        <input type="hidden" name="action" value="reject">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="text" class="form-control" name="reason"
+                                                                required placeholder="Ly do tu choi (required)">
+                                                            <div class="input-group-append">
+                                                                <button type="submit" class="btn btn-danger">BGH Tu choi</button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            @endif
+
+                                            @if (! $canSubmitPlan && ! $canLeadershipReviewPlan)
+                                                @if (! $canReviewWorkflow && ! $canLeadershipReview)
+                                                    <span class="text-muted text-nowrap">Khong co quyen thao tac</span>
+                                                @else
+                                                    <span class="text-muted text-nowrap">Khong co thao tac phu hop</span>
+                                                @endif
                                             @endif
                                         </div>
                                     </td>

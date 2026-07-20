@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\ReviewChangeRequest;
 
+use App\Services\ApprovalAuthorityService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Training\Models\ChangeRequest;
@@ -11,17 +12,21 @@ class ReviewChangeRequestRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      */
-    public function authorize(): bool
+    public function authorize(ApprovalAuthorityService $approvalAuthority): bool
     {
         $user = $this->user();
 
-        if ($user === null || (! $user->isTrainingOffice() && ! $user->isAdmin())) {
+        if ($user === null) {
             return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
         }
 
         $changeRequestId = (int) $this->route('id');
         if ($changeRequestId <= 0) {
-            return true;
+            return $approvalAuthority->canApproveAsTrainingOffice($user);
         }
 
         $changeType = ChangeRequest::query()
@@ -29,10 +34,10 @@ class ReviewChangeRequestRequest extends FormRequest
             ->value('change_type');
 
         if ($changeType === 'holiday_reschedule') {
-            return $user->isAdmin();
+            return false;
         }
 
-        return $user->isTrainingOffice() || $user->isAdmin();
+        return $approvalAuthority->canApproveAsTrainingOffice($user);
     }
 
     /**

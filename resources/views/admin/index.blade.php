@@ -62,6 +62,12 @@
                                     @endforeach
                                 </select>
                             </div>
+                            <div class="col-md-3 form-group" id="create-user-position-group" style="display: none;">
+                                <label for="create-user-position">Chức vụ</label>
+                                <select id="create-user-position" name="position" class="form-control">
+                                    <option value="">-- Chọn chức vụ --</option>
+                                </select>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary">Tạo tài khoản &amp; gửi email mời</button>
                     </form>
@@ -92,6 +98,7 @@
                                     <th>Email</th>
                                     <th>Department</th>
                                     <th>Role</th>
+                                    <th>Chức vụ</th>
                                     <th>Status</th>
                                     <th>Kích hoạt</th>
                                     <th></th>
@@ -99,11 +106,29 @@
                             </thead>
                             <tbody>
                                 @forelse($users as $user)
+                                    @php
+                                        $userPositionOptions = $positionOptionsByRole[$user->role] ?? [];
+                                    @endphp
                                     <tr>
                                         <td>{{ $user->name }}</td>
                                         <td>{{ $user->email }}</td>
                                         <td>{{ $user->department?->name ?? '-' }}</td>
                                         <td>{{ $roleLabels[$user->role] ?? ($user->role ?? '-') }}</td>
+                                        <td>
+                                            @if ($userPositionOptions !== [])
+                                                <form method="POST" action="{{ route('admin.users.update-position', $user) }}" class="d-flex align-items-center" style="gap: 4px;">
+                                                    @csrf
+                                                    <select name="position" class="form-control form-control-sm">
+                                                        @foreach ($userPositionOptions as $value => $label)
+                                                            <option value="{{ $value }}" @selected($user->position?->value === $value)>{{ $label }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Cập nhật</button>
+                                                </form>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
                                         <td>
                                             <span class="badge {{ $user->isLocked() ? 'badge-danger' : ($user->isApproved() ? 'badge-success' : 'badge-secondary') }}">
                                                 {{ $user->isLocked() ? 'Đã khoá' : ucfirst($user->status) }}
@@ -141,7 +166,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center">Chưa có người dùng nào.</td>
+                                        <td colspan="8" class="text-center">Chưa có người dùng nào.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -158,6 +183,10 @@
             var roleSelect = document.getElementById('create-user-role');
             var departmentGroup = document.getElementById('create-user-department-group');
             var departmentSelect = document.getElementById('create-user-department');
+            var positionGroup = document.getElementById('create-user-position-group');
+            var positionSelect = document.getElementById('create-user-position');
+            var positionOptionsByRole = @json($positionOptionsByRole);
+            var oldPosition = @json(old('position'));
 
             function toggleDepartment() {
                 var isDepartmentStaff = roleSelect.value === @json(\App\Models\User::ROLE_DEPARTMENT_STAFF);
@@ -168,8 +197,31 @@
                 }
             }
 
-            roleSelect.addEventListener('change', toggleDepartment);
+            function togglePosition() {
+                var options = positionOptionsByRole[roleSelect.value] || {};
+                var hasOptions = Object.keys(options).length > 0;
+
+                positionSelect.innerHTML = '<option value="">-- Chọn chức vụ --</option>';
+                Object.keys(options).forEach(function (value) {
+                    var option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = options[value];
+                    if (value === oldPosition) {
+                        option.selected = true;
+                    }
+                    positionSelect.appendChild(option);
+                });
+
+                positionGroup.style.display = hasOptions ? '' : 'none';
+                positionSelect.required = hasOptions;
+            }
+
+            roleSelect.addEventListener('change', function () {
+                toggleDepartment();
+                togglePosition();
+            });
             toggleDepartment();
+            togglePosition();
         })();
     </script>
 @endsection

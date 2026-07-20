@@ -2,6 +2,7 @@
 
 namespace Modules\Training\Database\Seeders;
 
+use App\Enums\Position;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Modules\Training\Database\Seeders\Concerns\DemoSeedingGuard;
@@ -35,6 +36,7 @@ class DemoUserSeeder extends Seeder
                 'email' => 'lanh-dao-1@demo.local',
                 'name' => 'Đại tá Nguyễn Văn Minh',
                 'role' => User::ROLE_LEADERSHIP,
+                'position' => Position::PRINCIPAL,
                 'status' => User::STATUS_APPROVED,
                 'employee_code' => 'LD-0001',
                 'department_id' => null,
@@ -44,6 +46,7 @@ class DemoUserSeeder extends Seeder
                 'email' => 'lanh-dao-2@demo.local',
                 'name' => 'Thượng tá Trần Thị Hồng Nhung',
                 'role' => User::ROLE_LEADERSHIP,
+                'position' => Position::VICE_PRINCIPAL,
                 'status' => User::STATUS_APPROVED,
                 'employee_code' => 'LD-0002',
                 'department_id' => null,
@@ -53,6 +56,7 @@ class DemoUserSeeder extends Seeder
                 'email' => 'pdt-1@demo.local',
                 'name' => 'Cử nhân Phạm Anh Tuấn',
                 'role' => User::ROLE_TRAINING_OFFICE,
+                'position' => Position::TRAINING_HEAD,
                 'status' => User::STATUS_APPROVED,
                 'employee_code' => 'PDT-0001',
                 'department_id' => null,
@@ -62,15 +66,27 @@ class DemoUserSeeder extends Seeder
                 'email' => 'pdt-2@demo.local',
                 'name' => 'Cử nhân Nguyễn Thu Hà',
                 'role' => User::ROLE_TRAINING_OFFICE,
+                'position' => Position::TRAINING_DEPUTY_HEAD,
                 'status' => User::STATUS_APPROVED,
                 'employee_code' => 'PDT-0002',
                 'department_id' => null,
                 'phone' => '0901000005',
             ],
             [
+                'email' => 'pdt-3@demo.local',
+                'name' => 'Cử nhân Đỗ Minh Quân',
+                'role' => User::ROLE_TRAINING_OFFICE,
+                'position' => Position::TRAINING_STAFF,
+                'status' => User::STATUS_APPROVED,
+                'employee_code' => 'PDT-0003',
+                'department_id' => null,
+                'phone' => '0901000012',
+            ],
+            [
                 'email' => 'khoa-duoc-1@demo.local',
                 'name' => 'DS. Lê Hoàng Nam',
                 'role' => User::ROLE_DEPARTMENT_STAFF,
+                'position' => Position::DEPARTMENT_HEAD,
                 'status' => User::STATUS_APPROVED,
                 'employee_code' => 'KD-0001',
                 'department_id' => $departmentDuoc?->id,
@@ -80,6 +96,7 @@ class DemoUserSeeder extends Seeder
                 'email' => 'khoa-dieu-duong-1@demo.local',
                 'name' => 'ĐD. Trần Thị Mai Anh',
                 'role' => User::ROLE_DEPARTMENT_STAFF,
+                'position' => Position::DEPARTMENT_HEAD,
                 'status' => User::STATUS_APPROVED,
                 'employee_code' => 'KDD-0001',
                 'department_id' => $departmentDieuDuong?->id,
@@ -130,6 +147,7 @@ class DemoUserSeeder extends Seeder
                     'name' => $userData['name'],
                     'password' => 'password123',
                     'role' => $userData['role'],
+                    'position' => $userData['position'] ?? null,
                     'status' => $userData['status'],
                     'department_id' => $userData['department_id'],
                     'employee_code' => $userData['employee_code'],
@@ -142,6 +160,12 @@ class DemoUserSeeder extends Seeder
             // email_verified_at không nằm trong $fillable).
             if ($user->email_verified_at === null) {
                 $user->forceFill(['email_verified_at' => now()])->save();
+            }
+
+            // firstOrCreate không cập nhật user đã tồn tại từ trước khi thêm Position vào seeder —
+            // backfill riêng để tài khoản demo cũ vẫn duyệt được sau khi Position trở thành bắt buộc.
+            if ($user->position === null && isset($userData['position'])) {
+                $user->update(['position' => $userData['position']]);
             }
         }
     }

@@ -5,8 +5,10 @@
 @section('content')
     @php
         $user = auth()->user();
-        $canReviewWorkflow = $user && ($user->isTrainingOffice() || $user->isAdmin());
+        $approvalAuthority = app(\App\Services\ApprovalAuthorityService::class);
+        $canReviewWorkflow = $approvalAuthority->canApproveAsTrainingOffice($user);
         $canDepartmentAssign = $user && ($user->isDepartmentStaff() || $user->isAdmin());
+        $canLeadershipReview = $approvalAuthority->canApproveAsLeadership($user);
     @endphp
 
     <div class="row mb-3">

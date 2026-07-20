@@ -3,10 +3,13 @@
 namespace Modules\Schedule\Application\TeachingSupportRequest;
 
 use App\Models\User;
+use App\Services\ApprovalAuthorityService;
 use Modules\Schedule\Models\TeachingSupportRequest;
 
 class TeachingSupportRequestPolicy
 {
+    public function __construct(private ApprovalAuthorityService $approvalAuthority) {}
+
     public function viewAny(User $user): bool
     {
         return $user->isAdmin() || $user->isTrainingOffice() || $user->isDepartmentStaff();
@@ -33,7 +36,7 @@ class TeachingSupportRequestPolicy
 
     public function process(User $user, TeachingSupportRequest $request): bool
     {
-        return $user->isAdmin() || $user->isTrainingOffice();
+        return $this->approvalAuthority->canApproveAsTrainingOffice($user);
     }
 
     public function confirm(User $user, TeachingSupportRequest $request): bool

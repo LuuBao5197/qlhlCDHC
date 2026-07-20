@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Position;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,6 +56,7 @@ class User extends Authenticatable
         'password',
         'role',
         'requested_role',
+        'position',
         'status',
         'department_id',
         'requested_department_id',
@@ -71,6 +73,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'position' => Position::class,
     ];
 
     public static function getAvailableRoles(): array

@@ -9,6 +9,8 @@ enum InternalNotificationType: string
     case USER_REGISTRATION_REJECTED = 'user_registration_rejected';
 
     case SEMESTER_PLAN_SUBMITTED = 'semester_plan_submitted';
+    case SEMESTER_PLAN_APPROVED = 'semester_plan_approved';
+    case SEMESTER_PLAN_REJECTED = 'semester_plan_rejected';
 
     case SCHEDULE_CHANGE_REQUEST_SUBMITTED = 'schedule_change_request_submitted';
     case SCHEDULE_CHANGE_REQUEST_APPROVED = 'schedule_change_request_approved';
@@ -35,6 +37,8 @@ enum InternalNotificationType: string
             self::USER_REGISTRATION_APPROVED => 'Dang ky da duyet',
             self::USER_REGISTRATION_REJECTED => 'Dang ky bi tu choi',
             self::SEMESTER_PLAN_SUBMITTED => 'Ke hoach hoc ky',
+            self::SEMESTER_PLAN_APPROVED => 'Ke hoach hoc ky da duyet',
+            self::SEMESTER_PLAN_REJECTED => 'Ke hoach hoc ky bi tu choi',
             self::SCHEDULE_CHANGE_REQUEST_SUBMITTED => 'Phieu thay doi lich',
             self::SCHEDULE_CHANGE_REQUEST_APPROVED => 'Phieu thay doi da duyet',
             self::SCHEDULE_CHANGE_REQUEST_REJECTED => 'Phieu thay doi bi tu choi',
@@ -59,6 +63,8 @@ enum InternalNotificationType: string
             self::USER_REGISTRATION_APPROVED => 'mdi-account-check',
             self::USER_REGISTRATION_REJECTED => 'mdi-account-cancel',
             self::SEMESTER_PLAN_SUBMITTED => 'mdi-book-open-page-variant',
+            self::SEMESTER_PLAN_APPROVED => 'mdi-book-check',
+            self::SEMESTER_PLAN_REJECTED => 'mdi-book-remove',
             self::SCHEDULE_CHANGE_REQUEST_SUBMITTED => 'mdi-calendar-edit',
             self::SCHEDULE_CHANGE_REQUEST_APPROVED => 'mdi-calendar-check',
             self::SCHEDULE_CHANGE_REQUEST_REJECTED => 'mdi-calendar-remove',
@@ -80,11 +86,13 @@ enum InternalNotificationType: string
     {
         return match ($this) {
             self::USER_REGISTRATION_REJECTED,
+            self::SEMESTER_PLAN_REJECTED,
             self::SCHEDULE_CHANGE_REQUEST_REJECTED,
             self::TEACHING_SUPPORT_REQUEST_REJECTED,
             self::TEACHING_SUPPORT_CHANGE_REQUEST_RETURNED => 'text-danger',
 
             self::ASSIGNMENT_BATCH_APPROVED,
+            self::SEMESTER_PLAN_APPROVED,
             self::TEACHING_SUPPORT_REQUEST_COMPLETED,
             self::TEACHING_SUPPORT_REQUEST_APPROVED,
             self::TEACHING_SUPPORT_CHANGE_REQUEST_APPROVED,
@@ -105,11 +113,13 @@ enum InternalNotificationType: string
     {
         return match ($this) {
             self::USER_REGISTRATION_REJECTED,
+            self::SEMESTER_PLAN_REJECTED,
             self::SCHEDULE_CHANGE_REQUEST_REJECTED,
             self::TEACHING_SUPPORT_REQUEST_REJECTED,
             self::TEACHING_SUPPORT_CHANGE_REQUEST_RETURNED => 'badge-danger',
 
             self::ASSIGNMENT_BATCH_APPROVED,
+            self::SEMESTER_PLAN_APPROVED,
             self::TEACHING_SUPPORT_REQUEST_COMPLETED,
             self::TEACHING_SUPPORT_REQUEST_APPROVED,
             self::TEACHING_SUPPORT_CHANGE_REQUEST_APPROVED,

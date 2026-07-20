@@ -58,7 +58,35 @@ class InternalNotificationService
             'Ke hoach hoc ky da duoc gui',
             $plan->name . ' vua duoc gui len cap phe duyet.',
             route('schedule.show', $plan->id),
-            'semester-plan-submitted:' . $plan->id,
+            'semester-plan-submitted:' . $plan->id . ':' . optional($plan->submitted_at)->timestamp,
+            [
+                'plan_id' => $plan->id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    public function notifySemesterPlanReviewed(Plans $plan, User $actor, bool $approved): void
+    {
+        $type = $approved
+            ? InternalNotificationType::SEMESTER_PLAN_APPROVED
+            : InternalNotificationType::SEMESTER_PLAN_REJECTED;
+
+        $recipients = $this->recipientUsers($plan->submittedBy)
+            ->merge($this->recipientUsers($plan->createdBy));
+
+        if ($approved) {
+            $recipients = $recipients->merge($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]));
+        }
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            $type,
+            $approved ? 'Ke hoach hoc ky da duoc phe duyet' : 'Ke hoach hoc ky bi tu choi',
+            $approved
+                ? $plan->name . ' da duoc Ban Giam hieu phe duyet.'
+                : $plan->name . ' da bi Ban Giam hieu tu choi.',
+            route('schedule.show', $plan->id),
+            'semester-plan-reviewed:' . $plan->id . ':' . now()->timestamp,
             [
                 'plan_id' => $plan->id,
                 'actor_id' => $actor->id,

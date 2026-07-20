@@ -4,6 +4,7 @@ namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ApprovalAuthorityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,8 @@ use Modules\Training\Models\Department;
 class DepartmentMonthlyAssignmentBatchController extends Controller
 {
     public function __construct(
-        private SubmitDepartmentMonthlyAssignmentBatch $submitBatch
+        private SubmitDepartmentMonthlyAssignmentBatch $submitBatch,
+        private ApprovalAuthorityService $approvalAuthority
     ) {}
 
     public function index(Request $request): Response
@@ -136,7 +138,7 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             return response()->view('schedule::department-monthly-assignment-batch.show', [
                 'batch' => $batch,
                 'batchData' => $this->formatBatch($batch),
-                'canReview' => $request->user()?->isAdmin() || $request->user()?->isTrainingOffice(),
+                'canReview' => $this->approvalAuthority->canApproveAsTrainingOffice($request->user()),
                 'anchorMonthlyScheduleId' => $batch->batchSlots->first()?->scheduleSlot?->monthly_schedule_id,
             ]);
         }

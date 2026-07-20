@@ -3,11 +3,14 @@
 namespace Modules\Schedule\Application\TeachingSupportChangeRequest;
 
 use App\Models\User;
+use App\Services\ApprovalAuthorityService;
 use Modules\Schedule\Models\TeachingSupportChangeRequest;
 use Modules\Schedule\Models\TeachingSupportRequest;
 
 class TeachingSupportChangeRequestPolicy
 {
+    public function __construct(private ApprovalAuthorityService $approvalAuthority) {}
+
     public function view(User $user, TeachingSupportChangeRequest $changeRequest): bool
     {
         if ($user->isAdmin() || $user->isTrainingOffice()) {
@@ -39,7 +42,7 @@ class TeachingSupportChangeRequestPolicy
 
     public function process(User $user, TeachingSupportChangeRequest $changeRequest): bool
     {
-        return $user->isAdmin() || $user->isTrainingOffice();
+        return $this->approvalAuthority->canApproveAsTrainingOffice($user);
     }
 
     public function withdraw(User $user, TeachingSupportRequest $request): bool

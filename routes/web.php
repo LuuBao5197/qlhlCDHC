@@ -78,4 +78,5 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/users/{user}/resend-invitation', [App\Http\Controllers\Admin\AdminController::class, 'resendInvitation'])->name('users.resend-invitation');
     Route::post('/users/{user}/lock', [App\Http\Controllers\Admin\AdminController::class, 'lock'])->name('users.lock');
     Route::post('/users/{user}/unlock', [App\Http\Controllers\Admin\AdminController::class, 'unlock'])->name('users.unlock');
+    Route::post('/users/{user}/position', [App\Http\Controllers\Admin\AdminController::class, 'updatePosition'])->name('users.update-position');
 });

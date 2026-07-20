@@ -223,7 +223,7 @@ class TeachingSupportRequestController extends Controller
 
         return response()->view('schedule::teaching-support-request.show', [
             'requestModel' => $requestModel,
-            'canProcess' => $request->user()?->isTrainingOffice() || $request->user()?->isAdmin(),
+            'canProcess' => $request->user()?->can('process', $requestModel) ?? false,
             'canConfirm' => $request->user()?->isDepartmentStaff()
                 && (int) $requestModel->assigned_supporting_department_id === (int) $request->user()?->department_id,
             'changeRequestPayload' => $this->changeRequestService->buildDetailPayload($requestModel, $request->user()),

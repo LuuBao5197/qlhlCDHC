@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Position;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AccountInvitationService;
@@ -50,7 +51,24 @@ class AdminController extends Controller
             'users' => $users,
             'departments' => $departments,
             'creatableRoles' => self::CREATABLE_ROLES,
+            'positionOptionsByRole' => $this->positionOptionsByRole(),
         ]);
+    }
+
+    /**
+     * @return array<string, array<string, string>>
+     */
+    private function positionOptionsByRole(): array
+    {
+        return collect(User::getAvailableRoles())
+            ->mapWithKeys(function (string $role): array {
+                $options = collect(Position::forRole($role))
+                    ->mapWithKeys(fn (Position $position): array => [$position->value => $position->label()])
+                    ->all();
+
+                return [$role => $options];
+            })
+            ->all();
     }
 
     /**
@@ -69,6 +87,15 @@ class AdminController extends Controller
                 'integer',
                 'exists:departments,id',
             ],
+            'position' => [
+                Rule::requiredIf(fn () => Position::forRole((string) $request->input('role')) !== []),
+                'nullable',
+                'string',
+                Rule::in(array_map(
+                    fn (Position $position): string => $position->value,
+                    Position::forRole((string) $request->input('role'))
+                )),
+            ],
         ], [
             'name.required' => 'Vui lòng nhập họ tên.',
             'email.required' => 'Vui lòng nhập email.',
@@ -77,6 +104,8 @@ class AdminController extends Controller
             'role.in' => 'Vai trò không hợp lệ.',
             'department_id.required' => 'Vui lòng chọn khoa cho nhân viên khoa.',
             'department_id.exists' => 'Khoa không hợp lệ.',
+            'position.required' => 'Vui lòng chọn chức vụ.',
+            'position.in' => 'Chức vụ không hợp lệ với vai trò đã chọn.',
         ]);
 
         try {
@@ -85,6 +114,7 @@ class AdminController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make(Str::random(40)),
                 'role' => $validated['role'],
+                'position' => $validated['position'] ?? null,
                 'status' => User::STATUS_APPROVED,
                 'department_id' => $validated['role'] === User::ROLE_DEPARTMENT_STAFF
                     ? $validated['department_id']
@@ -123,6 +153,29 @@ class AdminController extends Controller
                 ? 'Đã gửi lại email mời kích hoạt tới ' . $user->email . '.'
                 : 'Không gửi được email mời. Vui lòng kiểm tra cấu hình mail và thử lại.'
         );
+    }
+
+    public function updatePosition(Request $request, User $user)
+    {
+        $allowedPositions = Position::forRole($user->role);
+        if ($allowedPositions === []) {
+            return back()->with('error', 'Vai trò của tài khoản này không có chức vụ để gán.');
+        }
+
+        $validated = $request->validate([
+            'position' => [
+                'required',
+                'string',
+                Rule::in(array_map(fn (Position $position): string => $position->value, $allowedPositions)),
+            ],
+        ], [
+            'position.required' => 'Vui lòng chọn chức vụ.',
+            'position.in' => 'Chức vụ không hợp lệ với vai trò của người dùng này.',
+        ]);
+
+        $user->update(['position' => $validated['position']]);
+
+        return back()->with('success', 'Đã cập nhật chức vụ cho ' . $user->email . '.');
     }
 
     public function lock(Request $request, User $user)

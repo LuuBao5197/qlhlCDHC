@@ -4,6 +4,7 @@ namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ApprovalAuthorityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,8 @@ class DepartmentMonthlyAssignmentBatchReviewController extends Controller
 {
     public function __construct(
         private ApproveDepartmentMonthlyAssignmentBatch $approveBatch,
-        private ReturnDepartmentMonthlyAssignmentBatch $returnBatch
+        private ReturnDepartmentMonthlyAssignmentBatch $returnBatch,
+        private ApprovalAuthorityService $approvalAuthority
     ) {}
 
     public function approve(Request $request, int $id): JsonResponse|RedirectResponse
@@ -93,7 +95,7 @@ class DepartmentMonthlyAssignmentBatchReviewController extends Controller
 
     private function authorizeReview(?User $user): void
     {
-        if (! $user || (! $user->isTrainingOffice() && ! $user->isAdmin())) {
+        if (! $this->approvalAuthority->canApproveAsTrainingOffice($user)) {
             abort(403);
         }
     }

@@ -16,6 +16,7 @@ use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestControll
 use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestPageController;
 use Modules\Schedule\Application\ReviewChangeRequest\ReviewChangeRequestController;
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
+use Modules\Schedule\Application\LeadershipReviewSemesterPlan\LeadershipReviewSemesterPlanController;
 use Modules\Schedule\Application\UpdateScheduleSemester\UpdateScheduleSemesterController;
 use Modules\Schedule\Application\DeleteScheduleSemester\DeleteScheduleSemesterController;
 use Modules\Schedule\Application\InitializeMonthlySchedule\InitializeMonthlyScheduleController;
@@ -57,6 +58,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Delete schedule
     // Route::delete('/schedules/{id}', DeleteScheduleController::class)->name('schedule.destroy');
     Route::post('/schedules/{id}/submit', SubmitSemesterPlanController::class)->name('schedule.submit');
+    Route::post('/schedules/{id}/leadership-review', LeadershipReviewSemesterPlanController::class)
+        ->name('schedule.leadership-review');
 
     // Training office review flow
     Route::get('/monthly-schedules/{id}/assignment', [AssignMonthlyScheduleController::class, 'showForm'])
