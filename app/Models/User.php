@@ -58,6 +58,7 @@ class User extends Authenticatable
         'requested_department_id',
         'employee_code',
         'phone',
+        'avatar_path',
     ];
 
     protected $hidden = [
@@ -148,5 +149,10 @@ class User extends Authenticatable
     public function isRejected(): bool
     {
         return $this->isStatus(self::STATUS_REJECTED);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\PasswordResetNotification($token));
     }
 }

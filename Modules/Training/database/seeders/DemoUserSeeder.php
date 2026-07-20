@@ -124,7 +124,7 @@ class DemoUserSeeder extends Seeder
         ];
 
         foreach ($users as $userData) {
-            User::firstOrCreate(
+            $user = User::firstOrCreate(
                 ['email' => $userData['email']],
                 [
                     'name' => $userData['name'],
@@ -136,6 +136,13 @@ class DemoUserSeeder extends Seeder
                     'phone' => $userData['phone'],
                 ]
             );
+
+            // Email demo là địa chỉ giả, không thể nhận mail mời kích hoạt — đánh dấu đã
+            // kích hoạt sẵn để màn Admin không hiện nút "Gửi lại email" (forceFill vì
+            // email_verified_at không nằm trong $fillable).
+            if ($user->email_verified_at === null) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+            }
         }
     }
 }

@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Login Page</title>
+    <title>Đặt lại mật khẩu</title>
     <style>
       @foreach ($resourceCoreStyles as $resourceStyle)
         {!! $resourceInlineCss($resourceStyle) !!}
@@ -19,13 +18,9 @@
           <div class="content-wrapper full-page-wrapper d-flex align-items-center auth login-bg">
             <div class="card col-lg-4 mx-auto">
               <div class="card-body px-5 py-5">
-                <h3 class="card-title text-left mb-3">Login</h3>
-                <form method="POST" action="{{ route('login.perform') }}">
-                  @csrf
+                <h3 class="card-title text-left mb-3">Đặt lại mật khẩu</h3>
 
-                  @if (
-                    $errors->any()
-                )
+                @if ($errors->any())
                     <div class="alert alert-danger">
                         <ul class="mb-0">
                             @foreach ($errors->all() as $error)
@@ -35,38 +30,33 @@
                     </div>
                 @endif
 
+                <form method="POST" action="{{ route('password.update') }}">
+                  @csrf
+                  <input type="hidden" name="token" value="{{ old('token', $token) }}">
+
                   <div class="form-group">
                     <label>Email *</label>
-                    <input type="email" name="email" value="{{ old('email') }}" class="form-control p_input" required>
+                    <input type="email" name="email" value="{{ old('email', $email) }}" class="form-control p_input" required>
                   </div>
                   <div class="form-group">
-                    <label>Password *</label>
-                    <input type="password" name="password" class="form-control p_input" required>
+                    <label>Mật khẩu mới</label>
+                    <input type="password" name="password" class="form-control p_input" minlength="8" required autofocus>
+                    <small class="text-muted">Tối thiểu 8 ký tự.</small>
                   </div>
-                  <div class="form-group d-flex align-items-center justify-content-between">
-                    <div class="form-check">
-                      <label class="form-check-label">
-                        <input type="checkbox" name="remember" class="form-check-input"> Remember me </label>
-                    </div>
-                    <a href="{{ route('password.request') }}" class="forgot-pass">Forgot password</a>
+                  <div class="form-group">
+                    <label>Xác nhận mật khẩu</label>
+                    <input type="password" name="password_confirmation" class="form-control p_input" minlength="8" required>
                   </div>
                   <div class="text-center">
-                    <button type="submit" class="btn btn-primary btn-block enter-btn">Login</button>
+                    <button type="submit" class="btn btn-primary btn-block enter-btn">Đặt lại mật khẩu</button>
                   </div>
-                  <p class="sign-up text-center text-muted small mt-3">
-                    Tài khoản giáo viên được Admin tạo và gửi email kích hoạt. Liên hệ Admin nếu bạn chưa có tài khoản.
-                  </p>
                 </form>
               </div>
             </div>
           </div>
-          <!-- content-wrapper ends -->
         </div>
-        <!-- row ends -->
       </div>
-      <!-- page-body-wrapper ends -->
     </div>
-    <!-- container-scroller -->
     <script>
       @foreach ($resourceCoreScripts as $resourceScript)
         {!! $resourceInlineJs($resourceScript) !!}

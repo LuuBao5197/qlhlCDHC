@@ -280,6 +280,12 @@
                             required: true
                         },
                         {
+                            key: 'email',
+                            label: 'Email (dung de gui thu kich hoat tai khoan, chi nhap khi tao moi)',
+                            type: 'email',
+                            required: true
+                        },
+                        {
                             key: 'department_id',
                             label: 'Department',
                             type: 'select',

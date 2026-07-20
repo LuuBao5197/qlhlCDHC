@@ -4,15 +4,27 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AccountInvitationService;
 use App\Services\InternalNotificationService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Modules\Training\Models\Department;
-use Modules\Training\Models\Teacher;
-
 
 class AdminController extends Controller
 {
+    /**
+     * Role được phép tạo từ màn Admin. Teacher không nằm trong danh sách vì cần tạo kèm
+     * hồ sơ giảng viên từ màn Quản lý giáo viên; admin/student không thuộc nghiệp vụ cấp phát.
+     */
+    private const CREATABLE_ROLES = [
+        User::ROLE_LEADERSHIP,
+        User::ROLE_TRAINING_OFFICE,
+        User::ROLE_DEPARTMENT_STAFF,
+    ];
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -27,97 +39,89 @@ class AdminController extends Controller
 
     public function index()
     {
-        $pendingUsers = User::query()
-            ->with(['department', 'requestedDepartment'])
-            ->where('status', User::STATUS_PENDING)
-            ->paginate(15);
-        $approvedUsers = User::query()
-            ->with(['department', 'requestedDepartment'])
-            ->where('status', User::STATUS_APPROVED)
-            ->paginate(15);
-        $departments = Department::query()->orderBy('name')->get(['id', 'name', 'code']);
+        $users = User::query()
+            ->with('department')
+            ->orderBy('name')
+            ->paginate(20);
 
-        return view('admin.index', compact('pendingUsers', 'approvedUsers', 'departments'));
+        $departments = Department::query()->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.index', [
+            'users' => $users,
+            'departments' => $departments,
+            'creatableRoles' => self::CREATABLE_ROLES,
+        ]);
     }
 
-    public function approve(Request $request, $id)
+    /**
+     * Tạo tài khoản với mật khẩu ngẫu nhiên rồi gửi email mời kích hoạt —
+     * người dùng tự đặt mật khẩu lần đầu, Admin không bao giờ biết mật khẩu.
+     */
+    public function store(Request $request)
     {
-        $user = User::findOrFail($id);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            'role' => ['required', 'string', Rule::in(self::CREATABLE_ROLES)],
+            'department_id' => [
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_DEPARTMENT_STAFF),
+                'nullable',
+                'integer',
+                'exists:departments,id',
+            ],
+        ], [
+            'name.required' => 'Vui lòng nhập họ tên.',
+            'email.required' => 'Vui lòng nhập email.',
+            'email.unique' => 'Email này đã được sử dụng.',
+            'role.required' => 'Vui lòng chọn vai trò.',
+            'role.in' => 'Vai trò không hợp lệ.',
+            'department_id.required' => 'Vui lòng chọn khoa cho nhân viên khoa.',
+            'department_id.exists' => 'Khoa không hợp lệ.',
+        ]);
 
-        if (! in_array($user->requested_role, [User::ROLE_TEACHER, User::ROLE_DEPARTMENT_STAFF, User::ROLE_TRAINING_OFFICE], true)) {
-            return back()->with('error', 'Vai tro dang ky khong hop le.');
-        }
-
-        if (
-            in_array($user->requested_role, [User::ROLE_TEACHER, User::ROLE_DEPARTMENT_STAFF], true)
-            && empty($user->requested_department_id)
-        ) {
-            return back()->with('error', 'Tai khoan nay chua co khoa dang ky. Khong the phe duyet.');
-        }
-
-        if ($user->requested_role === User::ROLE_TEACHER) {
-            $teacherCode = trim((string) $user->employee_code);
-
-            if ($teacherCode === '') {
-                return back()->with('error', 'Tài khoản giáo viên bắt buộc phải có mã giáo viên trước khi phê duyệt.');
-            }
-
-            $teacherByCode = Teacher::query()
-                ->where('teacher_code', $teacherCode)
-                ->first();
-
-            if ($teacherByCode !== null && $teacherByCode->user_id !== null && (int) $teacherByCode->user_id !== (int) $user->id) {
-                return back()->with('error', 'Mã giáo viên đã được liên kết với tài khoản khác.');
-            }
-        }
-
-        DB::transaction(function () use ($user): void {
-            $user->update([
+        try {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make(Str::random(40)),
+                'role' => $validated['role'],
                 'status' => User::STATUS_APPROVED,
-                'role' => $user->requested_role,
-                'department_id' => in_array($user->requested_role, [User::ROLE_TEACHER, User::ROLE_DEPARTMENT_STAFF], true)
-                    ? (int) $user->requested_department_id
+                'department_id' => $validated['role'] === User::ROLE_DEPARTMENT_STAFF
+                    ? $validated['department_id']
                     : null,
             ]);
+        } catch (QueryException $e) {
+            // Race condition hiếm gặp: 2 request cùng tạo trùng email vượt qua validate,
+            // unique constraint ở DB chặn lại — trả về lỗi validate thân thiện thay vì 500.
+            return back()->withInput()->withErrors([
+                'email' => 'Không thể tạo tài khoản do email bị trùng. Vui lòng thử lại.',
+            ]);
+        }
 
-            if ($user->requested_role === User::ROLE_TEACHER) {
-                $teacherCode = trim((string) $user->employee_code);
+        $sent = app(AccountInvitationService::class)->invite($user);
+        app(InternalNotificationService::class)->notifyAccountCreated($user, $request->user());
 
-                Teacher::query()
-                    ->where('user_id', $user->id)
-                    ->where('teacher_code', '!=', $teacherCode)
-                    ->update(['user_id' => null]);
-
-                Teacher::query()->updateOrCreate(
-                    ['teacher_code' => $teacherCode],
-                    [
-                        'name' => $user->name,
-                        'status' => 'active',
-                        'department_id' => (int) $user->requested_department_id,
-                        'user_id' => $user->id,
-                    ]
-                );
-            }
-
-            app(InternalNotificationService::class)->notifyApprovedUserRegistration($user, auth()->user());
-        });
-
-        return back()->with('success', 'User approved successfully.');
+        return redirect()->route('admin.index')->with(
+            $sent ? 'success' : 'error',
+            $sent
+                ? 'Đã tạo tài khoản và gửi email mời kích hoạt tới ' . $user->email . '.'
+                : 'Đã tạo tài khoản nhưng chưa gửi được email mời. Vui lòng dùng nút "Gửi lại email" để thử lại.'
+        );
     }
 
-    public function reject($id)
+    public function resendInvitation(Request $request, User $user)
     {
-        $user = User::findOrFail($id);
-        DB::transaction(function () use ($user): void {
-            $user->update(['status' => User::STATUS_REJECTED]);
-            app(InternalNotificationService::class)->notifyRejectedUserRegistration($user, auth()->user());
-        });
+        if ($user->email_verified_at !== null) {
+            return back()->with('error', 'Tài khoản này đã kích hoạt, không cần gửi lại email mời.');
+        }
 
-        return back()->with('success', 'User rejected successfully.');
-    }
+        $sent = app(AccountInvitationService::class)->resend($user);
 
-    public function updateRole(Request $request, $id)
-    {
-        return back()->with('error', 'Tinh nang doi vai tro thu cong da bi tat. Admin chi phe duyet/tu choi dang ky.');
+        return back()->with(
+            $sent ? 'success' : 'error',
+            $sent
+                ? 'Đã gửi lại email mời kích hoạt tới ' . $user->email . '.'
+                : 'Không gửi được email mời. Vui lòng kiểm tra cấu hình mail và thử lại.'
+        );
     }
 }

@@ -36,48 +36,17 @@ class InternalNotificationService
         }
     }
 
-    public function notifyApprovedUserRegistration(User $user, User $actor): void
+    public function notifyAccountCreated(User $user, User $actor): void
     {
         $this->notifyUsers([$user], $this->makeNotification(
             InternalNotificationType::USER_REGISTRATION_APPROVED,
-            'Tai khoan da duoc phe duyet',
-            'Tai khoan ' . $user->name . ' da duoc phe duyet va co the dang nhap.',
+            'Tai khoan da duoc tao',
+            'Tai khoan ' . $user->name . ' da duoc Admin tao. Vui long kiem tra email de kich hoat.',
             route('settings'),
-            'user-registration-approved:' . $user->id,
+            'account-created:' . $user->id,
             [
                 'user_id' => $user->id,
                 'actor_id' => $actor->id,
-            ]
-        ));
-    }
-
-    public function notifyRejectedUserRegistration(User $user, User $actor): void
-    {
-        $this->notifyUsers([$user], $this->makeNotification(
-            InternalNotificationType::USER_REGISTRATION_REJECTED,
-            'Tai khoan da bi tu choi',
-            'Tai khoan ' . $user->name . ' da bi tu choi trong qua trinh xet duyet.',
-            route('settings'),
-            'user-registration-rejected:' . $user->id,
-            [
-                'user_id' => $user->id,
-                'actor_id' => $actor->id,
-            ]
-        ));
-    }
-
-    public function notifyPendingUserRegistration(User $user): void
-    {
-        $recipients = $this->roleRecipients([User::ROLE_ADMIN]);
-
-        $this->notifyUsers($recipients, $this->makeNotification(
-            InternalNotificationType::USER_REGISTRATION_PENDING,
-            'Co tai khoan dang ky moi',
-            'Tai khoan ' . $user->name . ' vua gui yeu cau dang ky va can duoc xem xet.',
-            route('admin.index'),
-            'user-registration-pending:' . $user->id,
-            [
-                'user_id' => $user->id,
             ]
         ));
     }
