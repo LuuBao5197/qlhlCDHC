@@ -76,4 +76,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [App\Http\Controllers\Admin\AdminController::class, 'index'])->name('index');
     Route::post('/users', [App\Http\Controllers\Admin\AdminController::class, 'store'])->name('users.store');
     Route::post('/users/{user}/resend-invitation', [App\Http\Controllers\Admin\AdminController::class, 'resendInvitation'])->name('users.resend-invitation');
+    Route::post('/users/{user}/lock', [App\Http\Controllers\Admin\AdminController::class, 'lock'])->name('users.lock');
+    Route::post('/users/{user}/unlock', [App\Http\Controllers\Admin\AdminController::class, 'unlock'])->name('users.unlock');
 });

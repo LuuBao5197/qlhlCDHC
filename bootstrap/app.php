@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'management.access' => \App\Http\Middleware\EnsureManagementAccess::class,
         ]);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureAccountActive::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

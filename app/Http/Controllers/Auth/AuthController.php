@@ -48,6 +48,13 @@ class AuthController extends Controller
                 ]);
             }
 
+            if ($user->isLocked()) {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Tài khoản của bạn đã bị khoá. Vui lòng liên hệ admin.',
+                ]);
+            }
+
             $request->session()->regenerate();
             return redirect()->intended(route('schedule.index'));
         }

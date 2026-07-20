@@ -105,8 +105,8 @@
                                         <td>{{ $user->department?->name ?? '-' }}</td>
                                         <td>{{ $roleLabels[$user->role] ?? ($user->role ?? '-') }}</td>
                                         <td>
-                                            <span class="badge {{ $user->isApproved() ? 'badge-success' : 'badge-secondary' }}">
-                                                {{ ucfirst($user->status) }}
+                                            <span class="badge {{ $user->isLocked() ? 'badge-danger' : ($user->isApproved() ? 'badge-success' : 'badge-secondary') }}">
+                                                {{ $user->isLocked() ? 'Đã khoá' : ucfirst($user->status) }}
                                             </span>
                                         </td>
                                         <td>
@@ -122,6 +122,20 @@
                                                     @csrf
                                                     <button type="submit" class="btn btn-sm btn-outline-primary">Gửi lại email</button>
                                                 </form>
+                                            @endif
+
+                                            @if ($user->id !== auth()->id())
+                                                @if ($user->isLocked())
+                                                    <form method="POST" action="{{ route('admin.users.unlock', $user) }}" class="d-inline">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-outline-success">Mở khoá</button>
+                                                    </form>
+                                                @else
+                                                    <form method="POST" action="{{ route('admin.users.lock', $user) }}" class="d-inline" onsubmit="return confirm('Khoá tài khoản {{ $user->email }}?');">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">Khoá</button>
+                                                    </form>
+                                                @endif
                                             @endif
                                         </td>
                                     </tr>

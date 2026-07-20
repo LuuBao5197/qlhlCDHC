@@ -26,6 +26,7 @@ class User extends Authenticatable
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
+    public const STATUS_LOCKED = 'locked';
 
     protected $attributes = [
         'role' => self::ROLE_STUDENT,
@@ -45,6 +46,7 @@ class User extends Authenticatable
         self::STATUS_PENDING,
         self::STATUS_APPROVED,
         self::STATUS_REJECTED,
+        self::STATUS_LOCKED,
     ];
 
     protected $fillable = [
@@ -149,6 +151,11 @@ class User extends Authenticatable
     public function isRejected(): bool
     {
         return $this->isStatus(self::STATUS_REJECTED);
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->isStatus(self::STATUS_LOCKED);
     }
 
     public function sendPasswordResetNotification($token): void

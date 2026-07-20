@@ -124,4 +124,22 @@ class AdminController extends Controller
                 : 'Không gửi được email mời. Vui lòng kiểm tra cấu hình mail và thử lại.'
         );
     }
+
+    public function lock(Request $request, User $user)
+    {
+        if ($user->id === $request->user()->id) {
+            return back()->with('error', 'Không thể tự khoá tài khoản của chính mình.');
+        }
+
+        $user->update(['status' => User::STATUS_LOCKED]);
+
+        return back()->with('success', 'Đã khoá tài khoản ' . $user->email . '.');
+    }
+
+    public function unlock(Request $request, User $user)
+    {
+        $user->update(['status' => User::STATUS_APPROVED]);
+
+        return back()->with('success', 'Đã mở khoá tài khoản ' . $user->email . '.');
+    }
 }
