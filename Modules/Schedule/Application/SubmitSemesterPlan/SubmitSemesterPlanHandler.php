@@ -12,7 +12,7 @@ use Throwable;
 class SubmitSemesterPlanHandler
 {
     /**
-     * Handle submitting a semester plan to leadership.
+     * Handle submitting a semester plan to Phong Dao tao (Training Office) for review.
      */
     public function handle(SubmitSemesterPlanRequest $request, int $id)
     {
@@ -31,7 +31,7 @@ class SubmitSemesterPlanHandler
                     'submitted_by' => $actorId,
                     'submitted_at' => $now,
                     'status' => 'submitted',
-                    'current_step' => 'leadership_review',
+                    'current_step' => 'training_office_review',
                 ]);
 
                 $approvalRequest = ApprovalRequest::query()->firstOrNew([
@@ -41,7 +41,7 @@ class SubmitSemesterPlanHandler
 
                 $approvalRequest->fill([
                     'submitted_by' => $actorId,
-                    'current_step' => 'leadership_review',
+                    'current_step' => 'training_office_review',
                     'status' => 'pending',
                     'submitted_at' => $now,
                     'completed_at' => null,
@@ -72,15 +72,17 @@ class SubmitSemesterPlanHandler
 
     private function successResponse(SubmitSemesterPlanRequest $request, int $planId)
     {
+        $message = 'Semester plan submitted to Phong Dao tao for review.';
+
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => 'Semester plan submitted to leadership successfully.',
+                'message' => $message,
                 'plan_id' => $planId,
             ]);
         }
 
         return redirect()->route('schedule.index')
-            ->with('success', 'Semester plan submitted to leadership successfully.');
+            ->with('success', $message);
     }
 
     private function errorResponse(SubmitSemesterPlanRequest $request, string $message, int $status)

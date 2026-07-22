@@ -29,21 +29,28 @@
             ->unique()
             ->count();
         $status = $batchData['status'] ?? $batch->status ?? 'draft';
+        $step = $batchData['current_step'] ?? $batch->current_step ?? 'draft';
         $statusLabels = [
             'draft' => 'Nháp',
-            'submitted' => 'Đã gửi PDT duyệt',
-            'approved' => 'Đã phê duyệt',
+            'submitted:department_review' => 'Đã gửi - chờ Lãnh đạo Khoa duyệt',
+            'submitted:training_office_review' => 'Đã gửi - chờ PĐT duyệt',
+            'approved' => 'Đã phê duyệt (đủ 2 vòng)',
             'returned' => 'Đã trả về',
         ];
         $statusClasses = [
             'draft' => 'badge-secondary',
-            'submitted' => 'badge-info',
+            'submitted:department_review' => 'badge-info',
+            'submitted:training_office_review' => 'badge-info',
             'approved' => 'badge-success',
             'returned' => 'badge-warning',
         ];
-        $statusLabel = $statusLabels[$status] ?? strtoupper($status);
-        $statusClass = $statusClasses[$status] ?? 'badge-secondary';
-        $canReviewBatch = ($canReview ?? false) && $status === 'submitted';
+        $statusKey = $status === 'submitted' ? $status . ':' . $step : $status;
+        $statusLabel = $statusLabels[$statusKey] ?? strtoupper($status);
+        $statusClass = $statusClasses[$statusKey] ?? 'badge-secondary';
+        $canReviewAsDepartmentLeadership = ($canReviewAsDepartmentLeadership ?? false)
+            && $status === 'submitted' && $step === 'department_review';
+        $canReviewAsTrainingOffice = ($canReviewAsTrainingOffice ?? false)
+            && $status === 'submitted' && $step === 'training_office_review';
         $firstSlot = $slots->first();
         $anchorMonthlyScheduleId = $anchorMonthlyScheduleId ?? ($firstSlot['monthly_schedule_id'] ?? null);
     @endphp
@@ -73,7 +80,7 @@
                                     <i class="fas fa-arrow-left mr-1"></i>Quay lại màn phân công
                                 </a>
                             @endif
-                            @if ($canReviewBatch)
+                            @if ($canReviewAsDepartmentLeadership || $canReviewAsTrainingOffice)
                                 <span class="badge badge-info px-3 py-2">Sẵn sàng duyệt</span>
                             @endif
                         </div>
@@ -82,7 +89,7 @@
                     @if ($status !== 'submitted')
                         <div class="alert alert-warning mt-3 mb-0">
                             Batch này đang ở trạng thái <strong>{{ $statusLabel }}</strong>, nên chưa có nút phê duyệt.
-                            Chỉ batch ở trạng thái <strong>Chờ duyệt</strong> mới có thể duyệt hoặc trả về.
+                            Chỉ batch đang chờ duyệt mới có thể duyệt hoặc trả về.
                         </div>
                     @endif
 
@@ -96,9 +103,16 @@
                         </div>
                         <div class="col-md-3 mb-2">
                             <div class="border rounded p-2 bg-light">
-                                <div class="small text-muted">Người xử lý PDT</div>
-                                <div class="font-weight-bold">{{ $batchData['reviewed_by_name'] ?? '-' }}</div>
-                                <div class="small text-muted">{{ $batchData['reviewed_at'] ?? '-' }}</div>
+                                <div class="small text-muted">Lãnh đạo Khoa duyệt</div>
+                                <div class="font-weight-bold">{{ $batchData['department_reviewed_by_name'] ?? '-' }}</div>
+                                <div class="small text-muted">{{ $batchData['department_reviewed_at'] ?? '-' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="small text-muted">PĐT duyệt</div>
+                                <div class="font-weight-bold">{{ $batchData['training_office_reviewed_by_name'] ?? '-' }}</div>
+                                <div class="small text-muted">{{ $batchData['training_office_reviewed_at'] ?? '-' }}</div>
                             </div>
                         </div>
                         <div class="col-md-2 mb-2">
@@ -148,18 +162,21 @@
                         </div>
                     </div>
 
-                    @if (! empty($batchData['review_note']))
+                    @php
+                        $returnNote = $batchData['training_office_review_note'] ?? $batchData['department_review_note'] ?? null;
+                    @endphp
+                    @if (! empty($returnNote) && $status === 'returned')
                         <div class="alert alert-warning mt-3 mb-0">
-                            <strong>Ghi chú trả về:</strong> {{ $batchData['review_note'] }}
+                            <strong>Ghi chú trả về:</strong> {{ $returnNote }}
                         </div>
                     @endif
 
                     <div class="mt-3">
-                        @if ($canReviewBatch)
+                        @if ($canReviewAsDepartmentLeadership)
                             <form method="POST" action="{{ route('department-monthly-assignment-batches.approve', $batchData['id']) }}" class="d-inline-block mr-2 mb-2" onsubmit="return confirm('Duyệt toàn bộ batch này?');">
                                 @csrf
                                 <button type="submit" class="btn btn-success btn-sm">
-                                    <i class="fas fa-check mr-1"></i>Duyệt toàn bộ
+                                    <i class="fas fa-check mr-1"></i>Lãnh đạo Khoa duyệt (chuyển PĐT)
                                 </button>
                             </form>
 
@@ -178,8 +195,33 @@
                                     </div>
                                 </div>
                             </form>
+                        @elseif ($canReviewAsTrainingOffice)
+                            <form method="POST" action="{{ route('department-monthly-assignment-batches.training-office-review', $batchData['id']) }}" class="d-inline-block mr-2 mb-2" onsubmit="return confirm('PĐT duyệt batch này?');">
+                                @csrf
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-check mr-1"></i>PĐT duyệt
+                                </button>
+                            </form>
+
+                            <form method="POST" action="{{ route('department-monthly-assignment-batches.training-office-review', $batchData['id']) }}" class="d-inline-block mb-2">
+                                @csrf
+                                <input type="hidden" name="action" value="reject">
+                                <div class="form-row align-items-end">
+                                    <div class="col-md-9 mb-2 mb-md-0">
+                                        <textarea name="reason" class="form-control form-control-sm" rows="2" required
+                                            placeholder="Nhập lý do trả về khoa"></textarea>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm btn-block"
+                                            onclick="return confirm('PĐT trả batch này về khoa để chỉnh sửa?');">
+                                            <i class="fas fa-undo mr-1"></i>PĐT trả về
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
                         @else
-                            <span class="text-muted">Chỉ PDT hoặc admin được duyệt/trả batch khi batch ở trạng thái submitted.</span>
+                            <span class="text-muted">Bạn không có quyền duyệt/trả batch ở bước hiện tại, hoặc batch không ở trạng thái chờ duyệt.</span>
                         @endif
                     </div>
                 </div>

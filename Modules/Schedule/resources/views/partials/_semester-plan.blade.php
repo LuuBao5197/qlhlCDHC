@@ -7,7 +7,7 @@
                         <h5 class="mb-1">Ke hoach hoc ky</h5>
                         <small class="text-muted">Danh sach ke hoach hoc ky va thao tac UC4.</small>
                     </div>
-                    @if ($canReviewWorkflow)
+                    @if ($canManageSemesterPlan)
                         <a href="{{ route('schedule.create') }}" class="btn btn-sm btn-outline-primary">Tao ke hoach</a>
                     @endif
                 </div>
@@ -33,7 +33,8 @@
                                     $statusClass = $statusStyles[$schedule->status] ?? 'badge-light';
                                 @endphp
                                 @php
-                                    $canSubmitPlan = $canReviewWorkflow && in_array($schedule->status, ['draft', 'returned', 'rejected'], true);
+                                    $canSubmitPlan = $canManageSemesterPlan && in_array($schedule->status, ['draft', 'returned', 'rejected'], true);
+                                    $canTrainingOfficeReviewPlan = $canReviewWorkflow && $schedule->status === 'submitted' && $schedule->current_step === 'training_office_review';
                                     $canLeadershipReviewPlan = $canLeadershipReview && $schedule->status === 'submitted' && $schedule->current_step === 'leadership_review';
                                 @endphp
                                 <tr>
@@ -65,7 +66,7 @@
                                     <td>
                                         <div class="d-flex flex-wrap gap-2 align-items-center">
                                             {{-- Edit Button --}}
-                                            @if ($canReviewWorkflow && in_array($schedule->status, ['draft'], true))
+                                            @if ($canManageSemesterPlan && in_array($schedule->status, ['draft'], true))
                                                 <a href="{{ route('schedule.edit', $schedule->id) }}"
                                                     class="btn btn-sm btn-outline-warning">
                                                     <i class="fas fa-edit"></i> Sua
@@ -73,7 +74,7 @@
                                             @endif
 
                                             {{-- Delete Button --}}
-                                            @if ($canReviewWorkflow && in_array($schedule->status, ['draft', 'returned'], true))
+                                            @if ($canManageSemesterPlan && in_array($schedule->status, ['draft', 'returned'], true))
                                                 <form method="POST"
                                                     action="{{ route('schedule.destroy', $schedule->id) }}"
                                                     style="display: inline;">
@@ -97,10 +98,41 @@
                                                         <input type="text" class="form-control" name="comment"
                                                             placeholder="Ghi chu trinh duyet (optional)">
                                                         <div class="input-group-append">
-                                                            <button type="submit" class="btn btn-primary">UC4 Trinh duyet</button>
+                                                            <button type="submit" class="btn btn-primary">Trinh Phong Dao tao</button>
                                                         </div>
                                                     </div>
                                                 </form>
+                                            @endif
+
+                                            {{-- Phong Dao tao duyet --}}
+                                            @if ($canTrainingOfficeReviewPlan)
+                                                <div class="d-flex flex-column" style="flex: 1; min-width: 280px;">
+                                                    <form method="POST"
+                                                        action="{{ route('schedule.training-office-review', $schedule->id) }}"
+                                                        class="mb-2">
+                                                        @csrf
+                                                        <input type="hidden" name="action" value="approve">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="text" class="form-control" name="comment"
+                                                                placeholder="Nhan xet phe duyet (optional)">
+                                                            <div class="input-group-append">
+                                                                <button type="submit" class="btn btn-success">PDT Duyet & trinh BGH</button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                    <form method="POST"
+                                                        action="{{ route('schedule.training-office-review', $schedule->id) }}">
+                                                        @csrf
+                                                        <input type="hidden" name="action" value="reject">
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="text" class="form-control" name="reason"
+                                                                required placeholder="Ly do tu choi (required)">
+                                                            <div class="input-group-append">
+                                                                <button type="submit" class="btn btn-danger">PDT Tu choi</button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                </div>
                                             @endif
 
                                             {{-- Ban Giam hieu duyet --}}
@@ -134,8 +166,8 @@
                                                 </div>
                                             @endif
 
-                                            @if (! $canSubmitPlan && ! $canLeadershipReviewPlan)
-                                                @if (! $canReviewWorkflow && ! $canLeadershipReview)
+                                            @if (! $canSubmitPlan && ! $canTrainingOfficeReviewPlan && ! $canLeadershipReviewPlan)
+                                                @if (! $canManageSemesterPlan && ! $canReviewWorkflow && ! $canLeadershipReview)
                                                     <span class="text-muted text-nowrap">Khong co quyen thao tac</span>
                                                 @else
                                                     <span class="text-muted text-nowrap">Khong co thao tac phu hop</span>

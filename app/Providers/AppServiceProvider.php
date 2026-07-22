@@ -9,8 +9,12 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
+use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchPolicy;
+use Modules\Schedule\Application\MonthlyAssignmentDossier\MonthlyAssignmentDossierPolicy;
 use Modules\Schedule\Application\TeachingSupportChangeRequest\TeachingSupportChangeRequestPolicy;
 use Modules\Schedule\Application\TeachingSupportRequest\TeachingSupportRequestPolicy;
+use Modules\Schedule\Models\DepartmentMonthlyAssignmentBatch;
+use Modules\Schedule\Models\MonthlyAssignmentDossier;
 use Modules\Schedule\Models\TeachingSupportChangeRequest;
 use Modules\Schedule\Models\TeachingSupportRequest;
 
@@ -31,6 +35,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(TeachingSupportRequest::class, TeachingSupportRequestPolicy::class);
         Gate::policy(TeachingSupportChangeRequest::class, TeachingSupportChangeRequestPolicy::class);
+        Gate::policy(DepartmentMonthlyAssignmentBatch::class, DepartmentMonthlyAssignmentBatchPolicy::class);
+        Gate::policy(MonthlyAssignmentDossier::class, MonthlyAssignmentDossierPolicy::class);
 
         Factory::guessFactoryNamesUsing(static function (string $modelName): string {
             if (Str::startsWith($modelName, 'Modules\\') && Str::contains($modelName, '\\Models\\')) {

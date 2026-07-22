@@ -64,18 +64,22 @@ class BuildOrRefreshDraftBatch
             $batch->department_id = $departmentId;
             $batch->month = $month;
             $batch->year = $year;
-            $batch->status = 'draft';
+            $batch->status = DepartmentMonthlyAssignmentBatch::STATUS_DRAFT;
             $batch->version = 1;
         } else {
             $batch->version = (int) ($batch->version ?? 1) + 1;
-            $batch->status = 'draft';
+            $batch->status = DepartmentMonthlyAssignmentBatch::STATUS_DRAFT;
         }
 
+        $batch->current_step = DepartmentMonthlyAssignmentBatch::STEP_DRAFT;
         $batch->submitted_by = null;
         $batch->submitted_at = null;
-        $batch->reviewed_by = null;
-        $batch->reviewed_at = null;
-        $batch->review_note = null;
+        $batch->department_reviewed_by = null;
+        $batch->department_reviewed_at = null;
+        $batch->department_review_note = null;
+        $batch->training_office_reviewed_by = null;
+        $batch->training_office_reviewed_at = null;
+        $batch->training_office_review_note = null;
         $batch->save();
 
         $batch->batchSlots()->delete();
@@ -95,7 +99,8 @@ class BuildOrRefreshDraftBatch
         return $batch->load([
             'department',
             'submittedBy',
-            'reviewedBy',
+            'departmentReviewedBy',
+            'trainingOfficeReviewedBy',
             'batchSlots.scheduleSlot.monthlySchedule.plan',
             'batchSlots.scheduleSlot.trainingClass',
             'batchSlots.scheduleSlot.teacher',

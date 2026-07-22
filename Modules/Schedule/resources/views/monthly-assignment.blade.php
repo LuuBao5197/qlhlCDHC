@@ -11,20 +11,26 @@
         $departmentName = $departmentName ?? ($subjects->first()?->department?->name ?? '-');
         $oldSlots = old('slots', []);
         $currentBatchStatus = $currentBatch?->status ?? 'draft';
+        $currentBatchStep = $currentBatch?->current_step ?? 'draft';
         $currentBatchStatusLabels = [
             'draft' => 'Nháp',
-            'submitted' => 'Đã gửi PDT duyệt',
-            'approved' => 'Đã phê duyệt',
+            'submitted:department_review' => 'Đã gửi - chờ Lãnh đạo Khoa duyệt',
+            'submitted:training_office_review' => 'Đã gửi - chờ PĐT duyệt',
+            'approved' => 'Đã phê duyệt (đủ 2 vòng)',
             'returned' => 'Đã trả về',
         ];
         $currentBatchStatusClasses = [
             'draft' => 'badge-secondary',
-            'submitted' => 'badge-info',
+            'submitted:department_review' => 'badge-info',
+            'submitted:training_office_review' => 'badge-info',
             'approved' => 'badge-success',
             'returned' => 'badge-warning',
         ];
-        $currentBatchStatusLabel = $currentBatchStatusLabels[$currentBatchStatus] ?? strtoupper($currentBatchStatus);
-        $currentBatchStatusClass = $currentBatchStatusClasses[$currentBatchStatus] ?? 'badge-secondary';
+        $currentBatchStatusKey = $currentBatchStatus === 'submitted'
+            ? $currentBatchStatus . ':' . $currentBatchStep
+            : $currentBatchStatus;
+        $currentBatchStatusLabel = $currentBatchStatusLabels[$currentBatchStatusKey] ?? strtoupper($currentBatchStatus);
+        $currentBatchStatusClass = $currentBatchStatusClasses[$currentBatchStatusKey] ?? 'badge-secondary';
         $batchReadOnly = in_array($currentBatchStatus, ['submitted', 'approved'], true);
         $batchCanSubmit = in_array($currentBatchStatus, ['draft', 'returned'], true) || !$currentBatch;
         $specialTeacherOptions = [
@@ -182,9 +188,12 @@
                                     Nhóm ghép active: <strong>{{ $currentActiveMergeGroupCount }}</strong>
                                 </div>
                             </div>
-                            @if ($currentBatch?->review_note && $currentBatchStatus === 'returned')
+                            @php
+                                $currentBatchReturnNote = $currentBatch?->training_office_review_note ?? $currentBatch?->department_review_note;
+                            @endphp
+                            @if ($currentBatchReturnNote && $currentBatchStatus === 'returned')
                                 <div class="alert alert-warning mb-0 mt-3 mt-md-0 py-2 px-3" style="max-width: 48rem;">
-                                    <strong>Ghi chú trả về:</strong> {{ $currentBatch->review_note }}
+                                    <strong>Ghi chú trả về:</strong> {{ $currentBatchReturnNote }}
                                 </div>
                             @endif
                         </div>

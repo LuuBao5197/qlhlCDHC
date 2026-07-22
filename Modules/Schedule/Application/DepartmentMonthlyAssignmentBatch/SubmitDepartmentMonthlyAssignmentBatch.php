@@ -31,12 +31,16 @@ class SubmitDepartmentMonthlyAssignmentBatch
             $this->validateSubmission($batch);
 
             $batch->fill([
-                'status' => 'submitted',
+                'status' => DepartmentMonthlyAssignmentBatch::STATUS_SUBMITTED,
+                'current_step' => DepartmentMonthlyAssignmentBatch::STEP_DEPARTMENT_REVIEW,
                 'submitted_by' => $actor->id,
                 'submitted_at' => now(),
-                'reviewed_by' => null,
-                'reviewed_at' => null,
-                'review_note' => null,
+                'department_reviewed_by' => null,
+                'department_reviewed_at' => null,
+                'department_review_note' => null,
+                'training_office_reviewed_by' => null,
+                'training_office_reviewed_at' => null,
+                'training_office_review_note' => null,
             ]);
             $batch->save();
 
@@ -45,7 +49,8 @@ class SubmitDepartmentMonthlyAssignmentBatch
             return $batch->fresh([
                 'department',
                 'submittedBy',
-                'reviewedBy',
+                'departmentReviewedBy',
+                'trainingOfficeReviewedBy',
                 'batchSlots.scheduleSlot.monthlySchedule.plan',
                 'batchSlots.scheduleSlot.trainingClass',
                 'batchSlots.scheduleSlot.teacher',

@@ -11,7 +11,7 @@ class SubmitSemesterPlanController extends Controller
     ) {}
 
     /**
-     * Submit a semester plan for leadership review.
+     * Submit a semester plan for Phong Dao tao (Training Office) review.
      */
     public function __invoke(SubmitSemesterPlanRequest $request, int $id)
     {

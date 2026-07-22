@@ -113,7 +113,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::Jo2NErJXilV2M6eH',
+            '_route' => 'generated::VdgNUrmSgiSVTUuy',
           ),
           1 => NULL,
           2 => 
@@ -133,7 +133,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::xOzMjEpqQRUzNci3',
+            '_route' => 'generated::0u0YjfNW2IFz9Kge',
           ),
           1 => NULL,
           2 => 
@@ -316,7 +316,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::Ahk0oKeyJNY37XFo',
+            '_route' => 'generated::tQs5HwYXpNNaoUW1',
           ),
           1 => NULL,
           2 => 
@@ -599,6 +599,42 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
+      '/monthly-assignment-dossiers' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'monthly-assignment-dossiers.index',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+        1 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'monthly-assignment-dossiers.store',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
       '/teaching-support-requests' => 
       array (
         0 => 
@@ -758,7 +794,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::cul61H57ZngLijPA',
+            '_route' => 'generated::aKZCRfZIm8LuZLsu',
           ),
           1 => NULL,
           2 => 
@@ -1272,7 +1308,7 @@ app('router')->setCompiledRoutes(
     ),
     2 => 
     array (
-      0 => '{^(?|/notifications/(?|([^/]++)(*:33)|mark\\-all\\-read(*:55))|/a(?|dmin/users/([^/]++)/(?|resend\\-invitation(*:109)|lock(*:121)|unlock(*:135)|position(*:151))|pi/v1/schedules/([^/]++)(?|(*:187)))|/s(?|chedules/([^/]++)(?|(*:222)|/(?|edit(*:238)|s(?|ubmit(*:255)|emester\\-events(?|(*:281)|/([^/]++)(?|(*:301))))|leadership\\-review(*:330))|(*:339))|emester(?|(?:/([^/]++)(?:/([^/]++)(?:/([^/]++))?)?)?(*:400)|\\-schedule(?:/([^/]++)(?:/([^/]++)(?:/([^/]++))?)?)?(*:460))|torage/(.*)(?|(*:483)))|/m(?|onthly\\-schedules/([^/]++)/(?|assignment(?|(*:541))|slot(?|s/([^/]++)/merge(?|\\-candidates(*:588)|(*:596))|\\-groups/([^/]++)/split(*:628))|department\\-monthly\\-assignment\\-batches/submit(*:684)|teaching\\-support\\-requests(?|(*:722)|/modal(*:736)))|anagement/(?|t(?|raining\\-(?|programs/([^/]++)(?|(*:795))|batches/([^/]++)(?|(*:823))|classes/([^/]++)(?|(*:851)))|eachers/([^/]++)(?|(*:880)))|departments/([^/]++)(?|(*:913))|rooms/([^/]++)(?|(*:939))|s(?|ubject(?|s/([^/]++)(?|(*:974))|\\-lessons/([^/]++)(?|(*:1004)))|tudents/([^/]++)(?|(*:1034)))))|/department\\-monthly\\-assignment\\-batches/([^/]++)(?|(*:1100)|/(?|approve(*:1120)|return(*:1135)))|/teaching\\-support\\-(?|request(?|s/([^/]++)(?|(*:1192)|/(?|review(*:1211)|withdraw(*:1228)|c(?|onfirm(*:1247)|hange\\-requests(?|/create(*:1281)|(*:1290)))))|\\-items/([^/]++)/assign(*:1326))|change\\-requests/([^/]++)(?|(*:1364)|/review(*:1380)))|/change\\-requests/([^/]++)/review(*:1424)|/holiday\\-calendars/([^/]++)(?|(*:1464)))/?$}sDu',
+      0 => '{^(?|/notifications/(?|([^/]++)(*:33)|mark\\-all\\-read(*:55))|/a(?|dmin/users/([^/]++)/(?|resend\\-invitation(*:109)|lock(*:121)|unlock(*:135)|position(*:151))|pi/v1/schedules/([^/]++)(?|(*:187)))|/s(?|chedules/([^/]++)(?|(*:222)|/(?|edit(*:238)|s(?|ubmit(*:255)|emester\\-events(?|(*:281)|/([^/]++)(?|(*:301))))|training\\-office\\-review(*:336)|leadership\\-review(*:362))|(*:371))|emester(?|(?:/([^/]++)(?:/([^/]++)(?:/([^/]++))?)?)?(*:432)|\\-schedule(?:/([^/]++)(?:/([^/]++)(?:/([^/]++))?)?)?(*:492))|torage/(.*)(?|(*:515)))|/m(?|onthly\\-(?|schedules/([^/]++)/(?|assignment(?|(*:576))|slot(?|s/([^/]++)/merge(?|\\-candidates(*:623)|(*:631))|\\-groups/([^/]++)/split(*:663))|department\\-monthly\\-assignment\\-batches/submit(*:719)|teaching\\-support\\-requests(?|(*:757)|/modal(*:771)))|assignment\\-dossiers/([^/]++)(?|(*:813)|/(?|submit(*:831)|training\\-office\\-review(*:863)|leadership\\-review(*:889))))|anagement/(?|t(?|raining\\-(?|programs/([^/]++)(?|(*:949))|batches/([^/]++)(?|(*:977))|classes/([^/]++)(?|(*:1005)))|eachers/([^/]++)(?|(*:1035)))|departments/([^/]++)(?|(*:1069))|rooms/([^/]++)(?|(*:1096))|s(?|ubject(?|s/([^/]++)(?|(*:1132))|\\-lessons/([^/]++)(?|(*:1163)))|tudents/([^/]++)(?|(*:1193)))))|/department\\-monthly\\-assignment\\-batches/([^/]++)(?|(*:1259)|/(?|approve(*:1279)|return(*:1294)|training\\-office\\-review(*:1327)))|/teaching\\-support\\-(?|request(?|s/([^/]++)(?|(*:1384)|/(?|review(*:1403)|withdraw(*:1420)|c(?|onfirm(*:1439)|hange\\-requests(?|/create(*:1473)|(*:1482)))))|\\-items/([^/]++)/assign(*:1518))|change\\-requests/([^/]++)(?|(*:1556)|/review(*:1572)))|/change\\-requests/([^/]++)/review(*:1616)|/holiday\\-calendars/([^/]++)(?|(*:1656)))/?$}sDu',
     ),
     3 => 
     array (
@@ -1623,7 +1659,29 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      330 => 
+      336 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'schedule.training-office-review',
+          ),
+          1 => 
+          array (
+            0 => 'id',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      362 => 
       array (
         0 => 
         array (
@@ -1645,7 +1703,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      339 => 
+      371 => 
       array (
         0 => 
         array (
@@ -1686,7 +1744,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      400 => 
+      432 => 
       array (
         0 => 
         array (
@@ -1714,7 +1772,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      460 => 
+      492 => 
       array (
         0 => 
         array (
@@ -1742,7 +1800,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      483 => 
+      515 => 
       array (
         0 => 
         array (
@@ -1784,7 +1842,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      541 => 
+      576 => 
       array (
         0 => 
         array (
@@ -1826,7 +1884,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      588 => 
+      623 => 
       array (
         0 => 
         array (
@@ -1850,7 +1908,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      596 => 
+      631 => 
       array (
         0 => 
         array (
@@ -1873,7 +1931,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      628 => 
+      663 => 
       array (
         0 => 
         array (
@@ -1896,7 +1954,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      684 => 
+      719 => 
       array (
         0 => 
         array (
@@ -1918,7 +1976,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      722 => 
+      757 => 
       array (
         0 => 
         array (
@@ -1940,7 +1998,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      736 => 
+      771 => 
       array (
         0 => 
         array (
@@ -1963,7 +2021,96 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      795 => 
+      813 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'monthly-assignment-dossiers.show',
+          ),
+          1 => 
+          array (
+            0 => 'id',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+      ),
+      831 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'monthly-assignment-dossiers.submit',
+          ),
+          1 => 
+          array (
+            0 => 'id',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      863 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'monthly-assignment-dossiers.training-office-review',
+          ),
+          1 => 
+          array (
+            0 => 'id',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      889 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'monthly-assignment-dossiers.leadership-review',
+          ),
+          1 => 
+          array (
+            0 => 'id',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      949 => 
       array (
         0 => 
         array (
@@ -2025,7 +2172,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      823 => 
+      977 => 
       array (
         0 => 
         array (
@@ -2087,7 +2234,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      851 => 
+      1005 => 
       array (
         0 => 
         array (
@@ -2149,7 +2296,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      880 => 
+      1035 => 
       array (
         0 => 
         array (
@@ -2211,7 +2358,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      913 => 
+      1069 => 
       array (
         0 => 
         array (
@@ -2273,7 +2420,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      939 => 
+      1096 => 
       array (
         0 => 
         array (
@@ -2335,7 +2482,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      974 => 
+      1132 => 
       array (
         0 => 
         array (
@@ -2397,7 +2544,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1004 => 
+      1163 => 
       array (
         0 => 
         array (
@@ -2459,7 +2606,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1034 => 
+      1193 => 
       array (
         0 => 
         array (
@@ -2521,7 +2668,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1100 => 
+      1259 => 
       array (
         0 => 
         array (
@@ -2544,7 +2691,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1120 => 
+      1279 => 
       array (
         0 => 
         array (
@@ -2566,7 +2713,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1135 => 
+      1294 => 
       array (
         0 => 
         array (
@@ -2588,7 +2735,29 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1192 => 
+      1327 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'department-monthly-assignment-batches.training-office-review',
+          ),
+          1 => 
+          array (
+            0 => 'id',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1384 => 
       array (
         0 => 
         array (
@@ -2611,7 +2780,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1211 => 
+      1403 => 
       array (
         0 => 
         array (
@@ -2633,7 +2802,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1228 => 
+      1420 => 
       array (
         0 => 
         array (
@@ -2655,7 +2824,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1247 => 
+      1439 => 
       array (
         0 => 
         array (
@@ -2677,7 +2846,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1281 => 
+      1473 => 
       array (
         0 => 
         array (
@@ -2700,7 +2869,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1290 => 
+      1482 => 
       array (
         0 => 
         array (
@@ -2722,7 +2891,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1326 => 
+      1518 => 
       array (
         0 => 
         array (
@@ -2744,7 +2913,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1364 => 
+      1556 => 
       array (
         0 => 
         array (
@@ -2767,7 +2936,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1380 => 
+      1572 => 
       array (
         0 => 
         array (
@@ -2789,7 +2958,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1424 => 
+      1616 => 
       array (
         0 => 
         array (
@@ -2811,7 +2980,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1464 => 
+      1656 => 
       array (
         0 => 
         array (
@@ -3057,7 +3226,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::Jo2NErJXilV2M6eH' => 
+    'generated::VdgNUrmSgiSVTUuy' => 
     array (
       'methods' => 
       array (
@@ -3085,8 +3254,8 @@ app('router')->setCompiledRoutes(
                     return response(\\Illuminate\\Support\\Facades\\View::file(\'E:\\\\Em trai\\\\qlhlCDHC\\\\vendor\\\\laravel\\\\framework\\\\src\\\\Illuminate\\\\Foundation\\\\Configuration\'.\'/../resources/health-up.blade.php\', [
                         \'exception\' => $exception,
                     ]), status: $exception ? 500 : 200);
-                }";s:5:"scope";s:54:"Illuminate\\Foundation\\Configuration\\ApplicationBuilder";s:4:"this";N;s:4:"self";s:32:"0000000000000b830000000000000000";}}',
-        'as' => 'generated::Jo2NErJXilV2M6eH',
+                }";s:5:"scope";s:54:"Illuminate\\Foundation\\Configuration\\ApplicationBuilder";s:4:"this";N;s:4:"self";s:32:"0000000000000b9b0000000000000000";}}',
+        'as' => 'generated::VdgNUrmSgiSVTUuy',
       ),
       'fallback' => false,
       'defaults' => 
@@ -3102,7 +3271,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::xOzMjEpqQRUzNci3' => 
+    'generated::0u0YjfNW2IFz9Kge' => 
     array (
       'methods' => 
       array (
@@ -3118,13 +3287,13 @@ app('router')->setCompiledRoutes(
         ),
         'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:0:{}s:8:"function";s:48:"function () {
     return \\view(\'index.index\');
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000b850000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000b9d0000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
         array (
         ),
-        'as' => 'generated::xOzMjEpqQRUzNci3',
+        'as' => 'generated::0u0YjfNW2IFz9Kge',
       ),
       'fallback' => false,
       'defaults' => 
@@ -3468,7 +3637,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::Ahk0oKeyJNY37XFo' => 
+    'generated::tQs5HwYXpNNaoUW1' => 
     array (
       'methods' => 
       array (
@@ -3495,13 +3664,13 @@ app('router')->setCompiledRoutes(
     }
 
     return \\redirect()->route(\'schedule.index\');
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000b1a0000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000b320000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
         array (
         ),
-        'as' => 'generated::Ahk0oKeyJNY37XFo',
+        'as' => 'generated::tQs5HwYXpNNaoUW1',
       ),
       'fallback' => false,
       'defaults' => 
@@ -3534,7 +3703,7 @@ app('router')->setCompiledRoutes(
         ),
         'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:0:{}s:8:"function";s:59:"function () {
         return \\view(\'settings.index\');
-    }";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000b290000000000000000";}}',
+    }";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000b410000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
@@ -4540,6 +4709,44 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
+    'schedule.training-office-review' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'schedules/{id}/training-office-review',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\TrainingOfficeReviewSemesterPlan\\TrainingOfficeReviewSemesterPlanController@__invoke',
+        'controller' => 'Modules\\Schedule\\Application\\TrainingOfficeReviewSemesterPlan\\TrainingOfficeReviewSemesterPlanController',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'schedule.training-office-review',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
     'schedule.leadership-review' => 
     array (
       'methods' => 
@@ -5024,6 +5231,274 @@ app('router')->setCompiledRoutes(
         array (
         ),
         'as' => 'department-monthly-assignment-batches.return',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'department-monthly-assignment-batches.training-office-review' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'department-monthly-assignment-batches/{id}/training-office-review',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\TrainingOfficeReviewDepartmentMonthlyAssignmentBatch\\TrainingOfficeReviewDepartmentMonthlyAssignmentBatchController@__invoke',
+        'controller' => 'Modules\\Schedule\\Application\\TrainingOfficeReviewDepartmentMonthlyAssignmentBatch\\TrainingOfficeReviewDepartmentMonthlyAssignmentBatchController',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'department-monthly-assignment-batches.training-office-review',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'monthly-assignment-dossiers.index' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'monthly-assignment-dossiers',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\MonthlyAssignmentDossier\\MonthlyAssignmentDossierController@index',
+        'controller' => 'Modules\\Schedule\\Application\\MonthlyAssignmentDossier\\MonthlyAssignmentDossierController@index',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'monthly-assignment-dossiers.index',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'monthly-assignment-dossiers.store' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'monthly-assignment-dossiers',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\MonthlyAssignmentDossier\\MonthlyAssignmentDossierController@store',
+        'controller' => 'Modules\\Schedule\\Application\\MonthlyAssignmentDossier\\MonthlyAssignmentDossierController@store',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'monthly-assignment-dossiers.store',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'monthly-assignment-dossiers.show' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'monthly-assignment-dossiers/{id}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\MonthlyAssignmentDossier\\MonthlyAssignmentDossierController@show',
+        'controller' => 'Modules\\Schedule\\Application\\MonthlyAssignmentDossier\\MonthlyAssignmentDossierController@show',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'monthly-assignment-dossiers.show',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'monthly-assignment-dossiers.submit' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'monthly-assignment-dossiers/{id}/submit',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\SubmitMonthlyAssignmentDossier\\SubmitMonthlyAssignmentDossierController@__invoke',
+        'controller' => 'Modules\\Schedule\\Application\\SubmitMonthlyAssignmentDossier\\SubmitMonthlyAssignmentDossierController',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'monthly-assignment-dossiers.submit',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'monthly-assignment-dossiers.training-office-review' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'monthly-assignment-dossiers/{id}/training-office-review',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\TrainingOfficeReviewMonthlyAssignmentDossier\\TrainingOfficeReviewMonthlyAssignmentDossierController@__invoke',
+        'controller' => 'Modules\\Schedule\\Application\\TrainingOfficeReviewMonthlyAssignmentDossier\\TrainingOfficeReviewMonthlyAssignmentDossierController',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'monthly-assignment-dossiers.training-office-review',
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'monthly-assignment-dossiers.leadership-review' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'monthly-assignment-dossiers/{id}/leadership-review',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+        ),
+        'uses' => 'Modules\\Schedule\\Application\\LeadershipReviewMonthlyAssignmentDossier\\LeadershipReviewMonthlyAssignmentDossierController@__invoke',
+        'controller' => 'Modules\\Schedule\\Application\\LeadershipReviewMonthlyAssignmentDossier\\LeadershipReviewMonthlyAssignmentDossierController',
+        'namespace' => NULL,
+        'prefix' => '',
+        'where' => 
+        array (
+        ),
+        'as' => 'monthly-assignment-dossiers.leadership-review',
       ),
       'fallback' => false,
       'defaults' => 
@@ -5998,7 +6473,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::cul61H57ZngLijPA' => 
+    'generated::aKZCRfZIm8LuZLsu' => 
     array (
       'methods' => 
       array (
@@ -6020,13 +6495,13 @@ app('router')->setCompiledRoutes(
         ->first();
 
     return \\view(\'schedule::schedule\', \\compact(\'schedule\')); // phai dung namespace de truy cap view cua module
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000ad10000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"0000000000000ae10000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
         array (
         ),
-        'as' => 'generated::cul61H57ZngLijPA',
+        'as' => 'generated::aKZCRfZIm8LuZLsu',
       ),
       'fallback' => false,
       'defaults' => 
@@ -8170,7 +8645,7 @@ app('router')->setCompiledRoutes(
                         $config,
                         $isProduction
                     ))($request, $path);
-                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"0000000000000b2c0000000000000000";}}',
+                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"0000000000000b440000000000000000";}}',
         'as' => 'storage.local',
       ),
       'fallback' => false,
@@ -8203,7 +8678,7 @@ app('router')->setCompiledRoutes(
                         $config,
                         $isProduction
                     ))($request, $path);
-                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"0000000000000b330000000000000000";}}',
+                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"0000000000000b4b0000000000000000";}}',
         'as' => 'storage.local.upload',
       ),
       'fallback' => false,

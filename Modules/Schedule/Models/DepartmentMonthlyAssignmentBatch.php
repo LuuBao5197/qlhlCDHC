@@ -18,18 +18,33 @@ class DepartmentMonthlyAssignmentBatch extends Model
         'month',
         'year',
         'status',
+        'current_step',
         'submitted_by',
         'submitted_at',
-        'reviewed_by',
-        'reviewed_at',
-        'review_note',
+        'department_reviewed_by',
+        'department_reviewed_at',
+        'department_review_note',
+        'training_office_reviewed_by',
+        'training_office_reviewed_at',
+        'training_office_review_note',
         'version',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
-        'reviewed_at' => 'datetime',
+        'department_reviewed_at' => 'datetime',
+        'training_office_reviewed_at' => 'datetime',
     ];
+
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_SUBMITTED = 'submitted';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_RETURNED = 'returned';
+
+    public const STEP_DRAFT = 'draft';
+    public const STEP_DEPARTMENT_REVIEW = 'department_review';
+    public const STEP_TRAINING_OFFICE_REVIEW = 'training_office_review';
+    public const STEP_COMPLETED = 'completed';
 
     public function department(): BelongsTo
     {
@@ -41,9 +56,14 @@ class DepartmentMonthlyAssignmentBatch extends Model
         return $this->belongsTo(User::class, 'submitted_by');
     }
 
-    public function reviewedBy(): BelongsTo
+    public function departmentReviewedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'reviewed_by');
+        return $this->belongsTo(User::class, 'department_reviewed_by');
+    }
+
+    public function trainingOfficeReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'training_office_reviewed_by');
     }
 
     public function batchSlots(): HasMany

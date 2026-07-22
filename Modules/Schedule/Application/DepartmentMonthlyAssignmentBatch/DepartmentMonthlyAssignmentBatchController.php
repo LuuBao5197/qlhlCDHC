@@ -4,7 +4,6 @@ namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\ApprovalAuthorityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,21 +16,27 @@ use Modules\Training\Models\Department;
 class DepartmentMonthlyAssignmentBatchController extends Controller
 {
     public function __construct(
-        private SubmitDepartmentMonthlyAssignmentBatch $submitBatch,
-        private ApprovalAuthorityService $approvalAuthority
+        private SubmitDepartmentMonthlyAssignmentBatch $submitBatch
     ) {}
 
     public function index(Request $request): Response
     {
-        $this->authorizeQueue($request->user());
+        $user = $request->user();
+        $this->authorizeQueue($user);
 
         $filters = $this->resolveIndexFilters($request);
+
+        // Lanh dao Khoa / nhan vien Khoa chi duoc xem batch cua dung khoa minh.
+        if ($user && ! $user->isAdmin() && ! $user->isTrainingOffice() && $user->isDepartmentStaff()) {
+            $filters['department_id'] = (int) $user->department_id;
+        }
 
         $query = DepartmentMonthlyAssignmentBatch::query()
             ->with([
                 'department',
                 'submittedBy',
-                'reviewedBy',
+                'departmentReviewedBy',
+                'trainingOfficeReviewedBy',
                 'batchSlots.scheduleSlot.monthlySchedule.plan',
                 'batchSlots.scheduleSlot.scheduleSlotGroup',
             ])
@@ -55,7 +60,7 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
 
         $batches = $query
             ->orderByDesc('submitted_at')
-            ->orderByDesc('reviewed_at')
+            ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->paginate(15)
             ->withQueryString();
@@ -70,7 +75,7 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             'filters' => $filters,
             'statusTabs' => [
                 'submitted' => 'Chờ duyệt',
-                'approved' => 'Đã duyệt',
+                'approved' => 'Đã duyệt (đủ 2 vòng)',
                 'returned' => 'Trả về chỉnh sửa',
                 'all' => 'Tất cả',
             ],
@@ -104,12 +109,12 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
         if (! $request->expectsJson()) {
             return redirect()
                 ->route('monthly-schedule.assignment', $id)
-                ->with('success', 'Da gui batch tong hop len PDT de duyet.');
+                ->with('success', 'Da gui batch len Lanh dao Khoa de duyet.');
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Da gui batch tong hop len PDT de duyet.',
+            'message' => 'Da gui batch len Lanh dao Khoa de duyet.',
             'batch_id' => $batch->id,
             'batch' => $this->formatBatch($batch),
         ]);
@@ -121,7 +126,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             ->with([
                 'department',
                 'submittedBy',
-                'reviewedBy',
+                'departmentReviewedBy',
+                'trainingOfficeReviewedBy',
                 'batchSlots.scheduleSlot.monthlySchedule.plan',
                 'batchSlots.scheduleSlot.trainingClass',
                 'batchSlots.scheduleSlot.teacher',
@@ -138,7 +144,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             return response()->view('schedule::department-monthly-assignment-batch.show', [
                 'batch' => $batch,
                 'batchData' => $this->formatBatch($batch),
-                'canReview' => $this->approvalAuthority->canApproveAsTrainingOffice($request->user()),
+                'canReviewAsDepartmentLeadership' => (bool) $request->user()?->can('reviewAsDepartmentLeadership', $batch),
+                'canReviewAsTrainingOffice' => (bool) $request->user()?->can('reviewAsTrainingOffice', DepartmentMonthlyAssignmentBatch::class),
                 'anchorMonthlyScheduleId' => $batch->batchSlots->first()?->scheduleSlot?->monthly_schedule_id,
             ]);
         }
@@ -164,31 +171,23 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
         }
 
         $scope = app(ResolveAggregateAssignmentScope::class)->handle($monthlySchedule, $user);
-        if ($scope === null || (int) $scope['department_id'] !== (int) $user->department_id) {
+        $departmentId = $scope['department_id'] ?? null;
+
+        if ($departmentId === null || ! $user->can('submit', [DepartmentMonthlyAssignmentBatch::class, (int) $departmentId])) {
             abort(403);
         }
     }
 
     private function authorizeBatchView(?User $user, DepartmentMonthlyAssignmentBatch $batch): void
     {
-        if (! $user) {
+        if (! $user || ! $user->can('view', $batch)) {
             abort(403);
         }
-
-        if ($user->isAdmin() || $user->isTrainingOffice()) {
-            return;
-        }
-
-        if ($user->isDepartmentStaff() && (int) $batch->department_id === (int) $user->department_id) {
-            return;
-        }
-
-        abort(403);
     }
 
     private function authorizeQueue(?User $user): void
     {
-        if (! $user || (! $user->isTrainingOffice() && ! $user->isAdmin())) {
+        if (! $user || ! $user->can('viewQueue', DepartmentMonthlyAssignmentBatch::class)) {
             abort(403);
         }
     }
@@ -262,7 +261,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
         $batch->loadMissing([
             'department',
             'submittedBy',
-            'reviewedBy',
+            'departmentReviewedBy',
+            'trainingOfficeReviewedBy',
             'batchSlots.scheduleSlot.monthlySchedule.plan',
             'batchSlots.scheduleSlot.scheduleSlotGroup',
         ]);
@@ -279,6 +279,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             ->unique()
             ->count();
 
+        $lastReviewedAt = $batch->training_office_reviewed_at ?? $batch->department_reviewed_at;
+
         return [
             'id' => (int) $batch->id,
             'department_id' => (int) $batch->department_id,
@@ -286,13 +288,15 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             'month' => (int) $batch->month,
             'year' => (int) $batch->year,
             'status' => (string) $batch->status,
+            'current_step' => (string) $batch->current_step,
             'submitted_by' => $batch->submitted_by !== null ? (int) $batch->submitted_by : null,
             'submitted_by_name' => $batch->submittedBy?->name,
             'submitted_at' => optional($batch->submitted_at)->format('d/m/Y H:i'),
-            'reviewed_by' => $batch->reviewed_by !== null ? (int) $batch->reviewed_by : null,
-            'reviewed_by_name' => $batch->reviewedBy?->name,
-            'reviewed_at' => optional($batch->reviewed_at)->format('d/m/Y H:i'),
-            'processing_time' => $this->formatProcessingTime($batch->submitted_at, $batch->reviewed_at),
+            'department_reviewed_by_name' => $batch->departmentReviewedBy?->name,
+            'department_reviewed_at' => optional($batch->department_reviewed_at)->format('d/m/Y H:i'),
+            'training_office_reviewed_by_name' => $batch->trainingOfficeReviewedBy?->name,
+            'training_office_reviewed_at' => optional($batch->training_office_reviewed_at)->format('d/m/Y H:i'),
+            'processing_time' => $this->formatProcessingTime($batch->submitted_at, $lastReviewedAt),
             'slot_count' => $slotCount,
             'source_plan_count' => $sourcePlanCount,
             'source_monthly_schedule_count' => $sourceMonthlyScheduleCount,
@@ -334,7 +338,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
         $batch->loadMissing([
             'department',
             'submittedBy',
-            'reviewedBy',
+            'departmentReviewedBy',
+            'trainingOfficeReviewedBy',
             'batchSlots.scheduleSlot.monthlySchedule.plan',
             'batchSlots.scheduleSlot.trainingClass',
             'batchSlots.scheduleSlot.teacher',
@@ -351,14 +356,19 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             'month' => $batch->month,
             'year' => $batch->year,
             'status' => $batch->status,
+            'current_step' => $batch->current_step,
             'version' => $batch->version,
             'submitted_by' => $batch->submitted_by,
             'submitted_by_name' => $batch->submittedBy?->name,
             'submitted_at' => optional($batch->submitted_at)->toDateTimeString(),
-            'reviewed_by' => $batch->reviewed_by,
-            'reviewed_by_name' => $batch->reviewedBy?->name,
-            'reviewed_at' => optional($batch->reviewed_at)->toDateTimeString(),
-            'review_note' => $batch->review_note,
+            'department_reviewed_by' => $batch->department_reviewed_by,
+            'department_reviewed_by_name' => $batch->departmentReviewedBy?->name,
+            'department_reviewed_at' => optional($batch->department_reviewed_at)->toDateTimeString(),
+            'department_review_note' => $batch->department_review_note,
+            'training_office_reviewed_by' => $batch->training_office_reviewed_by,
+            'training_office_reviewed_by_name' => $batch->trainingOfficeReviewedBy?->name,
+            'training_office_reviewed_at' => optional($batch->training_office_reviewed_at)->toDateTimeString(),
+            'training_office_review_note' => $batch->training_office_review_note,
             'slot_count' => $batch->batchSlots->count(),
             'slots' => $batch->batchSlots->map(function ($batchSlot): array {
                 $slot = $batchSlot->scheduleSlot;

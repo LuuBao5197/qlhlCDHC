@@ -53,7 +53,8 @@ class AssignMonthlyScheduleController extends Controller
             ->with([
                 'department',
                 'submittedBy',
-                'reviewedBy',
+                'departmentReviewedBy',
+                'trainingOfficeReviewedBy',
                 'batchSlots.scheduleSlot.monthlySchedule.plan',
                 'batchSlots.scheduleSlot.trainingClass',
                 'batchSlots.scheduleSlot.teacher',

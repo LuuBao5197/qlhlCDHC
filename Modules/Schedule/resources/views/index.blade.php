@@ -7,6 +7,7 @@
         $user = auth()->user();
         $approvalAuthority = app(\App\Services\ApprovalAuthorityService::class);
         $canReviewWorkflow = $approvalAuthority->canApproveAsTrainingOffice($user);
+        $canManageSemesterPlan = $user && ($user->isTrainingOffice() || $user->isAdmin());
         $canDepartmentAssign = $user && ($user->isDepartmentStaff() || $user->isAdmin());
         $canLeadershipReview = $approvalAuthority->canApproveAsLeadership($user);
     @endphp
@@ -36,7 +37,7 @@
         <div class="alert alert-warning">{{ session('warning') }}</div>
     @endif
 
-    @if (!$canReviewWorkflow && !$canDepartmentAssign)
+    @if (!$canReviewWorkflow && !$canManageSemesterPlan && !$canDepartmentAssign)
         <div class="alert alert-warning">
             Tai khoan cua ban chi co quyen xem. Chuc nang nghiep vu chi danh cho vai tro `department_staff`,
             `training_office` hoac `admin`.
@@ -115,13 +116,31 @@
         <div class="col-lg-6 mb-3">
             <div class="card h-100 border-left-success shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title mb-2">Hộp chờ phê duyệt phân công</h5>
+                    <h5 class="card-title mb-2">Hộp chờ phê duyệt batch phân công</h5>
                     <p class="text-muted mb-3">
-                        Dành cho Phòng Đào tạo và quản trị viên để rà soát các batch phân công tổng hợp theo khoa.
+                        Lãnh đạo Khoa duyệt batch của Khoa mình; Phòng Đào tạo duyệt batch đã qua Lãnh đạo Khoa.
                     </p>
-                    @if ($canReviewWorkflow)
+                    @if ($canDepartmentAssign || $canReviewWorkflow)
                         <a href="{{ route('department-monthly-assignment-batches.index') }}" class="btn btn-success btn-sm">
                             Đi tới hộp chờ phê duyệt
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card h-100 border-left-warning shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-2">Hồ sơ phân công tháng tổng hợp</h5>
+                    <p class="text-muted mb-3">
+                        PĐT tổng hợp các batch đã đủ 2 vòng duyệt của tất cả Khoa bắt buộc, gửi Lãnh đạo PĐT rồi Ban Giám hiệu phê duyệt.
+                    </p>
+                    @if ($canManageSemesterPlan || $canReviewWorkflow || $canLeadershipReview)
+                        <a href="{{ route('monthly-assignment-dossiers.index') }}" class="btn btn-warning btn-sm">
+                            Đi tới hồ sơ tổng hợp
                         </a>
                     @endif
                 </div>

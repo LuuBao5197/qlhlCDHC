@@ -10,12 +10,18 @@ use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleCont
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleMergeController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchReviewController;
+use Modules\Schedule\Application\TrainingOfficeReviewDepartmentMonthlyAssignmentBatch\TrainingOfficeReviewDepartmentMonthlyAssignmentBatchController;
+use Modules\Schedule\Application\MonthlyAssignmentDossier\MonthlyAssignmentDossierController;
+use Modules\Schedule\Application\SubmitMonthlyAssignmentDossier\SubmitMonthlyAssignmentDossierController;
+use Modules\Schedule\Application\TrainingOfficeReviewMonthlyAssignmentDossier\TrainingOfficeReviewMonthlyAssignmentDossierController;
+use Modules\Schedule\Application\LeadershipReviewMonthlyAssignmentDossier\LeadershipReviewMonthlyAssignmentDossierController;
 use Modules\Schedule\Application\TeachingSupportRequest\TeachingSupportRequestController;
 use Modules\Schedule\Application\TeachingSupportChangeRequest\TeachingSupportChangeRequestController;
 use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestController;
 use Modules\Schedule\Application\CreateChangeRequest\CreateChangeRequestPageController;
 use Modules\Schedule\Application\ReviewChangeRequest\ReviewChangeRequestController;
 use Modules\Schedule\Application\SubmitSemesterPlan\SubmitSemesterPlanController;
+use Modules\Schedule\Application\TrainingOfficeReviewSemesterPlan\TrainingOfficeReviewSemesterPlanController;
 use Modules\Schedule\Application\LeadershipReviewSemesterPlan\LeadershipReviewSemesterPlanController;
 use Modules\Schedule\Application\UpdateScheduleSemester\UpdateScheduleSemesterController;
 use Modules\Schedule\Application\DeleteScheduleSemester\DeleteScheduleSemesterController;
@@ -58,6 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Delete schedule
     // Route::delete('/schedules/{id}', DeleteScheduleController::class)->name('schedule.destroy');
     Route::post('/schedules/{id}/submit', SubmitSemesterPlanController::class)->name('schedule.submit');
+    Route::post('/schedules/{id}/training-office-review', TrainingOfficeReviewSemesterPlanController::class)
+        ->name('schedule.training-office-review');
     Route::post('/schedules/{id}/leadership-review', LeadershipReviewSemesterPlanController::class)
         ->name('schedule.leadership-review');
 
@@ -88,6 +96,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('department-monthly-assignment-batches.approve');
     Route::post('/department-monthly-assignment-batches/{id}/return', [DepartmentMonthlyAssignmentBatchReviewController::class, 'returnBatch'])
         ->name('department-monthly-assignment-batches.return');
+    Route::post('/department-monthly-assignment-batches/{id}/training-office-review', TrainingOfficeReviewDepartmentMonthlyAssignmentBatchController::class)
+        ->name('department-monthly-assignment-batches.training-office-review');
+
+    // Monthly assignment dossier (PDT tong hop -> Lanh dao PDT -> BGH)
+    Route::get('/monthly-assignment-dossiers', [MonthlyAssignmentDossierController::class, 'index'])
+        ->name('monthly-assignment-dossiers.index');
+    Route::post('/monthly-assignment-dossiers', [MonthlyAssignmentDossierController::class, 'store'])
+        ->name('monthly-assignment-dossiers.store');
+    Route::get('/monthly-assignment-dossiers/{id}', [MonthlyAssignmentDossierController::class, 'show'])
+        ->name('monthly-assignment-dossiers.show');
+    Route::post('/monthly-assignment-dossiers/{id}/submit', SubmitMonthlyAssignmentDossierController::class)
+        ->name('monthly-assignment-dossiers.submit');
+    Route::post('/monthly-assignment-dossiers/{id}/training-office-review', TrainingOfficeReviewMonthlyAssignmentDossierController::class)
+        ->name('monthly-assignment-dossiers.training-office-review');
+    Route::post('/monthly-assignment-dossiers/{id}/leadership-review', LeadershipReviewMonthlyAssignmentDossierController::class)
+        ->name('monthly-assignment-dossiers.leadership-review');
 
     Route::get('/teaching-support-requests', [TeachingSupportRequestController::class, 'index'])
         ->name('teaching-support-requests.index');

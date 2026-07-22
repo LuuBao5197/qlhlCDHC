@@ -24,13 +24,18 @@ class InternalNotificationWorkflowTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_semester_plan_submission_notifies_admin_and_leadership_only(): void
+    public function test_semester_plan_submission_notifies_admin_and_training_office_only(): void
     {
         Carbon::setTestNow('2026-07-05 09:00:00');
 
         $admin = User::factory()->create([
             'role' => User::ROLE_ADMIN,
             'status' => User::STATUS_APPROVED,
+        ]);
+        $trainingHead = User::factory()->create([
+            'role' => User::ROLE_TRAINING_OFFICE,
+            'status' => User::STATUS_APPROVED,
+            'position' => \App\Enums\Position::TRAINING_HEAD,
         ]);
         $leadership = User::factory()->create([
             'role' => User::ROLE_LEADERSHIP,
@@ -47,6 +52,7 @@ class InternalNotificationWorkflowTest extends TestCase
         $actor = User::factory()->create([
             'role' => User::ROLE_TRAINING_OFFICE,
             'status' => User::STATUS_APPROVED,
+            'position' => \App\Enums\Position::TRAINING_STAFF,
         ]);
 
         $planId = DB::table('plans')->insertGetId([
@@ -72,8 +78,11 @@ class InternalNotificationWorkflowTest extends TestCase
             'comment' => 'Submit for review',
         ])->assertSuccessful();
 
+        $this->assertSame('training_office_review', DB::table('plans')->where('id', $planId)->value('current_step'));
+
         $this->assertSame(1, $admin->fresh()->notifications()->count());
-        $this->assertSame(1, $leadership->fresh()->notifications()->count());
+        $this->assertSame(1, $trainingHead->fresh()->notifications()->count());
+        $this->assertSame(0, $leadership->fresh()->notifications()->count());
         $this->assertSame(0, $staff->fresh()->notifications()->count());
 
         $adminNotification = $admin->fresh()->notifications()->first();

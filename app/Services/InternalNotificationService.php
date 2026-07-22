@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Enums\InternalNotificationType;
+use App\Enums\Position;
 use App\Models\User;
 use App\Notifications\InternalNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Modules\Schedule\Models\DepartmentMonthlyAssignmentBatch;
+use Modules\Schedule\Models\MonthlyAssignmentDossier;
 use Modules\Schedule\Models\TeachingSupportChangeRequest;
 use Modules\Schedule\Models\TeachingSupportRequest;
 use Modules\Schedule\Models\TeachingSupportRequestItem;
@@ -53,12 +55,46 @@ class InternalNotificationService
 
     public function notifySemesterPlanSubmitted(Plans $plan, User $actor): void
     {
-        $this->notifyUsers($this->roleRecipients([User::ROLE_LEADERSHIP, User::ROLE_ADMIN]), $this->makeNotification(
+        $this->notifyUsers($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]), $this->makeNotification(
             InternalNotificationType::SEMESTER_PLAN_SUBMITTED,
             'Ke hoach hoc ky da duoc gui',
-            $plan->name . ' vua duoc gui len cap phe duyet.',
+            $plan->name . ' vua duoc gui len Phong Dao tao va dang cho duyet.',
             route('schedule.show', $plan->id),
             'semester-plan-submitted:' . $plan->id . ':' . optional($plan->submitted_at)->timestamp,
+            [
+                'plan_id' => $plan->id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    public function notifySemesterPlanTrainingOfficeReviewed(Plans $plan, User $actor, bool $approved): void
+    {
+        if ($approved) {
+            $this->notifyUsers($this->roleRecipients([User::ROLE_LEADERSHIP, User::ROLE_ADMIN]), $this->makeNotification(
+                InternalNotificationType::SEMESTER_PLAN_SUBMITTED,
+                'Ke hoach hoc ky da duoc trinh len Ban Giam hieu',
+                $plan->name . ' da duoc Phong Dao tao duyet va trinh len Ban Giam hieu.',
+                route('schedule.show', $plan->id),
+                'semester-plan-forwarded-to-leadership:' . $plan->id . ':' . now()->timestamp,
+                [
+                    'plan_id' => $plan->id,
+                    'actor_id' => $actor->id,
+                ]
+            ));
+
+            return;
+        }
+
+        $recipients = $this->recipientUsers($plan->submittedBy)
+            ->merge($this->recipientUsers($plan->createdBy));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            InternalNotificationType::SEMESTER_PLAN_REJECTED,
+            'Ke hoach hoc ky bi tu choi',
+            $plan->name . ' da bi Phong Dao tao tu choi.',
+            route('schedule.show', $plan->id),
+            'semester-plan-training-office-reviewed:' . $plan->id . ':' . now()->timestamp,
             [
                 'plan_id' => $plan->id,
                 'actor_id' => $actor->id,
@@ -100,7 +136,7 @@ class InternalNotificationService
             InternalNotificationType::SCHEDULE_CHANGE_REQUEST_SUBMITTED,
             'Co phieu thay doi lich moi',
             'Phieu thay doi lich ' . $changeRequest->id . ' vua duoc tao va dang cho xu ly.',
-            route('schedule.show', $changeRequest->monthly_schedule_id),
+            route('schedule.index'),
             'schedule-change-request-submitted:' . $changeRequest->id,
             [
                 'change_request_id' => $changeRequest->id,
@@ -119,7 +155,7 @@ class InternalNotificationService
             $type,
             $approved ? 'Phieu thay doi lich da duoc duyet' : 'Phieu thay doi lich bi tu choi',
             'Phieu thay doi lich ' . $changeRequest->id . ($approved ? ' da duoc phe duyet.' : ' da bi tu choi.'),
-            route('schedule.show', $changeRequest->monthly_schedule_id),
+            route('schedule.index'),
             'schedule-change-request-reviewed:' . $changeRequest->id . ':' . ($approved ? 'approved' : 'rejected'),
             [
                 'change_request_id' => $changeRequest->id,
@@ -130,10 +166,10 @@ class InternalNotificationService
 
     public function notifyDepartmentMonthlyAssignmentBatchSubmitted(DepartmentMonthlyAssignmentBatch $batch, User $actor): void
     {
-        $this->notifyUsers($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]), $this->makeNotification(
+        $this->notifyUsers($this->departmentLeadershipRecipients((int) $batch->department_id), $this->makeNotification(
             InternalNotificationType::ASSIGNMENT_BATCH_SUBMITTED,
             'Batch phan cong da duoc gui',
-            'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' dang cho PDT duyet.',
+            'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' dang cho Lanh dao Khoa duyet.',
             route('department-monthly-assignment-batches.show', $batch->id),
             'assignment-batch-submitted:' . $batch->id,
             [
@@ -144,6 +180,10 @@ class InternalNotificationService
         ));
     }
 
+    /**
+     * Lanh dao Khoa duyet/tu choi batch cua chinh Khoa minh.
+     * Duyet: bao PDT (batch da san sang cho PDT duyet). Tu choi: bao lai Khoa.
+     */
     public function notifyDepartmentMonthlyAssignmentBatchReviewed(DepartmentMonthlyAssignmentBatch $batch, User $actor, bool $approved): void
     {
         $type = $approved
@@ -151,18 +191,124 @@ class InternalNotificationService
             : InternalNotificationType::ASSIGNMENT_BATCH_RETURNED;
 
         $message = $approved
-            ? 'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' da duoc duyet.'
-            : 'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' da bi tra ve.';
+            ? 'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' da duoc Lanh dao Khoa duyet, dang cho PDT duyet.'
+            : 'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' da bi Lanh dao Khoa tra ve.';
 
-        $this->notifyUsers($this->departmentStaffRecipients((int) $batch->department_id)->merge($this->recipientUsers($batch->submittedBy)), $this->makeNotification(
+        $recipients = $approved
+            ? $this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN])
+            : $this->departmentStaffRecipients((int) $batch->department_id)->merge($this->recipientUsers($batch->submittedBy));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
             $type,
-            $approved ? 'Batch phan cong da duoc duyet' : 'Batch phan cong bi tra ve',
+            $approved ? 'Batch phan cong da duoc Lanh dao Khoa duyet' : 'Batch phan cong bi Lanh dao Khoa tra ve',
             $message,
             route('department-monthly-assignment-batches.show', $batch->id),
             'assignment-batch-reviewed:' . $batch->id . ':' . ($approved ? 'approved' : 'returned'),
             [
                 'batch_id' => $batch->id,
                 'department_id' => $batch->department_id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    /**
+     * PDT duyet/tra ve batch da duoc Lanh dao Khoa duyet. Ca 2 truong hop deu bao lai Khoa.
+     */
+    public function notifyDepartmentMonthlyAssignmentBatchTrainingOfficeReviewed(DepartmentMonthlyAssignmentBatch $batch, User $actor, bool $approved): void
+    {
+        $type = $approved
+            ? InternalNotificationType::ASSIGNMENT_BATCH_TRAINING_OFFICE_APPROVED
+            : InternalNotificationType::ASSIGNMENT_BATCH_TRAINING_OFFICE_RETURNED;
+
+        $message = $approved
+            ? 'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' da duoc PDT duyet, san sang de tong hop.'
+            : 'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh') . ' da bi PDT tra ve.';
+
+        $recipients = $this->departmentStaffRecipients((int) $batch->department_id)->merge($this->recipientUsers($batch->submittedBy));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            $type,
+            $approved ? 'Batch phan cong da duoc PDT duyet' : 'Batch phan cong bi PDT tra ve',
+            $message,
+            route('department-monthly-assignment-batches.show', $batch->id),
+            'assignment-batch-training-office-reviewed:' . $batch->id . ':' . ($approved ? 'approved' : 'returned'),
+            [
+                'batch_id' => $batch->id,
+                'department_id' => $batch->department_id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    public function notifyMonthlyAssignmentDossierSubmitted(MonthlyAssignmentDossier $dossier, User $actor): void
+    {
+        $this->notifyUsers($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]), $this->makeNotification(
+            InternalNotificationType::MONTHLY_ASSIGNMENT_DOSSIER_SUBMITTED,
+            'Ho so phan cong thang da duoc gui',
+            sprintf('Ho so phan cong thang %02d/%d dang cho Lanh dao PDT duyet.', $dossier->month, $dossier->year),
+            route('monthly-assignment-dossiers.show', $dossier->id),
+            'monthly-assignment-dossier-submitted:' . $dossier->id . ':' . optional($dossier->submitted_at)->timestamp,
+            [
+                'dossier_id' => $dossier->id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    public function notifyMonthlyAssignmentDossierTrainingOfficeReviewed(MonthlyAssignmentDossier $dossier, User $actor, bool $approved): void
+    {
+        if ($approved) {
+            $this->notifyUsers($this->roleRecipients([User::ROLE_LEADERSHIP, User::ROLE_ADMIN]), $this->makeNotification(
+                InternalNotificationType::MONTHLY_ASSIGNMENT_DOSSIER_SUBMITTED,
+                'Ho so phan cong thang da duoc trinh len Ban Giam hieu',
+                sprintf('Ho so phan cong thang %02d/%d da duoc Lanh dao PDT duyet va trinh len Ban Giam hieu.', $dossier->month, $dossier->year),
+                route('monthly-assignment-dossiers.show', $dossier->id),
+                'monthly-assignment-dossier-forwarded-to-leadership:' . $dossier->id . ':' . now()->timestamp,
+                [
+                    'dossier_id' => $dossier->id,
+                    'actor_id' => $actor->id,
+                ]
+            ));
+
+            return;
+        }
+
+        $recipients = $this->recipientUsers($dossier->submittedBy)
+            ->merge($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            InternalNotificationType::MONTHLY_ASSIGNMENT_DOSSIER_REJECTED,
+            'Ho so phan cong thang bi tu choi',
+            sprintf('Ho so phan cong thang %02d/%d da bi Lanh dao PDT tu choi.', $dossier->month, $dossier->year),
+            route('monthly-assignment-dossiers.show', $dossier->id),
+            'monthly-assignment-dossier-training-office-reviewed:' . $dossier->id . ':' . now()->timestamp,
+            [
+                'dossier_id' => $dossier->id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    public function notifyMonthlyAssignmentDossierReviewed(MonthlyAssignmentDossier $dossier, User $actor, bool $approved): void
+    {
+        $type = $approved
+            ? InternalNotificationType::MONTHLY_ASSIGNMENT_DOSSIER_APPROVED
+            : InternalNotificationType::MONTHLY_ASSIGNMENT_DOSSIER_REJECTED;
+
+        $recipients = $this->recipientUsers($dossier->submittedBy)
+            ->merge($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            $type,
+            $approved ? 'Ho so phan cong thang da duoc phe duyet' : 'Ho so phan cong thang bi tu choi',
+            $approved
+                ? sprintf('Ho so phan cong thang %02d/%d da duoc Ban Giam hieu phe duyet.', $dossier->month, $dossier->year)
+                : sprintf('Ho so phan cong thang %02d/%d da bi Ban Giam hieu tu choi.', $dossier->month, $dossier->year),
+            route('monthly-assignment-dossiers.show', $dossier->id),
+            'monthly-assignment-dossier-reviewed:' . $dossier->id . ':' . now()->timestamp,
+            [
+                'dossier_id' => $dossier->id,
                 'actor_id' => $actor->id,
             ]
         ));
@@ -318,6 +464,26 @@ class InternalNotificationService
             ->where('status', User::STATUS_APPROVED)
             ->where('department_id', $departmentId)
             ->where('role', User::ROLE_DEPARTMENT_STAFF)
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Lanh dao Khoa (Truong khoa/Bo mon) cua dung mot Khoa.
+     *
+     * @return Collection<int, User>
+     */
+    private function departmentLeadershipRecipients(int $departmentId): Collection
+    {
+        if ($departmentId <= 0) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('status', User::STATUS_APPROVED)
+            ->where('department_id', $departmentId)
+            ->where('role', User::ROLE_DEPARTMENT_STAFF)
+            ->where('position', Position::DEPARTMENT_HEAD)
             ->orderBy('id')
             ->get();
     }

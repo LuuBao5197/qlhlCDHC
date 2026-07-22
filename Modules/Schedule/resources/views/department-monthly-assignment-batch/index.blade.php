@@ -22,6 +22,12 @@
             'draft' => 'Nháp',
             'all' => 'Tất cả',
         ];
+        $stepLabels = [
+            'department_review' => 'Chờ Lãnh đạo Khoa',
+            'training_office_review' => 'Chờ PĐT',
+            'completed' => 'Hoàn tất',
+            'draft' => '-',
+        ];
     @endphp
 
     <div class="row mb-3">
@@ -129,10 +135,11 @@
                             <th style="min-width: 220px;">Khoa</th>
                             <th style="min-width: 110px;">Tháng/Năm</th>
                             <th style="min-width: 130px;">Trạng thái</th>
+                            <th style="min-width: 140px;">Bước hiện tại</th>
                             <th style="min-width: 160px;">Người gửi</th>
                             <th style="min-width: 150px;">Thời gian gửi</th>
-                            <th style="min-width: 160px;">Người xử lý</th>
-                            <th style="min-width: 140px;">Thời gian xử lý</th>
+                            <th style="min-width: 160px;">Lãnh đạo Khoa duyệt</th>
+                            <th style="min-width: 160px;">PĐT duyệt</th>
                             <th style="min-width: 90px;">Số slot</th>
                             <th style="min-width: 170px;">Nguồn</th>
                             <th style="min-width: 160px;">Hành động</th>
@@ -142,6 +149,7 @@
                         @forelse ($batches as $batch)
                             @php
                                 $batchStatus = $batch['status'] ?? 'draft';
+                                $batchStep = $batch['current_step'] ?? 'draft';
                                 $batchStatusClass = $statusClasses[$batchStatus] ?? 'badge-secondary';
                                 $batchCanReview = $batchStatus === 'submitted';
                                 $batchActionLabel = $batchCanReview ? 'Xem và phê duyệt' : 'Xem chi tiết';
@@ -157,6 +165,9 @@
                                     <span class="badge {{ $batchStatusClass }}">{{ $statusLabels[$batchStatus] ?? strtoupper($batchStatus) }}</span>
                                 </td>
                                 <td>
+                                    <span class="badge badge-light border">{{ $stepLabels[$batchStep] ?? $batchStep }}</span>
+                                </td>
+                                <td>
                                     <div class="font-weight-bold">{{ $batch['submitted_by_name'] ?? '-' }}</div>
                                     <div class="small text-muted">
                                         {{ $batch['submitted_by'] ? 'ID: ' . $batch['submitted_by'] : '' }}
@@ -164,12 +175,13 @@
                                 </td>
                                 <td class="text-nowrap">{{ $batch['submitted_at'] ?? '-' }}</td>
                                 <td>
-                                    <div class="font-weight-bold">{{ $batch['reviewed_by_name'] ?? '-' }}</div>
-                                    <div class="small text-muted">
-                                        {{ $batch['reviewed_by'] ? 'ID: ' . $batch['reviewed_by'] : '' }}
-                                    </div>
+                                    <div class="font-weight-bold">{{ $batch['department_reviewed_by_name'] ?? '-' }}</div>
+                                    <div class="small text-muted">{{ $batch['department_reviewed_at'] ?? '-' }}</div>
                                 </td>
-                                <td class="text-nowrap">{{ $batch['processing_time'] ?? '-' }}</td>
+                                <td>
+                                    <div class="font-weight-bold">{{ $batch['training_office_reviewed_by_name'] ?? '-' }}</div>
+                                    <div class="small text-muted">{{ $batch['training_office_reviewed_at'] ?? '-' }}</div>
+                                </td>
                                 <td>
                                     <div class="font-weight-bold">{{ $batch['slot_count'] ?? 0 }}</div>
                                     <div class="small text-muted">
@@ -195,7 +207,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-4">
+                                <td colspan="11" class="text-center text-muted py-4">
                                     Không tìm thấy batch nào phù hợp với bộ lọc hiện tại.
                                 </td>
                             </tr>

@@ -4,7 +4,6 @@ namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\ApprovalAuthorityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,14 +14,13 @@ class DepartmentMonthlyAssignmentBatchReviewController extends Controller
 {
     public function __construct(
         private ApproveDepartmentMonthlyAssignmentBatch $approveBatch,
-        private ReturnDepartmentMonthlyAssignmentBatch $returnBatch,
-        private ApprovalAuthorityService $approvalAuthority
+        private ReturnDepartmentMonthlyAssignmentBatch $returnBatch
     ) {}
 
     public function approve(Request $request, int $id): JsonResponse|RedirectResponse
     {
         $batch = DepartmentMonthlyAssignmentBatch::query()->findOrFail($id);
-        $this->authorizeReview($request->user());
+        $this->authorizeReview($request->user(), $batch);
 
         try {
             $batch = $this->approveBatch->handle($batch, $request->user());
@@ -43,21 +41,22 @@ class DepartmentMonthlyAssignmentBatchReviewController extends Controller
         if (! $request->expectsJson()) {
             return redirect()
                 ->route('department-monthly-assignment-batches.show', $batch->id)
-                ->with('success', 'Da duyet batch tong hop.');
+                ->with('success', 'Da duyet batch, chuyen sang cho PDT duyet.');
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Da duyet batch tong hop.',
+            'message' => 'Da duyet batch, chuyen sang cho PDT duyet.',
             'batch_id' => $batch->id,
             'status' => $batch->status,
+            'current_step' => $batch->current_step,
         ]);
     }
 
     public function returnBatch(Request $request, int $id): JsonResponse|RedirectResponse
     {
         $batch = DepartmentMonthlyAssignmentBatch::query()->findOrFail($id);
-        $this->authorizeReview($request->user());
+        $this->authorizeReview($request->user(), $batch);
 
         $validated = $request->validate([
             'review_note' => ['required', 'string', 'max:2000'],
@@ -90,12 +89,13 @@ class DepartmentMonthlyAssignmentBatchReviewController extends Controller
             'message' => 'Da tra batch tong hop ve khoa.',
             'batch_id' => $batch->id,
             'status' => $batch->status,
+            'current_step' => $batch->current_step,
         ]);
     }
 
-    private function authorizeReview(?User $user): void
+    private function authorizeReview(?User $user, DepartmentMonthlyAssignmentBatch $batch): void
     {
-        if (! $this->approvalAuthority->canApproveAsTrainingOffice($user)) {
+        if (! $user || ! $user->can('reviewAsDepartmentLeadership', $batch)) {
             abort(403);
         }
     }

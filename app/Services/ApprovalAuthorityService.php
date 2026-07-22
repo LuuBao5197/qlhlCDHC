@@ -22,6 +22,10 @@ class ApprovalAuthorityService
         Position::PRINCIPAL,
     ];
 
+    private const DEPARTMENT_LEADERSHIP_APPROVER_POSITIONS = [
+        Position::DEPARTMENT_HEAD,
+    ];
+
     /**
      * Bước "Phòng Đào tạo duyệt" — chỉ Trưởng phòng hoặc Phó trưởng phòng đào tạo, Training Staff không đủ thẩm quyền.
      */
@@ -36,6 +40,30 @@ class ApprovalAuthorityService
     public function canApproveAsLeadership(?User $user): bool
     {
         return $this->canApprove($user, User::ROLE_LEADERSHIP, self::LEADERSHIP_APPROVER_POSITIONS);
+    }
+
+    /**
+     * Bước "Lãnh đạo Khoa duyệt" — chỉ Trưởng khoa/Bộ môn của đúng Khoa đang xét, Nhân viên khoa không đủ thẩm quyền.
+     */
+    public function canApproveAsDepartmentLeadership(?User $user, ?int $departmentId): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($departmentId === null || (int) $departmentId <= 0) {
+            return false;
+        }
+
+        if (! $this->canApprove($user, User::ROLE_DEPARTMENT_STAFF, self::DEPARTMENT_LEADERSHIP_APPROVER_POSITIONS)) {
+            return false;
+        }
+
+        return (int) $user->department_id === (int) $departmentId;
     }
 
     /**

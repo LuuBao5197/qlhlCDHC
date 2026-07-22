@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\DepartmentMonthlyAssignmentBatch;
 
+/**
+ * Buoc "Lanh dao Khoa duyet" batch cua chinh Khoa minh.
+ * Duyet xong batch KHONG ket thuc: chuyen sang buoc PDT duyet (current_step=training_office_review).
+ */
 class ApproveDepartmentMonthlyAssignmentBatch
 {
     public function handle(DepartmentMonthlyAssignmentBatch $batch, User $actor): DepartmentMonthlyAssignmentBatch
@@ -18,17 +22,18 @@ class ApproveDepartmentMonthlyAssignmentBatch
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedBatch->status !== 'submitted') {
+            if ($lockedBatch->status !== DepartmentMonthlyAssignmentBatch::STATUS_SUBMITTED
+                || $lockedBatch->current_step !== DepartmentMonthlyAssignmentBatch::STEP_DEPARTMENT_REVIEW) {
                 throw ValidationException::withMessages([
-                    'batch' => 'Chi co the duyet batch dang o trang thai submitted.',
+                    'batch' => 'Chi co the duyet batch dang cho Lanh dao Khoa duyet.',
                 ]);
             }
 
             $lockedBatch->fill([
-                'status' => 'approved',
-                'reviewed_by' => $actor->id,
-                'reviewed_at' => now(),
-                'review_note' => null,
+                'current_step' => DepartmentMonthlyAssignmentBatch::STEP_TRAINING_OFFICE_REVIEW,
+                'department_reviewed_by' => $actor->id,
+                'department_reviewed_at' => now(),
+                'department_review_note' => null,
             ]);
             $lockedBatch->save();
 
@@ -37,7 +42,8 @@ class ApproveDepartmentMonthlyAssignmentBatch
             return $lockedBatch->fresh([
                 'department',
                 'submittedBy',
-                'reviewedBy',
+                'departmentReviewedBy',
+                'trainingOfficeReviewedBy',
                 'batchSlots.scheduleSlot.monthlySchedule.plan',
                 'batchSlots.scheduleSlot.trainingClass',
                 'batchSlots.scheduleSlot.teacher',
