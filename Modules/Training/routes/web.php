@@ -28,6 +28,10 @@ Route::prefix('teacher-accounts/activate')->name('teacher-accounts.activate.')->
 Route::middleware(['auth', 'management.access'])->prefix('management')->name('management.')->group(function () {
     Route::apiResource('training-programs', ManageTrainingProgramsController::class);
     Route::apiResource('training-batches', ManageTrainingBatchesController::class);
+    Route::get('departments/import-template', [ManageDepartmentsController::class, 'downloadImportTemplate'])
+        ->name('departments.import-template');
+    Route::post('departments/import', [ManageDepartmentsController::class, 'import'])
+        ->name('departments.import');
     Route::apiResource('departments', ManageDepartmentsController::class);
     Route::apiResource('training-classes', ManageTrainingClassesController::class);
     Route::apiResource('teachers', ManageTeachersController::class);

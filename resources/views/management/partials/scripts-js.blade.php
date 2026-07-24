@@ -14,6 +14,11 @@
             const importBtnEl = document.getElementById('importBtn');
             const importSectionEl = document.getElementById('importSection');
             const importFormEl = document.getElementById('importForm');
+            const importTitleEl = document.getElementById('importTitle');
+            const importDescEl = document.getElementById('importDesc');
+            const importTemplateLinkEl = document.getElementById('importTemplateLink');
+            const importHintEl = document.getElementById('importHint');
+            const importClassFieldEl = document.getElementById('importClassField');
             const importClassIdEl = document.getElementById('importClassId');
             const submitImportBtnEl = document.getElementById('submitImportBtn');
 
@@ -107,7 +112,8 @@
             }
 
             function updateResourceActions() {
-                importBtnEl.style.display = state.currentResource === 'students' ? '' : 'none';
+                const resource = resources[state.currentResource];
+                importBtnEl.style.display = resource.import ? '' : 'none';
             }
 
             function renderTable() {
@@ -312,9 +318,30 @@
             }
 
             function openImport() {
+                const resource = resources[state.currentResource];
+                const importConfig = resource.import;
+                if (!importConfig) {
+                    return;
+                }
+
                 closeEditor();
                 hideAlert();
-                renderImportClassOptions();
+
+                importTitleEl.textContent = importConfig.title || `Nhap du lieu tu CSV - ${resource.label}`;
+                importDescEl.textContent = importConfig.description || 'Tai file CSV toi da 5 MB.';
+                importHintEl.textContent = importConfig.hint || '';
+                importTemplateLinkEl.href = importConfig.templateUrl || '#';
+
+                if (importConfig.needsClass) {
+                    renderImportClassOptions();
+                    importClassFieldEl.style.display = '';
+                    importClassIdEl.required = true;
+                } else {
+                    importClassFieldEl.style.display = 'none';
+                    importClassIdEl.required = false;
+                    importClassIdEl.value = '';
+                }
+
                 importSectionEl.style.display = 'block';
                 importSectionEl.scrollIntoView({
                     behavior: 'smooth',
@@ -433,16 +460,22 @@
                 }
             }
 
-            async function importStudents(event) {
+            async function submitImport(event) {
                 event.preventDefault();
                 hideAlert();
+
+                const resource = resources[state.currentResource];
+                const importConfig = resource.import;
+                if (!importConfig) {
+                    return;
+                }
 
                 const formData = new FormData(importFormEl);
                 submitImportBtnEl.disabled = true;
                 submitImportBtnEl.textContent = 'Dang nhap...';
 
                 try {
-                    const payload = await request(`${resources.students.endpoint}/import`, {
+                    const payload = await request(importConfig.endpoint, {
                         method: 'POST',
                         body: formData,
                     });
@@ -450,7 +483,8 @@
                     state.page = 1;
                     await loadRows();
                     closeImport();
-                    showAlert('success', `Da nhap thanh cong ${payload?.imported_count || 0} hoc vien.`);
+                    showAlert('success',
+                        `Da nhap thanh cong ${payload?.imported_count || 0} ban ghi (${resource.label}).`);
                 } catch (error) {
                     const message = validationMessage(error);
                     showAlert('danger', message || escapeHtml(error.message || 'Khong the nhap file CSV.'));
@@ -577,7 +611,7 @@
             });
 
             document.getElementById('editorForm').addEventListener('submit', saveRecord);
-            importFormEl.addEventListener('submit', importStudents);
+            importFormEl.addEventListener('submit', submitImport);
 
             (async function boot() {
                 renderTabs();

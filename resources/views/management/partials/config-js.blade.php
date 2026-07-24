@@ -111,6 +111,14 @@
                 departments: {
                     label: 'Department',
                     endpoint: '{{ url('/management/departments') }}',
+                    import: {
+                        endpoint: '{{ url('/management/departments/import') }}',
+                        templateUrl: '{{ route('management.departments.import-template') }}',
+                        title: 'Nhap danh sach khoa/bo mon tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: code, name. Cot tuy chon: description, status (active/inactive, mac dinh active).',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'code',
                             label: 'Ma'
@@ -494,6 +502,14 @@
                 students: {
                     label: 'Hoc vien',
                     endpoint: '{{ url('/management/students') }}',
+                    import: {
+                        endpoint: '{{ url('/management/students/import') }}',
+                        templateUrl: '{{ route('management.students.import-template') }}',
+                        title: 'Nhap danh sach hoc vien tu CSV',
+                        description: 'Chon lop, sau do tai file CSV toi da 5 MB va 5.000 dong.',
+                        hint: 'Cot bat buoc: student_code, name. Cot tuy chon: date_of_birth, status.',
+                        needsClass: true,
+                    },
                     columns: [{
                             key: 'student_code',
                             label: 'Ma hoc vien'

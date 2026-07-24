@@ -75,19 +75,19 @@
                 <div class="card-body">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
                         <div>
-                            <h5 class="card-title mb-1">Nhap danh sach hoc vien tu CSV</h5>
-                            <p class="text-muted mb-0">Chon lop, sau do tai file CSV toi da 5 MB va 5.000 dong.</p>
+                            <h5 class="card-title mb-1" id="importTitle">Nhap du lieu tu CSV</h5>
+                            <p class="text-muted mb-0" id="importDesc">Tai file CSV toi da 5 MB.</p>
                         </div>
-                        <a class="btn btn-outline-info btn-sm mt-2 mt-md-0"
-                            href="{{ route('management.students.import-template') }}">Tai file mau</a>
+                        <a class="btn btn-outline-info btn-sm mt-2 mt-md-0" id="importTemplateLink" href="#">Tai file
+                            mau</a>
                     </div>
 
                     <form id="importForm" enctype="multipart/form-data" novalidate>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-6" id="importClassField" style="display:none;">
                                 <div class="form-group">
                                     <label>Lop hoc <span class="text-danger">*</span></label>
-                                    <select id="importClassId" name="class_id" class="form-control" required>
+                                    <select id="importClassId" name="class_id" class="form-control">
                                         <option value="">-- Chon lop --</option>
                                     </select>
                                 </div>
@@ -97,8 +97,8 @@
                                     <label>File CSV <span class="text-danger">*</span></label>
                                     <input id="importFile" name="import_file" type="file" class="form-control"
                                         accept=".csv,.txt,text/csv,text/plain" required>
-                                    <small class="form-text text-muted">
-                                        Cot bat buoc: student_code, name. Cot tuy chon: date_of_birth, status.
+                                    <small class="form-text text-muted" id="importHint">
+                                        Cot bat buoc: code, name.
                                     </small>
                                 </div>
                             </div>
