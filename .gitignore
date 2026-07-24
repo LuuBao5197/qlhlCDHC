@@ -27,10 +27,10 @@ Thumbs.db
 AGENTS.md
 package-lock.json
 /.agents
+/storage/*
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
 Report/Diagrams/Mindmap/java_roadmap.puml
-bootstrap/cache/modules.php
-bootstrap/cache/modules.php
-bootstrap/cache/modules.php
-bootstrap/cache/modules.php
 Report/Progress/BanGiamHieu-Workflow-Analysis.md
 .gitignore
+
