@@ -26,17 +26,45 @@ Route::prefix('teacher-accounts/activate')->name('teacher-accounts.activate.')->
 });
 
 Route::middleware(['auth', 'management.access'])->prefix('management')->name('management.')->group(function () {
+    Route::get('training-programs/import-template', [ManageTrainingProgramsController::class, 'downloadImportTemplate'])
+        ->name('training-programs.import-template');
+    Route::post('training-programs/import', [ManageTrainingProgramsController::class, 'import'])
+        ->name('training-programs.import');
     Route::apiResource('training-programs', ManageTrainingProgramsController::class);
+    Route::get('training-batches/import-template', [ManageTrainingBatchesController::class, 'downloadImportTemplate'])
+        ->name('training-batches.import-template');
+    Route::post('training-batches/import', [ManageTrainingBatchesController::class, 'import'])
+        ->name('training-batches.import');
     Route::apiResource('training-batches', ManageTrainingBatchesController::class);
     Route::get('departments/import-template', [ManageDepartmentsController::class, 'downloadImportTemplate'])
         ->name('departments.import-template');
     Route::post('departments/import', [ManageDepartmentsController::class, 'import'])
         ->name('departments.import');
     Route::apiResource('departments', ManageDepartmentsController::class);
+    Route::get('training-classes/import-template', [ManageTrainingClassesController::class, 'downloadImportTemplate'])
+        ->name('training-classes.import-template');
+    Route::post('training-classes/import', [ManageTrainingClassesController::class, 'import'])
+        ->name('training-classes.import');
     Route::apiResource('training-classes', ManageTrainingClassesController::class);
+    Route::get('teachers/import-template', [ManageTeachersController::class, 'downloadImportTemplate'])
+        ->name('teachers.import-template');
+    Route::post('teachers/import', [ManageTeachersController::class, 'import'])
+        ->name('teachers.import');
     Route::apiResource('teachers', ManageTeachersController::class);
+    Route::get('rooms/import-template', [ManageRoomsController::class, 'downloadImportTemplate'])
+        ->name('rooms.import-template');
+    Route::post('rooms/import', [ManageRoomsController::class, 'import'])
+        ->name('rooms.import');
     Route::apiResource('rooms', ManageRoomsController::class);
+    Route::get('subjects/import-template', [ManageSubjectsController::class, 'downloadImportTemplate'])
+        ->name('subjects.import-template');
+    Route::post('subjects/import', [ManageSubjectsController::class, 'import'])
+        ->name('subjects.import');
     Route::apiResource('subjects', ManageSubjectsController::class);
+    Route::get('subject-lessons/import-template', [ManageSubjectLessonsController::class, 'downloadImportTemplate'])
+        ->name('subject-lessons.import-template');
+    Route::post('subject-lessons/import', [ManageSubjectLessonsController::class, 'import'])
+        ->name('subject-lessons.import');
     Route::apiResource('subject-lessons', ManageSubjectLessonsController::class);
     Route::get('students/import-template', [ManageStudentsController::class, 'downloadImportTemplate'])
         ->name('students.import-template');

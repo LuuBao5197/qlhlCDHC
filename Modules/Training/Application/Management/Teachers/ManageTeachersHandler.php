@@ -39,7 +39,7 @@ class ManageTeachersHandler extends CrudHandler
             'teacher_code' => ['required', 'string', 'max:255', Rule::unique('teachers', 'teacher_code')->ignore($id)],
             'name' => ['required', 'string', 'max:255'],
             'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
         ];
 
         // Email chỉ bắt buộc khi tạo mới: đây là địa chỉ dùng để gửi mail kích hoạt tài khoản.

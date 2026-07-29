@@ -27,7 +27,7 @@ class ManageStudentsHandler extends CrudHandler
     protected function rules(Request $request, ?int $id = null): array
     {
         return [
-            'class_id' => ['nullable', 'integer', 'exists:classes,id'],
+            'class_id' => ['required', 'integer', 'exists:classes,id'],
             'student_code' => ['required', 'string', 'max:255', Rule::unique('students', 'student_code')->ignore($id)],
             'name' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['nullable', 'date'],

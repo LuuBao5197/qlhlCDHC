@@ -27,7 +27,7 @@ class ManageSubjectsHandler extends CrudHandler
     protected function rules(Request $request, ?int $id = null): array
     {
         return [
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'department_id' => ['required', 'integer', 'exists:departments,id'],
             'code' => ['required', 'string', 'max:255', Rule::unique('subjects', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:255', Rule::unique('subjects', 'name')->ignore($id)],
             'total_periods' => ['nullable', 'integer', 'min:1'],

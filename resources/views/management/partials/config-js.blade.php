@@ -2,6 +2,14 @@
                 trainingPrograms: {
                     label: 'Chương trình đào tạo',
                     endpoint: '{{ url('/management/training-programs') }}',
+                    import: {
+                        endpoint: '{{ url('/management/training-programs/import') }}',
+                        templateUrl: '{{ route('management.training-programs.import-template') }}',
+                        title: 'Nhap danh sach chuong trinh dao tao tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: code, name. Cot tuy chon: status (active/inactive/archived, mac dinh active).',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'code',
                             label: 'Mã CĐT'
@@ -51,6 +59,14 @@
                 trainingBatches: {
                     label: 'Khóa học',
                     endpoint: '{{ url('/management/training-batches') }}',
+                    import: {
+                        endpoint: '{{ url('/management/training-batches/import') }}',
+                        templateUrl: '{{ route('management.training-batches.import-template') }}',
+                        title: 'Nhap danh sach khoa hoc tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: training_program_code, code, name. Cot tuy chon: status (active/inactive/archived, mac dinh active).',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'code',
                             label: 'Mã khóa'
@@ -174,6 +190,14 @@
                 trainingClasses: {
                     label: 'Lớp học',
                     endpoint: '{{ url('/management/training-classes') }}',
+                    import: {
+                        endpoint: '{{ url('/management/training-classes/import') }}',
+                        templateUrl: '{{ route('management.training-classes.import-template') }}',
+                        title: 'Nhap danh sach lop hoc tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: code, name, training_batch_code, total_students. Cot tuy chon: course_year, default_room_code, status (active/inactive/archived, mac dinh active).',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'code',
                             label: 'Mã lớp'
@@ -215,7 +239,8 @@
                             key: 'training_batch_id',
                             label: 'Khóa học',
                             type: 'select',
-                            lookup: 'trainingBatches'
+                            lookup: 'trainingBatches',
+                            required: true
                         },
                         {
                             key: 'course_year',
@@ -258,6 +283,14 @@
                 teachers: {
                     label: 'Giáo viên',
                     endpoint: '{{ url('/management/teachers') }}',
+                    import: {
+                        endpoint: '{{ url('/management/teachers/import') }}',
+                        templateUrl: '{{ route('management.teachers.import-template') }}',
+                        title: 'Nhap danh sach giao vien tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 500 dong.',
+                        hint: 'Cot bat buoc: teacher_code, name, email, department_code. Cot tuy chon: status (active/inactive, mac dinh active). Moi dong se tao 1 tai khoan giao vien va gui email moi kich hoat.',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'teacher_code',
                             label: 'Ma GV'
@@ -297,7 +330,8 @@
                             key: 'department_id',
                             label: 'Department',
                             type: 'select',
-                            lookup: 'departments'
+                            lookup: 'departments',
+                            required: true
                         },
                         {
                             key: 'status',
@@ -319,6 +353,14 @@
                 rooms: {
                     label: 'Phong hoc',
                     endpoint: '{{ url('/management/rooms') }}',
+                    import: {
+                        endpoint: '{{ url('/management/rooms/import') }}',
+                        templateUrl: '{{ route('management.rooms.import-template') }}',
+                        title: 'Nhap danh sach phong hoc tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: code, name. Cot tuy chon: capacity, room_type, status (active/inactive/maintenance, mac dinh active).',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'code',
                             label: 'Ma phong'
@@ -386,6 +428,14 @@
                 subjects: {
                     label: 'Mon hoc',
                     endpoint: '{{ url('/management/subjects') }}',
+                    import: {
+                        endpoint: '{{ url('/management/subjects/import') }}',
+                        templateUrl: '{{ route('management.subjects.import-template') }}',
+                        title: 'Nhap danh sach mon hoc tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: code, name, department_code. Cot tuy chon: total_periods, status (active/inactive, mac dinh active).',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'code',
                             label: 'Ma mon'
@@ -411,6 +461,7 @@
                             key: 'department_id',
                             label: 'Department',
                             type: 'select',
+                            required: true,
                             lookup: 'departments'
                         },
                         {
@@ -450,6 +501,14 @@
                 subjectLessons: {
                     label: 'Bai hoc',
                     endpoint: '{{ url('/management/subject-lessons') }}',
+                    import: {
+                        endpoint: '{{ url('/management/subject-lessons/import') }}',
+                        templateUrl: '{{ route('management.subject-lessons.import-template') }}',
+                        title: 'Nhap danh sach bai hoc tu CSV',
+                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
+                        hint: 'Cot bat buoc: subject_code, code (so thu tu bai hoc), name (tieu de). Cot tuy chon: expected_periods, note.',
+                        needsClass: false,
+                    },
                     columns: [{
                             key: 'subject.code',
                             label: 'Ma mon'
@@ -535,7 +594,8 @@
                             key: 'class_id',
                             label: 'Lop hoc',
                             type: 'select',
-                            lookup: 'trainingClasses'
+                            lookup: 'trainingClasses',
+                            required: true
                         },
                         {
                             key: 'student_code',

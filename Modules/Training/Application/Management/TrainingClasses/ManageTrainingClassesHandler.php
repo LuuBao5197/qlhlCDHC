@@ -29,7 +29,7 @@ class ManageTrainingClassesHandler extends CrudHandler
         return [
             'code' => ['required', 'string', 'max:255', Rule::unique('classes', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:255', Rule::unique('classes', 'name')->ignore($id)],
-            'training_batch_id' => ['nullable', 'integer', 'exists:training_batches,id'],
+            'training_batch_id' => ['required', 'integer', 'exists:training_batches,id'],
             'course_year' => ['nullable', 'integer', 'min:2000', 'max:' . ((int) date('Y') + 10)],
             'total_students' => ['required', 'integer', 'min:0'],
             'default_room_id' => ['nullable', 'integer', 'exists:rooms,id'],
