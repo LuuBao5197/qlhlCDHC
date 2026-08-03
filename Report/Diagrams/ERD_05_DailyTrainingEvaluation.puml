@@ -1,0 +1,96 @@
+@startuml ERD_05_DailyTrainingEvaluation
+title ERD 5 - Daily Training Execution & Evaluation
+skinparam linetype ortho
+
+' Nguon: Modules/Training/Models/{DailyTrainingLog,SlotEvaluation,TeacherDailySummary,
+' MonthlyReport,HolidayCalendar}.php
+' Luong nghiep vu: ghi nhan thuc te giang day tung tiet (daily_training_logs), danh gia tiet
+' hoc (slot_evaluations), tong hop ngay cua giao vien (teacher_daily_summaries), bao cao thang
+' (monthly_reports), va lich nghi le (holiday_calendars, doc lap).
+' Luu y: cot "teacher_id" trong daily_training_logs va teacher_daily_summaries tro toi bang
+' `users` (App\Models\User), KHONG phai bang `teachers` (Modules\Training\Models\Teacher) -
+' da xac minh tu code model (belongsTo(User::class, 'teacher_id')).
+' schedule_slots, monthly_schedules dung chung xem ERD_02_SchedulePlanning.puml; users dung
+' chung xem ERD_01_CoreTrainingStructure.puml.
+
+entity "daily_training_logs" {
+  * id : bigint <<PK>>
+  --
+  schedule_slot_id : bigint <<FK>>
+  teacher_id : bigint <<FK>>
+  checked_by : bigint <<FK>>
+  actual_date : date
+  actual_period_number : int
+  attendance_count : int
+  absent_count : int
+  result_status : varchar(255)
+  checked_at : datetime
+}
+
+entity "slot_evaluations" {
+  * id : bigint <<PK>>
+  --
+  schedule_slot_id : bigint <<FK>>
+  evaluator_id : bigint <<FK>>
+  attendance_count : int
+  absent_count : int
+  rating_level : varchar(255)
+  comment : text
+}
+
+entity "teacher_daily_summaries" {
+  * id : bigint <<PK>>
+  --
+  teacher_id : bigint <<FK>>
+  log_date : date
+  training_plan_comment : text
+  regulation_comment : text
+  facility_comment : text
+  followup_comment : text
+}
+
+entity "monthly_reports" {
+  * id : bigint <<PK>>
+  --
+  monthly_schedule_id : bigint <<FK>>
+  created_by : bigint <<FK>>
+  approved_by : bigint <<FK>>
+  summary : text
+  status : varchar(255)
+  submitted_at : datetime
+  approved_at : datetime
+}
+
+entity "holiday_calendars" {
+  * id : bigint <<PK>>
+  --
+  created_by : bigint <<FK>>
+  updated_by : bigint <<FK>>
+  name : varchar(255)
+  date : date
+  is_active : boolean
+}
+
+entity "schedule_slots" {
+  * id : bigint <<PK>>
+}
+entity "monthly_schedules" {
+  * id : bigint <<PK>>
+}
+entity "users" {
+  * id : bigint <<PK>>
+}
+
+schedule_slots ||--o{ daily_training_logs : schedule_slot_id
+users ||--o{ daily_training_logs : "teacher_id (users.id)"
+users ||--o{ daily_training_logs : checked_by
+schedule_slots ||--o{ slot_evaluations : schedule_slot_id
+users ||--o{ slot_evaluations : evaluator_id
+users ||--o{ teacher_daily_summaries : "teacher_id (users.id)"
+monthly_schedules ||--o{ monthly_reports : monthly_schedule_id
+users ||--o{ monthly_reports : created_by
+users ||--o{ monthly_reports : approved_by
+users ||--o{ holiday_calendars : created_by
+users ||--o{ holiday_calendars : updated_by
+
+@enduml

@@ -1,0 +1,120 @@
+@startuml ERD_04_TeachingSupportRequests
+title ERD 4 - Teaching Support Requests (ho tro giang day lien khoa)
+skinparam linetype ortho
+
+' Nguon: Modules/Schedule/Models/{TeachingSupportRequest,TeachingSupportRequestItem,
+' TeachingSupportChangeRequest,TeachingSupportChangeRequestItem,TeachingSupportAuditLog}.php
+' Luong nghiep vu: khoa de nghi ho tro giang vien -> phong dao tao (PDT) xu ly -> phan cong
+' giao vien -> phat sinh de xuat thay doi (change request) -> tat ca thao tac duoc ghi audit
+' log. departments/users/teachers dung chung xem ERD_01_CoreTrainingStructure.puml;
+' schedule_slots va department_monthly_assignment_batches dung chung xem
+' ERD_02_SchedulePlanning.puml.
+
+entity "teaching_support_requests" {
+  * id : bigint <<PK>>
+  --
+  assignment_batch_id : bigint <<FK>>
+  requesting_department_id : bigint <<FK>>
+  proposed_supporting_department_id : bigint <<FK>>
+  assigned_supporting_department_id : bigint <<FK>>
+  submitted_by : bigint <<FK>>
+  pdt_processed_by : bigint <<FK>>
+  status : varchar(255)
+  submitted_at : datetime
+  pdt_processed_at : datetime
+}
+
+entity "teaching_support_request_items" {
+  * id : bigint <<PK>>
+  --
+  request_id : bigint <<FK>>
+  schedule_slot_id : bigint <<FK>>
+  assigned_teacher_id : bigint <<FK>>
+  assigned_by : bigint <<FK>>
+  status : varchar(255)
+  assigned_at : datetime
+}
+
+entity "teaching_support_change_requests" {
+  * id : bigint <<PK>>
+  --
+  teaching_support_request_id : bigint <<FK>>
+  requesting_department_id : bigint <<FK>>
+  proposed_supporting_department_id : bigint <<FK>>
+  assigned_supporting_department_id : bigint <<FK>>
+  submitted_by : bigint <<FK>>
+  pdt_processed_by : bigint <<FK>>
+  status : varchar(255)
+  reason : text
+  revision_no : int
+}
+
+entity "teaching_support_change_request_items" {
+  * id : bigint <<PK>>
+  --
+  change_request_id : bigint <<FK>>
+  support_request_item_id : bigint <<FK>>
+  schedule_slot_id : bigint <<FK>>
+  previous_teacher_id : bigint <<FK>>
+  action : varchar(255)
+  old_snapshot : json
+  proposed_snapshot : json
+  status : varchar(255)
+}
+
+entity "teaching_support_audit_logs" {
+  * id : bigint <<PK>>
+  --
+  request_id : bigint <<FK>>
+  request_item_id : bigint <<FK>>
+  schedule_slot_id : bigint <<FK>>
+  change_request_id : bigint <<FK>>
+  actor_user_id : bigint <<FK>>
+  actor_department_id : bigint <<FK>>
+  action : varchar(255)
+  old_values : json
+  new_values : json
+  occurred_at : datetime
+}
+
+entity "department_monthly_assignment_batches" {
+  * id : bigint <<PK>>
+}
+entity "departments" {
+  * id : bigint <<PK>>
+}
+entity "users" {
+  * id : bigint <<PK>>
+}
+entity "teachers" {
+  * id : bigint <<PK>>
+}
+entity "schedule_slots" {
+  * id : bigint <<PK>>
+}
+
+department_monthly_assignment_batches ||--o{ teaching_support_requests : assignment_batch_id
+departments ||--o{ teaching_support_requests : requesting_department_id
+departments ||--o{ teaching_support_requests : proposed_supporting_department_id
+departments ||--o{ teaching_support_requests : assigned_supporting_department_id
+teaching_support_requests }o--|| users : submitted_by
+teaching_support_requests }o--o| users : pdt_processed_by
+teaching_support_requests ||--o{ teaching_support_request_items : request_id
+teaching_support_request_items }o--|| schedule_slots : schedule_slot_id
+teaching_support_request_items }o--o| teachers : assigned_teacher_id
+teaching_support_request_items }o--o| users : assigned_by
+teaching_support_requests ||--o{ teaching_support_change_requests : teaching_support_request_id
+departments ||--o{ teaching_support_change_requests : requesting_department_id
+teaching_support_change_requests }o--|| users : submitted_by
+teaching_support_change_requests ||--o{ teaching_support_change_request_items : change_request_id
+teaching_support_request_items ||--o{ teaching_support_change_request_items : support_request_item_id
+teaching_support_change_request_items }o--o| schedule_slots : schedule_slot_id
+teaching_support_change_request_items }o--o| teachers : previous_teacher_id
+teaching_support_requests ||--o{ teaching_support_audit_logs : request_id
+teaching_support_change_requests ||--o{ teaching_support_audit_logs : change_request_id
+teaching_support_request_items ||--o{ teaching_support_audit_logs : request_item_id
+schedule_slots ||--o{ teaching_support_audit_logs : schedule_slot_id
+users ||--o{ teaching_support_audit_logs : actor_user_id
+departments ||--o{ teaching_support_audit_logs : actor_department_id
+
+@enduml

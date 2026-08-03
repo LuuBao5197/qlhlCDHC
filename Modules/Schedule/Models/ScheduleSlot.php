@@ -20,6 +20,10 @@ class ScheduleSlot extends Model
 {
     public const ASSIGNMENT_TYPE_SELF_STUDY = 'self_study';
 
+    public const LESSON_TYPE_THEORY = 'theory';
+
+    public const LESSON_TYPE_PRACTICE = 'practice';
+
     protected $table = 'schedule_slots';
 
     protected $fillable = [
@@ -28,6 +32,7 @@ class ScheduleSlot extends Model
         'class_id',
         'teacher_id',
         'assignment_type',
+        'lesson_type',
         'assignment_source',
         'teaching_support_request_item_id',
         'subject_id',
@@ -94,6 +99,11 @@ class ScheduleSlot extends Model
     public function subjectLesson(): BelongsTo
     {
         return $this->belongsTo(SubjectLesson::class, 'subject_lesson_id');
+    }
+
+    public function isRegularTestLesson(): bool
+    {
+        return $this->subject_lesson_id !== null && optional($this->subjectLesson)->isRegularTest() === true;
     }
 
     public function semesterEvent(): BelongsTo

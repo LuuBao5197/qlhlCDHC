@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Schedule\Models\ScheduleSlotGroup;
+use Modules\Training\Models\SubjectLesson;
 
 class AssignMonthlyScheduleMergeController extends Controller
 {
@@ -35,6 +36,13 @@ class AssignMonthlyScheduleMergeController extends Controller
         }
 
         if ($slot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        if ($slot->isRegularTestLesson()) {
             return response()->json([
                 'success' => true,
                 'data' => [],
@@ -86,6 +94,16 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 422);
         }
 
+        if ($baseSlot->isRegularTestLesson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bai kiem tra thuong xuyen khong duoc ghep lop.',
+                'errors' => [
+                    'slots.0' => ['Bai kiem tra thuong xuyen khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
+
         $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
         if ($scope === null) {
             return response()->json([
@@ -101,12 +119,14 @@ class AssignMonthlyScheduleMergeController extends Controller
             'assignment_type' => ['nullable', 'string', 'in:self_study'],
             'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
+            'lesson_type' => ['nullable', 'string', 'in:theory,practice'],
             'content' => ['nullable', 'string', 'max:500'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $assignmentType = $validated['assignment_type'] ?? null;
         $subjectLessonId = $validated['subject_lesson_id'] ?? null;
+        $lessonType = $validated['lesson_type'] ?? null;
 
         if ($assignmentType === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY && $subjectLessonId !== null) {
             return response()->json([
@@ -124,6 +144,29 @@ class AssignMonthlyScheduleMergeController extends Controller
                 'message' => 'Tiet hoc phai co bai hoc.',
                 'errors' => [
                     'subject_lesson_id' => ['Tiet hoc phai co bai hoc.'],
+                ],
+            ], 422);
+        }
+
+        $isRegularTestLesson = $subjectLessonId !== null
+            && (bool) SubjectLesson::query()->whereKey($subjectLessonId)->value('is_regular_test');
+
+        if ($isRegularTestLesson) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bai kiem tra thuong xuyen khong duoc ghep lop.',
+                'errors' => [
+                    'subject_lesson_id' => ['Bai kiem tra thuong xuyen khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
+
+        if (($assignmentType === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY || $isRegularTestLesson) && $lessonType !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Khong duoc chon loai tiet hoc cho truong hop nay.',
+                'errors' => [
+                    'lesson_type' => ['Khong duoc chon loai tiet hoc cho truong hop nay.'],
                 ],
             ], 422);
         }
@@ -157,6 +200,16 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 422);
         }
 
+        if ($candidateSlots->contains(fn (ScheduleSlot $slot) => $slot->isRegularTestLesson())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bai kiem tra thuong xuyen khong duoc ghep lop.',
+                'errors' => [
+                    'candidate_slot_ids' => ['Bai kiem tra thuong xuyen khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
+
         $slots = $slots->concat($candidateSlots)->values();
 
         try {
@@ -167,7 +220,8 @@ class AssignMonthlyScheduleMergeController extends Controller
                 isset($validated['room_id']) ? (int) $validated['room_id'] : null,
                 $subjectLessonId !== null ? (int) $subjectLessonId : null,
                 $validated['content'] ?? null,
-                $validated['note'] ?? null
+                $validated['note'] ?? null,
+                $lessonType
             );
         } catch (ValidationException $exception) {
             return response()->json([
@@ -186,6 +240,7 @@ class AssignMonthlyScheduleMergeController extends Controller
             'assignment_type' => $group->assignment_type,
             'room_id' => $group->room_id,
             'subject_lesson_id' => $group->subject_lesson_id,
+            'lesson_type' => $group->lesson_type,
         ]);
     }
 
@@ -264,6 +319,7 @@ class AssignMonthlyScheduleMergeController extends Controller
                 : null,
             'teacher_id' => $candidate->teacher_id,
             'assignment_type' => $candidate->assignment_type,
+            'lesson_type' => $candidate->lesson_type,
             'teacher_name' => $this->resolveTeacherName($candidate),
             'room_id' => $candidate->room_id,
             'room_code' => $candidate->room?->code,

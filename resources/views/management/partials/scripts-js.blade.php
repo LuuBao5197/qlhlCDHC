@@ -278,6 +278,18 @@
                             `;
                         }
 
+                        if (field.type === 'checkbox') {
+                            const checked = value === true || value === 1 || value === '1' ? 'checked' : '';
+                            return `
+                                <div class="col-md-6">
+                                    <div class="form-group form-check mt-4">
+                                        <input type="checkbox" class="form-check-input" id="field-${field.key}" name="${field.key}" ${checked}>
+                                        <label class="form-check-label" for="field-${field.key}">${escapeHtml(field.label)}</label>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
                         const inputType = field.type || 'text';
                         return `
                             <div class="col-md-6">
@@ -368,7 +380,9 @@
 
                     let value = input.value;
 
-                    if (field.type === 'number') {
+                    if (field.type === 'checkbox') {
+                        value = input.checked;
+                    } else if (field.type === 'number') {
                         value = value === '' ? null : Number(value);
                     } else if (field.type === 'select') {
                         value = value === '' ? null : value;

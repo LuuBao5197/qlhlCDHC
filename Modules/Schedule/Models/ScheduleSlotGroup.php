@@ -25,6 +25,7 @@ class ScheduleSlotGroup extends Model
         'subject_lesson_id',
         'teacher_id',
         'assignment_type',
+        'lesson_type',
         'room_id',
         'status',
         'note',

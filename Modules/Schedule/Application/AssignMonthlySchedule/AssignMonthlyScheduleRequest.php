@@ -12,6 +12,7 @@ use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Schedule\Models\TeachingSupportRequest;
 use Modules\Training\Models\Room;
 use Modules\Training\Models\Subject;
+use Modules\Training\Models\SubjectLesson;
 use Modules\Training\Models\Teacher;
 
 class AssignMonthlyScheduleRequest extends FormRequest
@@ -78,6 +79,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'changes.*.slot_id' => ['required', 'integer', 'distinct', 'exists:schedule_slots,id'],
             'changes.*.teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
             'changes.*.assignment_type' => ['nullable', 'string', 'in:self_study'],
+            'changes.*.lesson_type' => ['nullable', 'string', 'in:theory,practice'],
             'changes.*.subject_lesson_id' => ['nullable', 'integer', 'exists:subject_lessons,id'],
             'changes.*.room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'changes.*.content' => ['nullable', 'string', 'max:500'],
@@ -240,6 +242,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
                 $subjectLessonId = array_key_exists('subject_lesson_id', $change)
                     ? $this->normalizeNullableNumber($change['subject_lesson_id'])
                     : null;
+                $lessonType = $this->normalizeLessonType($change['lesson_type'] ?? null);
 
                 if ($this->isSpecialAssignmentType($assignmentType) && $teacherId !== null && $teacherId !== '') {
                     $validator->errors()->add(
@@ -253,6 +256,26 @@ class AssignMonthlyScheduleRequest extends FormRequest
                         "changes.{$index}.subject_lesson_id",
                         'Tiet tu nghien cuu khong duoc chon bai hoc.'
                     );
+                }
+
+                if ($this->isSpecialAssignmentType($assignmentType) && $lessonType !== null) {
+                    $validator->errors()->add(
+                        "changes.{$index}.lesson_type",
+                        'Tiet tu nghien cuu khong duoc chon loai tiet hoc.'
+                    );
+                }
+
+                if (! $this->isSpecialAssignmentType($assignmentType) && $lessonType !== null) {
+                    $effectiveLessonId = array_key_exists('subject_lesson_id', $change)
+                        ? $subjectLessonId
+                        : $scheduleSlot->subject_lesson_id;
+
+                    if ($this->isRegularTestLessonId($effectiveLessonId)) {
+                        $validator->errors()->add(
+                            "changes.{$index}.lesson_type",
+                            'Bai kiem tra thuong xuyen khong duoc chon loai tiet hoc (ly thuyet/thuc hanh).'
+                        );
+                    }
                 }
 
                 if (! $this->isSpecialAssignmentType($assignmentType) && $teacherId !== null && $teacherId !== '') {
@@ -465,6 +488,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'changes.*.slot_id.exists' => 'Co tiet hoc khong ton tai trong he thong.',
             'changes.*.teacher_id.exists' => 'Giang vien duoc chon khong hop le.',
             'changes.*.assignment_type.in' => 'Loai phan cong khong hop le.',
+            'changes.*.lesson_type.in' => 'Loai tiet hoc khong hop le.',
             'changes.*.subject_lesson_id.exists' => 'Bai hoc duoc chon khong hop le.',
             'changes.*.room_id.exists' => 'Phong hoc duoc chon khong hop le.',
         ];
@@ -557,6 +581,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'subject_lesson_id' => 'bai hoc',
             'teacher_id' => 'giang vien',
             'assignment_type' => 'loai phan cong',
+            'lesson_type' => 'loai tiet hoc',
             'room_id' => 'phong hoc',
             'slot_status' => 'trang thai tiet hoc',
         ];
@@ -629,6 +654,10 @@ class AssignMonthlyScheduleRequest extends FormRequest
             return $this->normalizeAssignmentType($value);
         }
 
+        if ($field === 'lesson_type') {
+            return $this->normalizeLessonType($value);
+        }
+
         if ($value === '' || $value === null) {
             return null;
         }
@@ -654,6 +683,32 @@ class AssignMonthlyScheduleRequest extends FormRequest
         return in_array($value, [
             ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY,
         ], true) ? $value : null;
+    }
+
+    private function normalizeLessonType(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        return in_array($value, [
+            ScheduleSlot::LESSON_TYPE_THEORY,
+            ScheduleSlot::LESSON_TYPE_PRACTICE,
+        ], true) ? $value : null;
+    }
+
+    private function isRegularTestLessonId(?int $subjectLessonId): bool
+    {
+        if ($subjectLessonId === null) {
+            return false;
+        }
+
+        return (bool) SubjectLesson::query()->whereKey($subjectLessonId)->value('is_regular_test');
     }
 
     private function normalizeNullableNumber(mixed $value): ?int

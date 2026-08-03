@@ -17,9 +17,19 @@ class SubjectLesson extends Model
         'subject_id',
         'lesson_no',
         'title',
+        'is_regular_test',
         'expected_periods',
         'note',
     ];
+
+    protected $casts = [
+        'is_regular_test' => 'boolean',
+    ];
+
+    public function isRegularTest(): bool
+    {
+        return (bool) $this->is_regular_test;
+    }
 
     public function subject(): BelongsTo
     {

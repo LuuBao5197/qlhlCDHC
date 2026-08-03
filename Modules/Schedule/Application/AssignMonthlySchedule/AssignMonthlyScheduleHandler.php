@@ -9,6 +9,7 @@ use Modules\Schedule\Application\Shared\TeacherAvailabilityService;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Schedule\Models\ScheduleSlotGroup;
+use Modules\Training\Models\SubjectLesson;
 use Throwable;
 
 class AssignMonthlyScheduleHandler
@@ -115,10 +116,21 @@ class AssignMonthlyScheduleHandler
                         $slot->assignment_type = $this->normalizeAssignmentType($change['assignment_type']);
                     }
 
-                    if ($slot->assignment_type === \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+                    if ($slot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
                         $slot->subject_lesson_id = null;
                     } elseif (array_key_exists('subject_lesson_id', $change)) {
                         $slot->subject_lesson_id = $this->normalizeNullableInteger($change['subject_lesson_id']);
+                    }
+
+                    $isRegularTestLesson = $slot->subject_lesson_id !== null
+                        && (bool) SubjectLesson::query()->whereKey($slot->subject_lesson_id)->value('is_regular_test');
+
+                    if ($slot->assignment_type === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY || $isRegularTestLesson) {
+                        $slot->lesson_type = null;
+                    } elseif (array_key_exists('lesson_type', $change)) {
+                        $slot->lesson_type = $this->normalizeLessonType($change['lesson_type']) ?? ScheduleSlot::LESSON_TYPE_THEORY;
+                    } elseif ($slot->lesson_type === null) {
+                        $slot->lesson_type = ScheduleSlot::LESSON_TYPE_THEORY;
                     }
 
                     if (array_key_exists('room_id', $change)) {
@@ -170,6 +182,7 @@ class AssignMonthlyScheduleHandler
                         $group->subject_lesson_id = $groupSlot->subject_lesson_id;
                         $group->teacher_id = $groupSlot->teacher_id;
                         $group->assignment_type = $groupSlot->assignment_type;
+                        $group->lesson_type = $groupSlot->lesson_type;
                         $group->room_id = $groupSlot->room_id;
                         $group->save();
                     }
@@ -245,7 +258,24 @@ class AssignMonthlyScheduleHandler
         }
 
         return in_array($value, [
-            \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY,
+            ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY,
+        ], true) ? $value : null;
+    }
+
+    private function normalizeLessonType(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        return in_array($value, [
+            ScheduleSlot::LESSON_TYPE_THEORY,
+            ScheduleSlot::LESSON_TYPE_PRACTICE,
         ], true) ? $value : null;
     }
 

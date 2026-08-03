@@ -523,6 +523,10 @@
                             wrap: true
                         },
                         {
+                            key: 'is_regular_test',
+                            label: 'Kiem tra thuong xuyen'
+                        },
+                        {
                             key: 'expected_periods',
                             label: 'Tiet du kien'
                         }
@@ -545,6 +549,11 @@
                             label: 'Tieu de',
                             type: 'text',
                             required: true
+                        },
+                        {
+                            key: 'is_regular_test',
+                            label: 'La bai kiem tra thuong xuyen',
+                            type: 'checkbox'
                         },
                         {
                             key: 'expected_periods',

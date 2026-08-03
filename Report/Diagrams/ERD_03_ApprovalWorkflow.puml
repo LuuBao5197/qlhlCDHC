@@ -1,0 +1,90 @@
+@startuml ERD_03_ApprovalWorkflow
+title ERD 3 - Approval Workflow & Schedule Change Requests
+skinparam linetype ortho
+
+' Nguon: Modules/Training/Models/{ApprovalRequest,ApprovalAction,ChangeRequest,
+' ChangeRequestItem}.php
+' Luong nghiep vu: quy trinh duyet chung (polymorphic) ap dung cho plans, monthly_schedules,
+' monthly_assignment_dossiers; va quy trinh de xuat/duyet thay doi tiet hoc da xep lich.
+' plans / monthly_schedules / monthly_assignment_dossiers / schedule_slots la entity dung
+' chung, chi tiet xem ERD_02_SchedulePlanning.puml. users dung chung xem
+' ERD_01_CoreTrainingStructure.puml.
+
+entity "approval_requests" {
+  * id : bigint <<PK>>
+  --
+  entity_type : varchar(255)
+  entity_id : bigint
+  submitted_by : bigint <<FK>>
+  current_step : int
+  status : varchar(255)
+  submitted_at : datetime
+  completed_at : datetime
+}
+
+entity "approval_actions" {
+  * id : bigint <<PK>>
+  --
+  approval_request_id : bigint <<FK>>
+  acted_by : bigint <<FK>>
+  step_code : varchar(255)
+  action : varchar(255)
+  acted_at : datetime
+  comment : text
+}
+
+entity "change_requests" {
+  * id : bigint <<PK>>
+  --
+  monthly_schedule_id : bigint <<FK>>
+  schedule_slot_id : bigint <<FK>>
+  requested_by : bigint <<FK>>
+  reason : text
+  status : varchar(255)
+  change_type : varchar(255)
+  apply_mode : varchar(255)
+  apply_changes : boolean
+  submitted_at : datetime
+  resolved_at : datetime
+}
+
+entity "change_request_items" {
+  * id : bigint <<PK>>
+  --
+  change_request_id : bigint <<FK>>
+  schedule_slot_id : bigint <<FK>>
+  old_payload : json
+  new_payload : json
+  apply_status : varchar(255)
+  applied_at : datetime
+}
+
+entity "plans" {
+  * id : bigint <<PK>>
+}
+entity "monthly_schedules" {
+  * id : bigint <<PK>>
+}
+entity "monthly_assignment_dossiers" {
+  * id : bigint <<PK>>
+}
+entity "schedule_slots" {
+  * id : bigint <<PK>>
+}
+entity "users" {
+  * id : bigint <<PK>>
+}
+
+approval_requests ||--o{ approval_actions : approval_request_id
+approval_requests }o--o| plans : "entity (polymorphic entity_type=Plans)"
+approval_requests }o--o| monthly_schedules : "entity (polymorphic entity_type=MonthlySchedule)"
+approval_requests }o--o| monthly_assignment_dossiers : "entity (polymorphic entity_type=Dossier)"
+approval_requests }o--|| users : submitted_by
+approval_actions }o--|| users : acted_by
+monthly_schedules ||--o{ change_requests : monthly_schedule_id
+schedule_slots ||--o{ change_requests : schedule_slot_id
+change_requests }o--|| users : requested_by
+change_requests ||--o{ change_request_items : change_request_id
+schedule_slots ||--o{ change_request_items : schedule_slot_id
+
+@enduml

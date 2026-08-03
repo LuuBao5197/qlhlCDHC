@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Schedule\Models\ScheduleSlotGroup;
 use Modules\Training\Models\Room;
+use Modules\Training\Models\SubjectLesson;
 use Modules\Training\Models\Teacher;
 
 class ScheduleSlotMergeService
@@ -53,6 +54,11 @@ class ScheduleSlotMergeService
                 fn ($query) => $query->where('subject_lesson_id', $baseSlot->subject_lesson_id),
                 fn ($query) => $query->whereNull('subject_lesson_id')
             )
+            ->when(
+                $baseSlot->lesson_type !== null,
+                fn ($query) => $query->where('lesson_type', $baseSlot->lesson_type),
+                fn ($query) => $query->whereNull('lesson_type')
+            )
             ->where('slot_type', '!=', 'event')
             ->where('slot_status', '!=', 'cancelled')
             ->orderBy('class_id')
@@ -90,6 +96,10 @@ class ScheduleSlotMergeService
         }
 
         if ($this->normalizeAssignmentType($baseSlot->assignment_type) !== $this->normalizeAssignmentType($candidateSlot->assignment_type)) {
+            return false;
+        }
+
+        if ($this->normalizeLessonType($baseSlot->lesson_type) !== $this->normalizeLessonType($candidateSlot->lesson_type)) {
             return false;
         }
 
@@ -150,13 +160,14 @@ class ScheduleSlotMergeService
         ?int $roomId = null,
         ?int $subjectLessonId = null,
         ?string $content = null,
-        ?string $note = null
+        ?string $note = null,
+        ?string $lessonType = null
     ): ScheduleSlotGroup
     {
         $slots = $this->normalizeSlots($slots);
         $this->validateMergeSlots($slots);
 
-        return DB::transaction(function () use ($slots, $teacherId, $assignmentType, $roomId, $subjectLessonId, $content, $note): ScheduleSlotGroup {
+        return DB::transaction(function () use ($slots, $teacherId, $assignmentType, $roomId, $subjectLessonId, $content, $note, $lessonType): ScheduleSlotGroup {
             $resolvedAssignmentType = $this->resolveAssignmentType($slots, $assignmentType);
             $resolvedTeacherId = $resolvedAssignmentType === null
                 ? $this->resolveTeacherId($slots, $teacherId)
@@ -180,6 +191,13 @@ class ScheduleSlotMergeService
                 ]);
             }
 
+            $resolvedLessonType = $this->resolveLessonType(
+                $slots,
+                $lessonType,
+                $resolvedAssignmentType,
+                $resolvedSubjectLessonId
+            );
+
             $this->validateResolvedResourceAvailability($slots, $resolvedTeacherId, $resolvedRoomId);
 
             $group = ScheduleSlotGroup::query()->create([
@@ -190,6 +208,7 @@ class ScheduleSlotMergeService
                 'subject_lesson_id' => $resolvedSubjectLessonId,
                 'teacher_id' => $resolvedTeacherId,
                 'assignment_type' => $resolvedAssignmentType,
+                'lesson_type' => $resolvedLessonType,
                 'room_id' => $resolvedRoomId,
                 'status' => 'active',
                 'note' => $note ?? $baseSlot->note,
@@ -206,6 +225,7 @@ class ScheduleSlotMergeService
                 $slot->subject_lesson_id = $resolvedSubjectLessonId;
                 $slot->teacher_id = $resolvedTeacherId;
                 $slot->assignment_type = $resolvedAssignmentType;
+                $slot->lesson_type = $resolvedLessonType;
                 $slot->room_id = $resolvedRoomId;
                 $slot->content = $resolvedContent;
                 $slot->note = $resolvedNote;
@@ -260,6 +280,10 @@ class ScheduleSlotMergeService
         }
 
         if ($this->isPracticeSlot($slot)) {
+            return false;
+        }
+
+        if ($this->isRegularTestSlot($slot)) {
             return false;
         }
 
@@ -331,6 +355,57 @@ class ScheduleSlotMergeService
         }
 
         return $assignmentTypes->first() ? (string) $assignmentTypes->first() : null;
+    }
+
+    private function resolveLessonType(
+        Collection $slots,
+        ?string $lessonType,
+        ?string $resolvedAssignmentType,
+        ?int $resolvedSubjectLessonId
+    ): ?string {
+        $isRegularTestLesson = $resolvedSubjectLessonId !== null
+            && (bool) SubjectLesson::query()->whereKey($resolvedSubjectLessonId)->value('is_regular_test');
+
+        if ($resolvedAssignmentType !== null || $isRegularTestLesson) {
+            return null;
+        }
+
+        $normalized = $this->normalizeLessonType($lessonType);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        $lessonTypes = $slots
+            ->pluck('lesson_type')
+            ->map(fn ($value) => $this->normalizeLessonType($value))
+            ->filter(fn ($value) => $value !== null)
+            ->unique()
+            ->values();
+
+        if ($lessonTypes->count() > 1) {
+            throw ValidationException::withMessages([
+                'lesson_type' => 'Khong the tu dong chon loai tiet hoc khi cac tiet co nhieu loai khac nhau.',
+            ]);
+        }
+
+        return $lessonTypes->first() ?: ScheduleSlot::LESSON_TYPE_THEORY;
+    }
+
+    private function normalizeLessonType(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        return in_array($value, [
+            ScheduleSlot::LESSON_TYPE_THEORY,
+            ScheduleSlot::LESSON_TYPE_PRACTICE,
+        ], true) ? $value : null;
     }
 
     private function resolveRoomId(Collection $slots, ?int $roomId): ?int
@@ -430,14 +505,21 @@ class ScheduleSlotMergeService
 
     private function isPracticeSlot(ScheduleSlot $slot): bool
     {
-        // TODO: Project hien chua co field dang tin cay de phan biet ly thuyet/thuc hanh.
-        // Tam thoi khong suy dien practice de tranh bua ra logic sai schema.
-        return false;
+        return $slot->lesson_type === ScheduleSlot::LESSON_TYPE_PRACTICE;
+    }
+
+    private function isRegularTestSlot(ScheduleSlot $slot): bool
+    {
+        return $slot->isRegularTestLesson();
     }
 
     private function canMergeByLessonMode(ScheduleSlot $baseSlot, ScheduleSlot $candidateSlot): bool
     {
         if ($this->isPracticeSlot($baseSlot) || $this->isPracticeSlot($candidateSlot)) {
+            return false;
+        }
+
+        if ($this->isRegularTestSlot($baseSlot) || $this->isRegularTestSlot($candidateSlot)) {
             return false;
         }
 

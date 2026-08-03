@@ -1,0 +1,177 @@
+@startuml ERD_02_SchedulePlanning
+title ERD 2 - Schedule & Assignment Planning
+skinparam linetype ortho
+
+' Nguon: Modules/Schedule/Models/{Plans,PlanTemplates,SemesterEvent,MonthlySchedule,
+' ScheduleSlotGroup,ScheduleSlot,DepartmentMonthlyAssignmentBatch,
+' DepartmentMonthlyAssignmentBatchSlot,MonthlyAssignmentDossier}.php
+' Luong nghiep vu: lap ke hoach dao tao (plans) -> lich thang (monthly_schedules) -> tiet hoc
+' (schedule_slots) -> tong hop phan cong theo khoa (department_monthly_assignment_batches) ->
+' ho so phan cong toan truong (monthly_assignment_dossiers).
+' Cac entity training_batches/classes/subjects/subject_lessons/rooms/teachers/departments la
+' entity dung chung, chi tiet xem ERD_01_CoreTrainingStructure.puml. schedule_slots la entity
+' trung tam, duoc tham chieu tiep boi ERD_03 (approval/change request) va ERD_04 (teaching
+' support).
+
+entity "plans" {
+  * id : bigint <<PK>>
+  --
+  training_batch_id : bigint <<FK>>
+  created_by : bigint <<FK>>
+  submitted_by : bigint <<FK>>
+  name : varchar(255)
+  semester : varchar(255)
+  year : int
+  status : varchar(255)
+  current_step : int
+  approved_version : varchar(255)
+}
+
+entity "plan_templates" {
+  * id : bigint <<PK>>
+  --
+  plan_id : bigint <<FK>>
+  class_id : bigint <<FK>>
+  subject_id : bigint <<FK>>
+  day_of_week : int
+  session : varchar(255)
+  period_range : varchar(255)
+}
+
+entity "semester_events" {
+  * id : bigint <<PK>>
+  --
+  plan_id : bigint <<FK>>
+  class_id : bigint <<FK>>
+  event_type : varchar(255)
+  title : varchar(255)
+  start_date : date
+  end_date : date
+}
+
+entity "monthly_schedules" {
+  * id : bigint <<PK>>
+  --
+  plan_id : bigint <<FK>>
+  class_id : bigint <<FK>>
+  created_by : bigint <<FK>>
+  month : int
+  year : int
+}
+
+entity "schedule_slot_groups" {
+  * id : bigint <<PK>>
+  --
+  monthly_schedule_id : bigint <<FK>>
+  subject_id : bigint <<FK>>
+  subject_lesson_id : bigint <<FK>>
+  teacher_id : bigint <<FK>>
+  room_id : bigint <<FK>>
+  created_by : bigint <<FK>>
+  date : date
+  period_number : int
+  assignment_type : varchar(255)
+  status : varchar(255)
+}
+
+entity "schedule_slots" {
+  * id : bigint <<PK>>
+  --
+  monthly_schedule_id : bigint <<FK>>
+  schedule_slot_group_id : bigint <<FK>>
+  class_id : bigint <<FK>>
+  teacher_id : bigint <<FK>>
+  subject_id : bigint <<FK>>
+  subject_lesson_id : bigint <<FK>>
+  room_id : bigint <<FK>>
+  semester_event_id : bigint <<FK>>
+  teaching_support_request_item_id : bigint <<FK>>
+  date : date
+  period_number : int
+  slot_type : varchar(255)
+  slot_status : varchar(255)
+}
+
+entity "department_monthly_assignment_batches" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  submitted_by : bigint <<FK>>
+  department_reviewed_by : bigint <<FK>>
+  training_office_reviewed_by : bigint <<FK>>
+  month : int
+  year : int
+  status : varchar(255)
+  current_step : int
+  version : int
+}
+
+entity "department_monthly_assignment_batch_slots" {
+  * id : bigint <<PK>>
+  --
+  batch_id : bigint <<FK>>
+  schedule_slot_id : bigint <<FK>>
+}
+
+entity "monthly_assignment_dossiers" {
+  * id : bigint <<PK>>
+  --
+  created_by : bigint <<FK>>
+  submitted_by : bigint <<FK>>
+  reviewed_by : bigint <<FK>>
+  month : int
+  year : int
+  status : varchar(255)
+  current_step : int
+  version : int
+}
+
+entity "training_batches" {
+  * id : bigint <<PK>>
+}
+entity "classes" {
+  * id : bigint <<PK>>
+}
+entity "subjects" {
+  * id : bigint <<PK>>
+}
+entity "subject_lessons" {
+  * id : bigint <<PK>>
+}
+entity "rooms" {
+  * id : bigint <<PK>>
+}
+entity "teachers" {
+  * id : bigint <<PK>>
+}
+entity "departments" {
+  * id : bigint <<PK>>
+}
+
+training_batches ||--o{ plans : training_batch_id
+plans ||--o{ plan_templates : plan_id
+plans ||--o{ semester_events : plan_id
+plans ||--o{ monthly_schedules : plan_id
+plan_templates }o--|| classes : class_id
+plan_templates }o--|| subjects : subject_id
+semester_events }o--|| classes : class_id
+monthly_schedules }o--o| classes : "class_id (legacy, khong fillable)"
+monthly_schedules ||--o{ schedule_slot_groups : monthly_schedule_id
+monthly_schedules ||--o{ schedule_slots : monthly_schedule_id
+schedule_slot_groups ||--o{ schedule_slots : schedule_slot_group_id
+schedule_slot_groups }o--|| subjects : subject_id
+schedule_slot_groups }o--o| subject_lessons : subject_lesson_id
+schedule_slot_groups }o--o| teachers : teacher_id
+schedule_slot_groups }o--o| rooms : room_id
+schedule_slots }o--|| classes : class_id
+schedule_slots }o--o| teachers : teacher_id
+schedule_slots }o--o| subjects : subject_id
+schedule_slots }o--o| subject_lessons : subject_lesson_id
+schedule_slots }o--o| rooms : room_id
+schedule_slots }o--o| semester_events : semester_event_id
+departments ||--o{ department_monthly_assignment_batches : department_id
+department_monthly_assignment_batches ||--o{ department_monthly_assignment_batch_slots : batch_id
+department_monthly_assignment_batch_slots }o--|| schedule_slots : schedule_slot_id
+monthly_assignment_dossiers }o--o{ department_monthly_assignment_batches : "pivot monthly_assignment_dossier_batches (+batch_version)"
+
+@enduml

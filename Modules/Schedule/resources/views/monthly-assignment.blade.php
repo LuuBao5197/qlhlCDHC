@@ -528,6 +528,7 @@
                                                                 <th style="min-width: 170px;">Giảng viên</th>
                                                                 <th style="min-width: 140px;">Môn học</th>
                                                                 <th style="min-width: 150px;">Bài học</th>
+                                                                <th style="min-width: 110px;">Loại tiết</th>
                                                                 <th style="min-width: 100px;">Phòng</th>
                                                                 <th style="min-width: 150px;">Nội dung</th>
                                                                 <th style="min-width: 130px;">Ghi chú</th>
@@ -579,6 +580,16 @@
                                                                         !$isEvent &&
                                                                         $slot->subject_lesson_id !== null &&
                                                                         trim((string) ($slot->subjectLesson?->title ?? '')) !== '';
+                                                                    $isRegularTestLesson =
+                                                                        !$isEvent &&
+                                                                        $slot->subject_lesson_id !== null &&
+                                                                        (bool) ($slot->subjectLesson?->is_regular_test ?? false);
+                                                                    $isSpecialAssignment =
+                                                                        $assignmentType === \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY;
+                                                                    $lessonTypeDisabled =
+                                                                        $isEvent || $isSpecialAssignment || $isRegularTestLesson;
+                                                                    $selectedLessonType =
+                                                                        $oldSlot['lesson_type'] ?? $slot->lesson_type ?? 'theory';
                                                                 @endphp
                                                                     <tr class="{{ $rowClass }}"
                                                                     data-slot-id="{{ $slot->id }}"
@@ -760,12 +771,37 @@
                                                                                 </option>
                                                                                 @foreach ($lessonOptions as $lesson)
                                                                                     <option value="{{ $lesson->id }}"
+                                                                                        data-is-regular-test="{{ $lesson->is_regular_test ? '1' : '0' }}"
                                                                                         @selected((int) $selectedLesson === (int) $lesson->id)>
                                                                                         B{{ $lesson->lesson_no }}:
-                                                                                        {{ $lesson->title }}
+                                                                                        {{ $lesson->title }}{{ $lesson->is_regular_test ? ' (KT thường xuyên)' : '' }}
                                                                                     </option>
                                                                                 @endforeach
                                                                             </select>
+                                                                        @endif
+                                                                    </td>
+                                                                    <td>
+                                                                        @if ($isEvent)
+                                                                            <span class="text-muted small">-</span>
+                                                                        @elseif ($isSpecialAssignment)
+                                                                            <span class="text-muted small">-</span>
+                                                                        @else
+                                                                            <select data-field="lesson_type"
+                                                                                class="form-control form-control-sm"
+                                                                                data-initial-value="{{ $lessonTypeDisabled ? '' : $selectedLessonType }}"
+                                                                                @disabled($lessonTypeDisabled || $batchReadOnly || $supportLocked)>
+                                                                                <option value="theory"
+                                                                                    @selected($selectedLessonType === 'theory')>
+                                                                                    Lý thuyết
+                                                                                </option>
+                                                                                <option value="practice"
+                                                                                    @selected($selectedLessonType === 'practice')>
+                                                                                    Thực hành
+                                                                                </option>
+                                                                            </select>
+                                                                            @if ($isRegularTestLesson)
+                                                                                <span class="small text-muted d-block">Bài kiểm tra thường xuyên</span>
+                                                                            @endif
                                                                         @endif
                                                                     </td>
                                                                     <td>
@@ -1784,6 +1820,22 @@
                 }
 
                 row.setAttribute('data-support-requestable', lessonSelect.value !== '' ? '1' : '0');
+
+                var lessonTypeSelect = getLessonTypeSelect(row);
+                if (lessonTypeSelect) {
+                    var isRegularTest = isSelectedLessonRegularTest(lessonSelect);
+                    var lessonTypeDisabled = isSpecialAssignment || isRegularTest;
+                    lessonTypeSelect.disabled = lessonTypeDisabled;
+
+                    if (lessonTypeDisabled && lessonTypeSelect.value !== '') {
+                        setSelectValue(lessonTypeSelect, '', false);
+                        changed = true;
+                    } else if (!lessonTypeDisabled && lessonTypeSelect.value === '') {
+                        setSelectValue(lessonTypeSelect, 'theory', false);
+                        changed = true;
+                    }
+                }
+
                 if (changed) {
                     syncRowDirtyState(row);
                 }
@@ -1969,6 +2021,18 @@
                 return getFieldElement(row, 'subject_lesson_id');
             }
 
+            function getLessonTypeSelect(row) {
+                return getFieldElement(row, 'lesson_type');
+            }
+
+            function isSelectedLessonRegularTest(lessonSelect) {
+                if (!lessonSelect || !lessonSelect.value) {
+                    return false;
+                }
+                var option = lessonSelect.options[lessonSelect.selectedIndex];
+                return !!(option && option.getAttribute('data-is-regular-test') === '1');
+            }
+
             function getContentInput(row) {
                 return getFieldElement(row, 'content');
             }
@@ -2094,7 +2158,7 @@
 
                 return Array.prototype.slice.call(
                     row.querySelectorAll(
-                        '[data-field="teacher_id"], [data-field="subject_lesson_id"], [data-field="room_id"], [data-field="content"], [data-field="note"]'
+                        '[data-field="teacher_id"], [data-field="subject_lesson_id"], [data-field="lesson_type"], [data-field="room_id"], [data-field="content"], [data-field="note"]'
                     )
                 );
             }
@@ -2138,18 +2202,22 @@
             function buildChangePayload(row) {
                 var teacherSelect = getTeacherSelect(row);
                 var lessonSelect = getSubjectLessonSelect(row);
+                var lessonTypeSelect = getLessonTypeSelect(row);
                 var roomSelect = getRoomSelect(row);
                 var contentInput = getContentInput(row);
                 var noteInput = getNoteInput(row);
                 var teacherValue = teacherSelect ? teacherSelect.value : '';
                 var assignmentType = resolveAssignmentTypeFromTeacherOption(teacherValue);
                 var subjectLessonId = lessonSelect && lessonSelect.value !== '' ? toNullableInt(lessonSelect.value) : null;
+                var isRegularTestLesson = isSelectedLessonRegularTest(lessonSelect);
+                var lessonType = lessonTypeSelect && lessonTypeSelect.value !== '' ? lessonTypeSelect.value : null;
 
                 return {
                     slot_id: toNullableInt(getSlotId(row)),
                     teacher_id: teacherValue !== '' && !assignmentType ? toNullableInt(teacherValue) : null,
                     assignment_type: assignmentType,
                     subject_lesson_id: assignmentType ? null : subjectLessonId,
+                    lesson_type: assignmentType || isRegularTestLesson ? null : lessonType,
                     room_id: roomSelect && roomSelect.value !== '' ? toNullableInt(roomSelect.value) : null,
                     content: contentInput && contentInput.value !== '' ? contentInput.value : null,
                     note: noteInput && noteInput.value !== '' ? noteInput.value : null
@@ -2607,6 +2675,7 @@
                         room_id: null,
                         subject_id: null,
                         subject_lesson_id: null,
+                        lesson_type: null,
                         content: null,
                         note: null
                     };
@@ -2616,11 +2685,14 @@
                 var roomSelect = getRoomSelect(row);
                 var subjectInput = getFieldElement(row, 'subject_id');
                 var lessonSelect = getSubjectLessonSelect(row);
+                var lessonTypeSelect = getLessonTypeSelect(row);
                 var contentInput = getContentInput(row);
                 var noteInput = getNoteInput(row);
                 var teacherValue = teacherSelect ? teacherSelect.value : '';
                 var assignmentType = resolveAssignmentTypeFromTeacherOption(teacherValue);
                 var subjectLessonId = lessonSelect ? toNullableInt(lessonSelect.value) : null;
+                var isRegularTestLesson = isSelectedLessonRegularTest(lessonSelect);
+                var lessonType = lessonTypeSelect && lessonTypeSelect.value !== '' ? lessonTypeSelect.value : null;
 
                 return {
                     teacher_id: teacherValue !== '' && !assignmentType ? toNullableInt(teacherValue) : null,
@@ -2628,6 +2700,7 @@
                     room_id: roomSelect ? toNullableInt(roomSelect.value) : null,
                     subject_id: subjectInput ? toNullableInt(subjectInput.value) : null,
                     subject_lesson_id: assignmentType ? null : subjectLessonId,
+                    lesson_type: assignmentType || isRegularTestLesson ? null : lessonType,
                     content: contentInput ? contentInput.value : null,
                     note: noteInput ? noteInput.value : null
                 };
@@ -3006,8 +3079,23 @@
                             dispatchChange: false
                         });
                         lessonRow.setAttribute('data-support-requestable', e.target.value ? '1' : '0');
+                        syncSubjectLessonState(lessonRow);
+                        getActiveMergeGroupRows(lessonRow).forEach(function(groupRow) {
+                            syncSubjectLessonState(groupRow);
+                        });
                         syncRowDirtyState(lessonRow);
                         syncRowsDirtyState(getActiveMergeGroupRows(lessonRow));
+                    }
+                }
+
+                if (e.target.matches('[data-field="lesson_type"]')) {
+                    var lessonTypeRow = e.target.closest('tr');
+                    if (lessonTypeRow) {
+                        syncActiveMergeGroupField(lessonTypeRow, '[data-field="lesson_type"]', e.target.value, {
+                            dispatchChange: false
+                        });
+                        syncRowDirtyState(lessonTypeRow);
+                        syncRowsDirtyState(getActiveMergeGroupRows(lessonTypeRow));
                     }
                 }
             });
@@ -3314,7 +3402,7 @@
             }
 
             function applyMergeGroupToRows(slotIds, groupId, teacherId, assignmentType, roomId, subjectLessonId,
-                subjectId, content, note) {
+                subjectId, content, note, lessonType) {
                 (slotIds || []).forEach(function(slotId) {
                     var row = document.querySelector('tr[data-slot-id="' + escapeHtml(slotId) + '"]');
                     if (!row) {
@@ -3334,6 +3422,7 @@
                     setInputValue(getContentInput(row), content);
                     setInputValue(getNoteInput(row), note);
                     syncSubjectLessonState(row);
+                    setSelectValue(getLessonTypeSelect(row), lessonType || 'theory', false);
                     markRowAssignedState(row);
                     renderMergedActionCell(row, groupId);
                     syncRowDirtyState(row);
@@ -3526,6 +3615,7 @@
                             assignment_type: basePayload.assignment_type,
                             room_id: basePayload.room_id,
                             subject_lesson_id: basePayload.subject_lesson_id,
+                            lesson_type: basePayload.lesson_type,
                             content: basePayload.content,
                             note: basePayload.note
                         })
@@ -3545,7 +3635,8 @@
                         payload.subject_lesson_id,
                         basePayload.subject_id,
                         basePayload.content,
-                        basePayload.note
+                        basePayload.note,
+                        payload.lesson_type
                     );
                     showToast(payload.message || 'Đã ghép lớp thành công.');
                     hideMergeModal();

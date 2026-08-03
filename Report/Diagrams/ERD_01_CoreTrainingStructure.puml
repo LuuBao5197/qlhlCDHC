@@ -1,0 +1,118 @@
+@startuml ERD_01_CoreTrainingStructure
+title ERD 1 - Core Training Structure
+skinparam linetype ortho
+
+' Nguon: app/Models/User.php, Modules/Training/Models/{Department,TrainingProgram,
+' TrainingBatch,TrainingClass,Room,Subject,SubjectLesson,Teacher,Student}.php
+' Luong nghiep vu: du lieu goc (khoa/phong/chuong trinh/lop/mon hoc/giao vien/hoc vien)
+' Ghi chu: TrainingClass.department() khong con cot FK backing (da bi xoa boi migration
+' 2026_04_11) -> quan he TrainingClass-Department la "legacy/inactive", khong ve o day.
+
+entity "departments" {
+  * id : bigint <<PK>>
+  --
+  code : varchar(255)
+  name : varchar(255)
+  status : varchar(255)
+}
+
+entity "users" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  requested_department_id : bigint <<FK>>
+  name : varchar(255)
+  email : varchar(255)
+  role : varchar(255)
+  status : varchar(255)
+}
+
+entity "teachers" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  user_id : bigint <<FK>>
+  teacher_code : varchar(255)
+  name : varchar(255)
+  status : varchar(255)
+}
+
+entity "training_programs" {
+  * id : bigint <<PK>>
+  --
+  code : varchar(255)
+  name : varchar(255)
+  status : varchar(255)
+}
+
+entity "training_batches" {
+  * id : bigint <<PK>>
+  --
+  training_program_id : bigint <<FK>>
+  code : varchar(255)
+  name : varchar(255)
+  status : varchar(255)
+}
+
+entity "classes" {
+  * id : bigint <<PK>>
+  --
+  training_batch_id : bigint <<FK>>
+  default_room_id : bigint <<FK>>
+  code : varchar(255)
+  name : varchar(255)
+  course_year : int
+  total_students : int
+  status : varchar(255)
+}
+
+entity "rooms" {
+  * id : bigint <<PK>>
+  --
+  code : varchar(255)
+  name : varchar(255)
+  capacity : int
+  room_type : varchar(255)
+  status : varchar(255)
+}
+
+entity "students" {
+  * id : bigint <<PK>>
+  --
+  class_id : bigint <<FK>>
+  student_code : varchar(255)
+  name : varchar(255)
+  date_of_birth : date
+  status : varchar(255)
+}
+
+entity "subjects" {
+  * id : bigint <<PK>>
+  --
+  department_id : bigint <<FK>>
+  code : varchar(255)
+  name : varchar(255)
+  total_periods : int
+  status : varchar(255)
+}
+
+entity "subject_lessons" {
+  * id : bigint <<PK>>
+  --
+  subject_id : bigint <<FK>>
+  lesson_no : int
+  title : varchar(255)
+  expected_periods : int
+}
+
+departments ||--o{ users : department_id
+departments ||--o{ teachers : department_id
+departments ||--o{ subjects : department_id
+training_programs ||--o{ training_batches : training_program_id
+training_batches ||--o{ classes : training_batch_id
+classes ||--o{ students : class_id
+rooms ||--o{ classes : default_room_id
+subjects ||--o{ subject_lessons : subject_id
+users ||--o| teachers : "user_id (1-1 tai khoan)"
+
+@enduml

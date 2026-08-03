@@ -393,6 +393,8 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
                         : null,
                     'teacher_id' => $slot?->teacher_id,
                     'assignment_type' => $slot?->assignment_type,
+                    'lesson_type' => $slot?->lesson_type,
+                    'is_regular_test_lesson' => $slot?->isRegularTestLesson() ?? false,
                     'teacher_name' => $this->resolveTeacherName($slot),
                     'room_id' => $slot?->room_id,
                     'room_code' => $slot?->room?->code,

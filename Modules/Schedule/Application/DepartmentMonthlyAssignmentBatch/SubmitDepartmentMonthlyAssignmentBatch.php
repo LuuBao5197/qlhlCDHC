@@ -66,6 +66,7 @@ class SubmitDepartmentMonthlyAssignmentBatch
     {
         $batch->loadMissing([
             'batchSlots.scheduleSlot.scheduleSlotGroup',
+            'batchSlots.scheduleSlot.subjectLesson',
         ]);
 
         $subjectSlots = $batch->batchSlots
@@ -105,6 +106,28 @@ class SubmitDepartmentMonthlyAssignmentBatch
             $errors['lesson_forbidden'] = sprintf(
                 'Khong the gui PDT: con %d tiet tu nghien cuu co chon bai hoc.',
                 $specialWithLessonCount
+            );
+        }
+
+        $missingLessonTypeCount = $subjectSlots
+            ->filter(fn (ScheduleSlot $slot): bool => $this->isMissingRequiredLessonType($slot))
+            ->count();
+
+        if ($missingLessonTypeCount > 0) {
+            $errors['lesson_type_missing'] = sprintf(
+                'Khong the gui PDT: con %d tiet chua chon loai tiet hoc (ly thuyet/thuc hanh).',
+                $missingLessonTypeCount
+            );
+        }
+
+        $forbiddenLessonTypeCount = $subjectSlots
+            ->filter(fn (ScheduleSlot $slot): bool => $this->hasForbiddenLessonType($slot))
+            ->count();
+
+        if ($forbiddenLessonTypeCount > 0) {
+            $errors['lesson_type_forbidden'] = sprintf(
+                'Khong the gui PDT: con %d tiet tu nghien cuu / kiem tra thuong xuyen co chon loai tiet hoc.',
+                $forbiddenLessonTypeCount
             );
         }
 
@@ -208,6 +231,27 @@ class SubmitDepartmentMonthlyAssignmentBatch
     {
         return ($slot->assignment_type ?? null) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY
             && ! blank($slot->subject_lesson_id);
+    }
+
+    private function isMissingRequiredLessonType(ScheduleSlot $slot): bool
+    {
+        if (($slot->assignment_type ?? null) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY) {
+            return false;
+        }
+
+        if ($slot->isRegularTestLesson()) {
+            return false;
+        }
+
+        return blank($slot->lesson_type);
+    }
+
+    private function hasForbiddenLessonType(ScheduleSlot $slot): bool
+    {
+        $isSpecial = ($slot->assignment_type ?? null) === ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY
+            || $slot->isRegularTestLesson();
+
+        return $isSpecial && ! blank($slot->lesson_type);
     }
 
     /**

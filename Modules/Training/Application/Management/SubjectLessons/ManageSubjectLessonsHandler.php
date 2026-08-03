@@ -29,6 +29,7 @@ class ManageSubjectLessonsHandler extends CrudHandler
             'subject_id' => ['required', 'integer', 'exists:subjects,id'],
             'lesson_no' => ['required', 'integer', 'min:1'],
             'title' => ['required', 'string', 'max:255'],
+            'is_regular_test' => ['nullable', 'boolean'],
             'expected_periods' => ['nullable', 'integer', 'min:1'],
             'note' => ['nullable', 'string'],
         ];
