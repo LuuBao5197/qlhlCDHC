@@ -27,8 +27,17 @@ class GetScheduleHandler
 
         $changeRequestPageData = $this->changeRequestPageDataBuilder->build($request->user(), true);
 
+        $statusStyles = [
+            'draft' => 'badge-dark',
+            'submitted' => 'badge-info',
+            'returned' => 'badge-warning',
+            'approved' => 'badge-success',
+            'rejected' => 'badge-danger',
+        ];
+
         return view('schedule::index', [
             'schedules' => $schedules,
+            'statusStyles' => $statusStyles,
             ...$changeRequestPageData,
         ]);
     }

@@ -5,7 +5,7 @@
 @if ($canManageHolidayCalendar)
     <div class="card mt-3">
         <div class="card-body">
-            <h5 class="mb-1">Quan tri holiday calendar</h5>
+            <h5 class="card-title mb-1">Quản trị lịch nghỉ</h5>
             <small class="text-muted">Quan ly ngay nghi de dung chung cho dieu chinh lich nghi le/tet.</small>
 
             <form method="POST" action="{{ route('holiday-calendar.store') }}" class="border rounded p-3 bg-light mt-3">

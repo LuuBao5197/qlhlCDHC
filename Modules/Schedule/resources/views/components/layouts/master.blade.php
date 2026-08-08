@@ -15,10 +15,13 @@
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
         {{-- Vite CSS --}}
         {{-- {{ module_vite('build-schedule', 'resources/assets/sass/app.scss') }} --}}
+        <style>
+            body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; background: #f4f5f7; color: #1e293b; }
+        </style>
     </head>
 
     <body>

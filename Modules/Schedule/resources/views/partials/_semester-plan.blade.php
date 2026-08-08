@@ -4,7 +4,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <h5 class="mb-1">Ke hoach hoc ky</h5>
+                        <h5 class="card-title mb-1">Kế hoạch học kỳ</h5>
                         <small class="text-muted">Danh sach ke hoach hoc ky va thao tac UC4.</small>
                     </div>
                     @if ($canManageSemesterPlan)

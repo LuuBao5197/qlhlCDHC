@@ -89,6 +89,11 @@ class ChangeRequestPageDataBuilder
 
         if ($includeChangeRequests) {
             $payload['changeRequests'] = $this->loadChangeRequests();
+            $payload['statusStyles'] = [
+                'pending' => 'badge-warning',
+                'approved' => 'badge-success',
+                'rejected' => 'badge-danger',
+            ];
         }
 
         return $payload;

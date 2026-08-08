@@ -158,7 +158,7 @@
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
                         <div>
-                            <h5 class="mb-1">Phieu de nghi thay doi ke hoach giang day</h5>
+                            <h5 class="card-title mb-1">Phiếu đề nghị thay đổi kế hoạch giảng dạy</h5>
                             <small class="text-muted">UC6 phe duyet hoac tu choi phieu de nghi thay doi.</small>
                         </div>
                         @if ($canDepartmentAssign || $canReviewWorkflow)

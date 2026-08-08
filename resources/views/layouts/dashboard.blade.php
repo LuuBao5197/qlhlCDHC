@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title')</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
     @php
       $dashboardStyles = $resourceDashboardStyles;
       $dashboardScripts = $resourceDashboardScripts;
@@ -14,6 +16,140 @@
       @foreach ($dashboardStyles as $dashboardStyle)
         {!! $resourceInlineCss($dashboardStyle) !!}
       @endforeach
+    </style>
+    <style>
+      :root {
+        --qlhl-bg: #f4f5f7;
+        --qlhl-surface: #ffffff;
+        --qlhl-border: #e2e4e9;
+        --qlhl-text: #1e293b;
+        --qlhl-text-muted: #64748b;
+        --qlhl-sidebar-bg: #1e2537;
+        --qlhl-sidebar-bg-active: #262e45;
+        --qlhl-sidebar-text: #aeb4c4;
+        --qlhl-sidebar-text-active: #ffffff;
+        --qlhl-primary: #4f46e5;
+        --qlhl-primary-dark: #4338ca;
+        --qlhl-radius: 0.5rem;
+      }
+
+      body,
+      .navbar-nav-right .nav-link,
+      .sidebar .nav .nav-item .nav-link {
+        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      body {
+        background: var(--qlhl-bg);
+        color: var(--qlhl-text);
+        font-size: 0.9rem;
+      }
+
+      /* Sidebar */
+      .sidebar,
+      .sidebar .sidebar-brand-wrapper {
+        background: var(--qlhl-sidebar-bg);
+      }
+
+      @media (min-width: 992px) {
+        .sidebar {
+          position: fixed;
+          top: 70px;
+          left: 0;
+          bottom: 0;
+          overflow-y: auto;
+        }
+
+        /* Guards against a 1px seam between the fixed sidebar and navbar
+           caused by sub-pixel rounding under fractional display scaling. */
+        .sidebar,
+        .sidebar .sidebar-brand-wrapper {
+          box-shadow: 1px 0 0 0 var(--qlhl-sidebar-bg);
+        }
+
+        .page-body-wrapper {
+          margin-left: 244px;
+        }
+      }
+
+      .sidebar .nav .nav-item .nav-link {
+        color: var(--qlhl-sidebar-text);
+        border-radius: var(--qlhl-radius);
+        margin: 0.125rem 0.75rem;
+        padding: 0.65rem 1rem;
+      }
+
+      .sidebar .nav .nav-item.nav-category .nav-link {
+        color: var(--qlhl-sidebar-text);
+        opacity: .6;
+        text-transform: uppercase;
+        font-size: .72rem;
+        letter-spacing: .06em;
+        font-weight: 600;
+        margin: 0.75rem 1rem 0.25rem;
+        padding: 0;
+      }
+
+      .sidebar .nav .nav-item .nav-link:hover,
+      .sidebar .nav .nav-item.active > .nav-link {
+        background: var(--qlhl-sidebar-bg-active);
+        color: var(--qlhl-sidebar-text-active);
+      }
+
+      .sidebar .nav .nav-item .nav-link .menu-icon {
+        color: inherit;
+      }
+
+      /* Navbar */
+      .navbar {
+        background: var(--qlhl-surface);
+        border-bottom: 1px solid var(--qlhl-border);
+      }
+
+      .navbar .navbar-nav-right .nav-link {
+        color: var(--qlhl-text-muted);
+      }
+
+      .navbar .navbar-menu-wrapper .navbar-nav .nav-item .nav-link {
+        color: var(--qlhl-text-muted);
+      }
+
+      /* Cards, inputs, buttons: consistent rounding */
+      .card,
+      .dropdown-menu,
+      .form-control,
+      .input-group-text,
+      .btn,
+      .table {
+        border-radius: var(--qlhl-radius);
+      }
+
+      .card {
+        border: 1px solid var(--qlhl-border);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      }
+
+      .btn-primary,
+      .btn-gradient-primary {
+        background: var(--qlhl-primary);
+        border-color: var(--qlhl-primary);
+      }
+
+      .btn-primary:hover,
+      .btn-gradient-primary:hover {
+        background: var(--qlhl-primary-dark);
+        border-color: var(--qlhl-primary-dark);
+      }
+
+      .content-wrapper {
+        padding: 1.5rem;
+      }
+
+      .footer {
+        background: transparent;
+        border-top: 1px solid var(--qlhl-border);
+        font-size: 0.8rem;
+      }
     </style>
     <link rel="shortcut icon" href="{{ $resourceAsset('images/favicon.png') }}" />
   </head>
