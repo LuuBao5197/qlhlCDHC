@@ -160,10 +160,6 @@ class AppServiceProvider extends ServiceProvider
         View::share('resourceDashboardStyles', [
             'vendors/mdi/css/materialdesignicons.min.css',
             'vendors/css/vendor.bundle.base.css',
-            'vendors/jvectormap/jquery-jvectormap.css',
-            'vendors/flag-icon-css/css/flag-icon.min.css',
-            'vendors/owl-carousel-2/owl.carousel.min.css',
-            'vendors/owl-carousel-2/owl.theme.default.min.css',
             'vendors/bootstrap-datepicker/css/bootstrap-datepicker3.min.css',
             'css/style.css',
             'css/schedule-date-picker.css',
@@ -172,17 +168,10 @@ class AppServiceProvider extends ServiceProvider
             'vendors/js/vendor.bundle.base.js',
             'vendors/bootstrap-datepicker/js/bootstrap-datepicker.min.js',
             'vendors/bootstrap-datepicker/js/bootstrap-datepicker.vi.min.js',
-            'vendors/chart.js/Chart.min.js',
-            'vendors/progressbar.js/progressbar.min.js',
-            'vendors/jvectormap/jquery-jvectormap.min.js',
-            'vendors/jvectormap/jquery-jvectormap-world-mill-en.js',
-            'vendors/owl-carousel-2/owl.carousel.min.js',
             'js/off-canvas.js',
             'js/hoverable-collapse.js',
             'js/misc.js',
             'js/settings.js',
-            'js/todolist.js',
-            'js/dashboard.js',
             'js/schedule-date-picker.js',
         ]);
 
