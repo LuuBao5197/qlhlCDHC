@@ -19,17 +19,17 @@
     </style>
     <style>
       :root {
-        --qlhl-bg: #f4f5f7;
+        --qlhl-bg: #F4F6F3;
         --qlhl-surface: #ffffff;
-        --qlhl-border: #e2e4e9;
-        --qlhl-text: #1e293b;
-        --qlhl-text-muted: #64748b;
-        --qlhl-sidebar-bg: #1e2537;
-        --qlhl-sidebar-bg-active: #262e45;
-        --qlhl-sidebar-text: #aeb4c4;
+        --qlhl-border: #D9E0D3;
+        --qlhl-text: #2F3B2C;
+        --qlhl-text-muted: #6B7A66;
+        --qlhl-sidebar-bg: #3B533E;
+        --qlhl-sidebar-bg-active: #2E4030;
+        --qlhl-sidebar-text: #E7ECE4;
         --qlhl-sidebar-text-active: #ffffff;
-        --qlhl-primary: #4f46e5;
-        --qlhl-primary-dark: #4338ca;
+        --qlhl-primary: #5A7255;
+        --qlhl-primary-dark: #4B5E43;
         --qlhl-radius: 0.5rem;
       }
 
@@ -48,7 +48,7 @@
       /* Sidebar */
       .sidebar,
       .sidebar .sidebar-brand-wrapper {
-        background: var(--qlhl-sidebar-bg);
+        background: var(--qlhl-sidebar-bg) !important;
       }
 
       @media (min-width: 992px) {
@@ -102,16 +102,33 @@
 
       /* Navbar */
       .navbar {
-        background: var(--qlhl-surface);
-        border-bottom: 1px solid var(--qlhl-border);
+        background: var(--qlhl-sidebar-bg) !important;
+        border-bottom: 1px solid var(--qlhl-sidebar-bg-active);
       }
 
-      .navbar .navbar-nav-right .nav-link {
-        color: var(--qlhl-text-muted);
+      .navbar .navbar-nav-right .nav-link,
+      .navbar .navbar-toggler .mdi,
+      .navbar .navbar-profile-name {
+        color: var(--qlhl-sidebar-text) !important;
       }
 
       .navbar .navbar-menu-wrapper .navbar-nav .nav-item .nav-link {
-        color: var(--qlhl-text-muted);
+        color: var(--qlhl-sidebar-text) !important;
+      }
+
+      .navbar .nav-item.dropdown.border-left {
+        border-left-color: var(--qlhl-sidebar-bg-active) !important;
+      }
+
+      .navbar .navbar-brand-wrapper {
+        background: var(--qlhl-sidebar-bg) !important;
+      }
+
+      /* Dropdown menus stay light regardless of the dark navbar/sidebar */
+      .navbar-dropdown,
+      .navbar-dropdown .preview-subject,
+      .navbar-dropdown h6 {
+        color: var(--qlhl-text);
       }
 
       /* Cards, inputs, buttons: consistent rounding */
@@ -126,19 +143,31 @@
 
       .card {
         border: 1px solid var(--qlhl-border);
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        box-shadow: 0 1px 2px rgba(59, 83, 62, 0.06);
+      }
+
+      .table,
+      .table td,
+      .table th,
+      .table thead th {
+        border-color: var(--qlhl-border) !important;
       }
 
       .btn-primary,
       .btn-gradient-primary {
-        background: var(--qlhl-primary);
-        border-color: var(--qlhl-primary);
+        background: var(--qlhl-primary) !important;
+        border-color: var(--qlhl-primary) !important;
       }
 
       .btn-primary:hover,
       .btn-gradient-primary:hover {
-        background: var(--qlhl-primary-dark);
-        border-color: var(--qlhl-primary-dark);
+        background: var(--qlhl-primary-dark) !important;
+        border-color: var(--qlhl-primary-dark) !important;
+      }
+
+      .main-panel,
+      .content-wrapper {
+        background: var(--qlhl-bg) !important;
       }
 
       .content-wrapper {

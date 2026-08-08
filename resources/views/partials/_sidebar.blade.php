@@ -58,7 +58,7 @@
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('duty-log.index') }}">
           <span class="menu-icon"><i class="mdi mdi-clipboard-text"></i></span>
-          <span class="menu-title">Nhật ký trực ban</span>
+          <span class="menu-title">Nhật ký huấn luyện</span>
         </a>
       </li>
       <li class="nav-item menu-items">
