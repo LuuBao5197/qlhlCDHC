@@ -74,21 +74,56 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4 class="card-title">Ảnh nền trang đăng nhập</h4>
+                    <p class="text-muted">
+                        Tuỳ chỉnh ảnh nền hiển thị ở trang đăng nhập. Nên dùng ảnh ngang (khuyến nghị tối thiểu 1920x1080),
+                        định dạng JPG/PNG/WEBP, dung lượng tối đa 5MB.
+                    </p>
+
+                    @if ($errors->has('background'))
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                @foreach ($errors->get('background') as $message)
+                                    <li>{{ $message }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <div class="row align-items-center">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; background: #eef0f5; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
+                                @if ($loginBackgroundUrl)
+                                    <img src="{{ $loginBackgroundUrl }}" alt="Ảnh nền đăng nhập hiện tại" style="width: 100%; height: 100%; object-fit: cover;">
+                                @else
+                                    <span class="text-muted small">Đang dùng nền mặc định</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <form method="POST" action="{{ route('admin.settings.login-background.update') }}" enctype="multipart/form-data" class="mb-2">
+                                @csrf
+                                <div class="form-group d-flex align-items-center" style="gap: .75rem;">
+                                    <input type="file" name="background" accept="image/png,image/jpeg,image/webp" class="form-control" required style="max-width: 320px;">
+                                    <button type="submit" class="btn btn-primary">Tải ảnh lên</button>
+                                </div>
+                            </form>
+                            @if ($loginBackgroundUrl)
+                                <form method="POST" action="{{ route('admin.settings.login-background.reset') }}" onsubmit="return confirm('Khôi phục ảnh nền mặc định?');">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Khôi phục mặc định</button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-body">
                     <h4 class="card-title">Danh sách người dùng</h4>
-
-                    @if(session('success'))
-                        <div class="alert alert-success">
-                            {{ session('success') }}
-                        </div>
-                    @endif
-
-                    @if(session('error'))
-                        <div class="alert alert-danger">
-                            {{ session('error') }}
-                        </div>
-                    @endif
 
                     <div class="table-responsive">
                         <table class="table table-striped">

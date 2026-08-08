@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Position;
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\AccountInvitationService;
 use App\Services\InternalNotificationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Modules\Training\Models\Department;
@@ -47,11 +49,14 @@ class AdminController extends Controller
 
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
 
+        $loginBackgroundPath = Setting::get(Setting::KEY_LOGIN_BACKGROUND_PATH);
+
         return view('admin.index', [
             'users' => $users,
             'departments' => $departments,
             'creatableRoles' => self::CREATABLE_ROLES,
             'positionOptionsByRole' => $this->positionOptionsByRole(),
+            'loginBackgroundUrl' => $loginBackgroundPath ? Storage::disk('public')->url($loginBackgroundPath) : null,
         ]);
     }
 
@@ -194,5 +199,41 @@ class AdminController extends Controller
         $user->update(['status' => User::STATUS_APPROVED]);
 
         return back()->with('success', 'Đã mở khoá tài khoản ' . $user->email . '.');
+    }
+
+    public function updateLoginBackground(Request $request)
+    {
+        $validated = $request->validate([
+            'background' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ], [
+            'background.required' => 'Vui lòng chọn ảnh nền.',
+            'background.image' => 'File tải lên phải là ảnh.',
+            'background.mimes' => 'Ảnh phải có định dạng JPG, PNG hoặc WEBP.',
+            'background.max' => 'Ảnh không được lớn hơn 5MB.',
+        ]);
+
+        $previousPath = Setting::get(Setting::KEY_LOGIN_BACKGROUND_PATH);
+
+        $path = $request->file('background')->store('branding', 'public');
+        Setting::set(Setting::KEY_LOGIN_BACKGROUND_PATH, $path);
+
+        if ($previousPath) {
+            Storage::disk('public')->delete($previousPath);
+        }
+
+        return back()->with('success', 'Đã cập nhật ảnh nền trang đăng nhập.');
+    }
+
+    public function resetLoginBackground(Request $request)
+    {
+        $previousPath = Setting::get(Setting::KEY_LOGIN_BACKGROUND_PATH);
+
+        if ($previousPath) {
+            Storage::disk('public')->delete($previousPath);
+        }
+
+        Setting::set(Setting::KEY_LOGIN_BACKGROUND_PATH, null);
+
+        return back()->with('success', 'Đã khôi phục ảnh nền mặc định cho trang đăng nhập.');
     }
 }

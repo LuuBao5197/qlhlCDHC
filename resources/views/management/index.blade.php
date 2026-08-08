@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Quan tri danh muc')
+@section('title', 'Quản trị danh mục')
 
 @section('content')
     <div class="row">
@@ -9,9 +9,9 @@
                 <div class="card-body">
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3">
                         <div>
-                            <h4 class="card-title mb-1">Quan tri danh muc dao tao</h4>
-                            <p class="text-muted mb-2">Them, sua, xoa du lieu lop hoc, giao vien, department, phong hoc va
-                                cac danh muc lien quan.</p>
+                            <h4 class="card-title mb-1">Quản trị danh mục đào tạo</h4>
+                            <p class="text-muted mb-2">Thêm, sửa, xóa dữ liệu lớp học, giáo viên, department, phòng học và
+                                các danh mục liên quan.</p>
                         </div>
                         <div class="mt-2 mt-lg-0">
                             <span class="badge badge-info" id="resourceBadge">Department</span>
@@ -22,15 +22,15 @@
 
                     <div class="toolbar d-flex flex-column flex-md-row align-items-stretch align-items-md-center mb-3">
                         <div class="input-group mr-md-2 mb-2 mb-md-0">
-                            <input id="searchInput" type="text" class="form-control" placeholder="Tim kiem...">
+                            <input id="searchInput" type="text" class="form-control" placeholder="Tìm kiếm...">
                             <div class="input-group-append">
-                                <button id="searchBtn" class="btn btn-outline-secondary" type="button">Tim</button>
+                                <button id="searchBtn" class="btn btn-outline-secondary" type="button">Tìm</button>
                             </div>
                         </div>
-                        <button id="addBtn" class="btn btn-primary mr-md-2 mb-2 mb-md-0" type="button">Them moi</button>
+                        <button id="addBtn" class="btn btn-primary mr-md-2 mb-2 mb-md-0" type="button">Thêm mới</button>
                         <button id="importBtn" class="btn btn-success mr-md-2 mb-2 mb-md-0" type="button"
-                            style="display:none;">Nhap CSV</button>
-                        <button id="reloadBtn" class="btn btn-dark" type="button">Tai lai</button>
+                            style="display:none;">Nhập CSV</button>
+                        <button id="reloadBtn" class="btn btn-dark" type="button">Tải lại</button>
                     </div>
 
                     <div id="alertBox" class="mb-3" style="display:none;"></div>
@@ -43,7 +43,7 @@
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap">
-                        <button id="prevBtn" class="btn btn-outline-light btn-sm mb-2" type="button">Trang truoc</button>
+                        <button id="prevBtn" class="btn btn-outline-light btn-sm mb-2" type="button">Trang trước</button>
                         <div id="pageInfo" class="text-muted mb-2">Trang 1/1</div>
                         <button id="nextBtn" class="btn btn-outline-light btn-sm mb-2" type="button">Trang sau</button>
                     </div>
@@ -56,12 +56,12 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title" id="editorTitle">Them moi</h5>
+                    <h5 class="card-title" id="editorTitle">Thêm mới</h5>
                     <form id="editorForm" novalidate>
                         <div class="row" id="formFields"></div>
                         <div class="d-flex flex-wrap mt-2">
-                            <button type="submit" class="btn btn-success mr-2 mb-2">Luu</button>
-                            <button type="button" id="cancelBtn" class="btn btn-secondary mb-2">Huy</button>
+                            <button type="submit" class="btn btn-success mr-2 mb-2">Lưu</button>
+                            <button type="button" id="cancelBtn" class="btn btn-secondary mb-2">Hủy</button>
                         </div>
                     </form>
                 </div>
@@ -75,20 +75,20 @@
                 <div class="card-body">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
                         <div>
-                            <h5 class="card-title mb-1" id="importTitle">Nhap du lieu tu CSV</h5>
-                            <p class="text-muted mb-0" id="importDesc">Tai file CSV toi da 5 MB.</p>
+                            <h5 class="card-title mb-1" id="importTitle">Nhập dữ liệu từ CSV</h5>
+                            <p class="text-muted mb-0" id="importDesc">Tải file CSV tối đa 5 MB.</p>
                         </div>
-                        <a class="btn btn-outline-info btn-sm mt-2 mt-md-0" id="importTemplateLink" href="#">Tai file
-                            mau</a>
+                        <a class="btn btn-outline-info btn-sm mt-2 mt-md-0" id="importTemplateLink" href="#">Tải file
+                            mẫu</a>
                     </div>
 
                     <form id="importForm" enctype="multipart/form-data" novalidate>
                         <div class="row">
                             <div class="col-md-6" id="importClassField" style="display:none;">
                                 <div class="form-group">
-                                    <label>Lop hoc <span class="text-danger">*</span></label>
+                                    <label>Lớp học <span class="text-danger">*</span></label>
                                     <select id="importClassId" name="class_id" class="form-control">
-                                        <option value="">-- Chon lop --</option>
+                                        <option value="">-- Chọn lớp --</option>
                                     </select>
                                 </div>
                             </div>
@@ -98,14 +98,14 @@
                                     <input id="importFile" name="import_file" type="file" class="form-control"
                                         accept=".csv,.txt,text/csv,text/plain" required>
                                     <small class="form-text text-muted" id="importHint">
-                                        Cot bat buoc: code, name.
+                                        Cột bắt buộc: code, name.
                                     </small>
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex flex-wrap mt-2">
-                            <button id="submitImportBtn" type="submit" class="btn btn-success mr-2 mb-2">Nhap du lieu</button>
-                            <button id="cancelImportBtn" type="button" class="btn btn-secondary mb-2">Huy</button>
+                            <button id="submitImportBtn" type="submit" class="btn btn-success mr-2 mb-2">Nhập dữ liệu</button>
+                            <button id="cancelImportBtn" type="button" class="btn btn-secondary mb-2">Hủy</button>
                         </div>
                     </form>
                 </div>

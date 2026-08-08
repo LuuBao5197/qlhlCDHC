@@ -3,15 +3,21 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
     public function showLoginForm()
     {
-        return view('auth.login');
+        $backgroundPath = Setting::get(Setting::KEY_LOGIN_BACKGROUND_PATH);
+
+        return view('auth.login', [
+            'loginBackgroundUrl' => $backgroundPath ? Storage::disk('public')->url($backgroundPath) : null,
+        ]);
     }
 
     public function login(Request $request)

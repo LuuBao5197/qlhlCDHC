@@ -81,7 +81,7 @@
                 }
 
                 if (!response.ok) {
-                    const error = new Error(payload?.message || 'Yeu cau that bai');
+                    const error = new Error(payload?.message || 'Yêu cầu thất bại');
                     error.status = response.status;
                     error.payload = payload;
                     throw error;
@@ -240,7 +240,7 @@
                 const isEditing = !!row;
                 state.editingId = isEditing ? row.id : null;
 
-                editorTitleEl.textContent = `${isEditing ? 'Chinh sua' : 'Them moi'} - ${resource.label}`;
+                editorTitleEl.textContent = `${isEditing ? 'Chỉnh sửa' : 'Thêm mới'} - ${resource.label}`;
 
                 formFieldsEl.innerHTML = resource.fields
                     .map((field) => {
@@ -265,7 +265,7 @@
                                     <div class="form-group">
                                         <label>${escapeHtml(field.label)}${requiredBadge}</label>
                                         <select class="form-control" name="${field.key}">
-                                            <option value="">-- Chon --</option>
+                                            <option value="">-- Chọn --</option>
                                             ${options
                                                 .map((option) => {
                                                     const selected = String(option.value) === String(value) ? 'selected' : '';
@@ -322,7 +322,7 @@
                 }));
 
                 importClassIdEl.innerHTML = `
-                    <option value="">-- Chon lop --</option>
+                    <option value="">-- Chọn lớp --</option>
                     ${options.map((option) =>
                         `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`
                     ).join('')}
@@ -339,8 +339,8 @@
                 closeEditor();
                 hideAlert();
 
-                importTitleEl.textContent = importConfig.title || `Nhap du lieu tu CSV - ${resource.label}`;
-                importDescEl.textContent = importConfig.description || 'Tai file CSV toi da 5 MB.';
+                importTitleEl.textContent = importConfig.title || `Nhập dữ liệu từ CSV - ${resource.label}`;
+                importDescEl.textContent = importConfig.description || 'Tải file CSV tối đa 5 MB.';
                 importHintEl.textContent = importConfig.hint || '';
                 importTemplateLinkEl.href = importConfig.templateUrl || '#';
 
@@ -365,7 +365,7 @@
                 importFormEl.reset();
                 importSectionEl.style.display = 'none';
                 submitImportBtnEl.disabled = false;
-                submitImportBtnEl.textContent = 'Nhap du lieu';
+                submitImportBtnEl.textContent = 'Nhập dữ liệu';
             }
 
             function collectFormData() {
@@ -462,7 +462,7 @@
                     await loadLookups();
                     await loadRows();
                     closeEditor();
-                    showAlert('success', `${isEditing ? 'Cap nhat' : 'Tao moi'} thanh cong.`);
+                    showAlert('success', `${isEditing ? 'Cập nhật' : 'Tạo mới'} thành công.`);
                 } catch (error) {
                     const message = validationMessage(error);
                     if (message) {
@@ -470,7 +470,7 @@
                         return;
                     }
 
-                    showAlert('danger', escapeHtml(error.message || 'Khong the luu du lieu.'));
+                    showAlert('danger', escapeHtml(error.message || 'Không thể lưu dữ liệu.'));
                 }
             }
 
@@ -486,7 +486,7 @@
 
                 const formData = new FormData(importFormEl);
                 submitImportBtnEl.disabled = true;
-                submitImportBtnEl.textContent = 'Dang nhap...';
+                submitImportBtnEl.textContent = 'Đang nhập...';
 
                 try {
                     const payload = await request(importConfig.endpoint, {
@@ -498,20 +498,20 @@
                     await loadRows();
                     closeImport();
                     showAlert('success',
-                        `Da nhap thanh cong ${payload?.imported_count || 0} ban ghi (${resource.label}).`);
+                        `Đã nhập thành công ${payload?.imported_count || 0} bản ghi (${resource.label}).`);
                 } catch (error) {
                     const message = validationMessage(error);
-                    showAlert('danger', message || escapeHtml(error.message || 'Khong the nhap file CSV.'));
+                    showAlert('danger', message || escapeHtml(error.message || 'Không thể nhập file CSV.'));
                 } finally {
                     submitImportBtnEl.disabled = false;
-                    submitImportBtnEl.textContent = 'Nhap du lieu';
+                    submitImportBtnEl.textContent = 'Nhập dữ liệu';
                 }
             }
 
             async function editRecord(id) {
                 const row = state.rows.find((item) => String(item.id) === String(id));
                 if (!row) {
-                    showAlert('warning', 'Khong tim thay ban ghi de chinh sua.');
+                    showAlert('warning', 'Không tìm thấy bản ghi để chỉnh sửa.');
                     return;
                 }
 
@@ -520,7 +520,7 @@
 
             async function deleteRecord(id) {
                 const resource = resources[state.currentResource];
-                if (!confirm('Ban co chac chan muon xoa ban ghi nay?')) {
+                if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) {
                     return;
                 }
 
@@ -537,9 +537,9 @@
 
                     await loadRows();
                     await loadLookups();
-                    showAlert('success', 'Xoa thanh cong.');
+                    showAlert('success', 'Xóa thành công.');
                 } catch (error) {
-                    showAlert('danger', escapeHtml(error.message || 'Khong the xoa ban ghi.'));
+                    showAlert('danger', escapeHtml(error.message || 'Không thể xóa bản ghi.'));
                 }
             }
 

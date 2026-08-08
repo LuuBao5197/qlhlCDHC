@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Training\Application\Management\Shared\TrainingBatchPlanLockChecker;
 use Modules\Training\Models\Room;
 use Modules\Training\Models\TrainingBatch;
 use Modules\Training\Models\TrainingClass;
@@ -23,6 +24,7 @@ class ImportTrainingClassesHandler
         [$rows, $errors] = $this->readRows($file);
 
         $errors = array_merge($errors, $this->findExistingErrors($rows));
+        $errors = array_merge($errors, $this->findLockedBatchErrors($rows));
 
         if ($errors !== []) {
             throw ValidationException::withMessages([
@@ -310,6 +312,38 @@ class ImportTrainingClassesHandler
         $status = $row['status'] === '' ? 'active' : mb_strtolower($row['status'], 'UTF-8');
         if (!in_array($status, self::ALLOWED_STATUSES, true)) {
             $errors[] = "Dòng {$lineNumber}: status phải là active, inactive hoặc archived.";
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Every imported row creates a brand-new class, so this is always the "add a
+     * class to a batch" case: block it whenever the target batch already has a
+     * plan that is submitted for review or approved.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, string>
+     */
+    private function findLockedBatchErrors(array $rows): array
+    {
+        $checker = new TrainingBatchPlanLockChecker();
+        $lockedByBatchId = [];
+        $errors = [];
+
+        foreach ($rows as $row) {
+            $batchId = $row['training_batch_id'];
+            if ($batchId === null) {
+                continue;
+            }
+
+            if (!array_key_exists($batchId, $lockedByBatchId)) {
+                $lockedByBatchId[$batchId] = $checker->isLocked((int) $batchId);
+            }
+
+            if ($lockedByBatchId[$batchId]) {
+                $errors[] = "Dòng {$row['line_number']}: khóa đào tạo của lớp '{$row['code']}' đã có kế hoạch học kỳ đang chờ duyệt hoặc đã duyệt, không thể thêm lớp mới vào khóa này.";
+            }
         }
 
         return $errors;

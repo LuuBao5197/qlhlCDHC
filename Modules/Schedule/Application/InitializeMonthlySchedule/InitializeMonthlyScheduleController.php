@@ -24,11 +24,17 @@ class InitializeMonthlyScheduleController extends Controller
         try {
             $result = $this->handler->handle($request);
 
-            return redirect()->route('schedule.index')
+            $redirect = redirect()->route('schedule.index')
                 ->with(
                     'success',
                     "Da xu ly {$result['processed_plans']} ke hoach, tao moi {$result['created_schedules']} lich thang va {$result['created_slots']} tiet hoc."
                 );
+
+            if ($result['skipped_plans'] !== []) {
+                $redirect->with('warning', 'Cac ke hoach sau bi bo qua: '.implode(' | ', $result['skipped_plans']));
+            }
+
+            return $redirect;
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {

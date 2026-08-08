@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Modules\Schedule\Application\Shared\ScheduleSlotConflictChecker;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Schedule\Models\Plans;
@@ -55,7 +56,7 @@ class CreateScheduleSemesterHandler
             ]);
         }
 
-        $importedData = $this->parseImportFiles($request, $classMap);
+        $importedData = $this->parseImportFiles($request, $classMap, $planStart, $planEnd);
         $templateEntries = array_merge(
             $this->parseClassTabRules($validated['class_tab_rules'] ?? [], $classMap),
             $importedData['templates']
@@ -77,6 +78,23 @@ class CreateScheduleSemesterHandler
         $this->validateSemesterEventConflicts($semesterEvents);
 
         $this->validateTemplateEntries($templateEntries, $planStart, $planEnd);
+
+        $classIds = collect($classMap)->map(fn (TrainingClass $class): int => (int) $class->id)->unique()->values()->all();
+        $conflictChecker = new ScheduleSlotConflictChecker();
+
+        $coverageGaps = $conflictChecker->findMonthsWithoutCoverage($templateEntries, $semesterEvents, $classIds, $planStart, $planEnd);
+        if ($coverageGaps !== []) {
+            throw ValidationException::withMessages([
+                'class_tab_rules' => $this->formatCoverageGapMessages($coverageGaps),
+            ]);
+        }
+
+        $slotConflicts = $conflictChecker->findTemplateEventConflicts($templateEntries, $semesterEvents, $classIds);
+        if ($slotConflicts !== []) {
+            throw ValidationException::withMessages([
+                'class_semester_events' => $slotConflicts,
+            ]);
+        }
 
         $plan = DB::transaction(function () use (
             $request,
@@ -221,7 +239,7 @@ class CreateScheduleSemesterHandler
         return $rows;
     }
 
-    private function parseImportFiles(CreateScheduleSemesterRequest $request, array $classMap): array
+    private function parseImportFiles(CreateScheduleSemesterRequest $request, array $classMap, Carbon $planStart, Carbon $planEnd): array
     {
         $parsed = [
             'templates' => [],
@@ -330,6 +348,20 @@ class CreateScheduleSemesterHandler
                 if ($endDate->lt($startDate)) {
                     throw ValidationException::withMessages([
                         'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co ngay ket thuc nho hon ngay bat dau.",
+                    ]);
+                }
+
+                if ($startDate->lt($planStart) || $endDate->gt($planEnd)) {
+                    throw ValidationException::withMessages([
+                        'import_file' => sprintf(
+                            "Dong #%d cua lop '%s' co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                            $rowIndex + 2,
+                            $class->code,
+                            $startDate->toDateString(),
+                            $endDate->toDateString(),
+                            $planStart->toDateString(),
+                            $planEnd->toDateString()
+                        ),
                     ]);
                 }
 
@@ -725,7 +757,14 @@ class CreateScheduleSemesterHandler
 
             if ($startDate->lt($planStart) || $endDate->gt($planEnd)) {
                 throw ValidationException::withMessages([
-                    'class_tab_rules' => 'Moi quy tac phai nam trong khoang thoi gian hoc ky.',
+                    'class_tab_rules' => sprintf(
+                        "Quy tac cua lop '%s' co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                        $classCodes->get($entry['class_id'], (string) $entry['class_id']),
+                        $startDate->toDateString(),
+                        $endDate->toDateString(),
+                        $planStart->toDateString(),
+                        $planEnd->toDateString()
+                    ),
                 ]);
             }
 
@@ -830,7 +869,14 @@ class CreateScheduleSemesterHandler
 
             if ($start->lt($planStart) || $end->gt($planEnd)) {
                 throw ValidationException::withMessages([
-                    'global_semester_events' => 'Su kien nghi le phai nam trong khoang thoi gian hoc ky.',
+                    'global_semester_events' => sprintf(
+                        "Su kien nghi le '%s' co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                        $title,
+                        $start->toDateString(),
+                        $end->toDateString(),
+                        $planStart->toDateString(),
+                        $planEnd->toDateString()
+                    ),
                 ]);
             }
 
@@ -911,7 +957,15 @@ class CreateScheduleSemesterHandler
 
                 if ($start->lt($planStart) || $end->gt($planEnd)) {
                     throw ValidationException::withMessages([
-                        'class_semester_events' => 'Su kien cua lop phai nam trong khoang thoi gian hoc ky.',
+                        'class_semester_events' => sprintf(
+                            "Su kien '%s' cua lop '%s' co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                            $title,
+                            $classMap[(string) $classKey]->code,
+                            $start->toDateString(),
+                            $end->toDateString(),
+                            $planStart->toDateString(),
+                            $planEnd->toDateString()
+                        ),
                     ]);
                 }
 
@@ -1011,8 +1065,17 @@ class CreateScheduleSemesterHandler
             }
 
             if ($start->lt($planStart) || $end->gt($planEnd)) {
+                $classLabel = $event['class_id'] !== null ? $this->classLabelById((int) $event['class_id']) : 'toan truong';
                 throw ValidationException::withMessages([
-                    'class_semester_events' => 'Su kien import phai nam trong khoang thoi gian hoc ky.',
+                    'class_semester_events' => sprintf(
+                        "Su kien '%s' (lop %s) co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                        $event['title'] ?? ($event['event_type'] ?? 'khong ro'),
+                        $classLabel,
+                        $start->toDateString(),
+                        $end->toDateString(),
+                        $planStart->toDateString(),
+                        $planEnd->toDateString()
+                    ),
                 ]);
             }
         }
@@ -1074,6 +1137,24 @@ class CreateScheduleSemesterHandler
     private function classLabelById(int $classId): string
     {
         return TrainingClass::query()->find($classId)?->code ?? (string) $classId;
+    }
+
+    /**
+     * @param array<int, array{class_id:int, month:int, year:int}> $gaps
+     * @return array<int, string>
+     */
+    private function formatCoverageGapMessages(array $gaps): array
+    {
+        return collect($gaps)
+            ->map(fn (array $gap): string => sprintf(
+                'Lop %s thieu du lieu lich (quy tac/su kien) cho thang %d/%d.',
+                $this->classLabelById($gap['class_id']),
+                $gap['month'],
+                $gap['year']
+            ))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function dateRangesOverlap(array $first, array $second): bool

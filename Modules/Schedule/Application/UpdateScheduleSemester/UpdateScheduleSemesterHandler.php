@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Modules\Schedule\Application\Shared\ScheduleSlotConflictChecker;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Schedule\Models\Plans;
@@ -73,6 +74,33 @@ class UpdateScheduleSemesterHandler
         $this->validateSemesterEventsWithinPlan($semesterEvents, $planStart, $planEnd);
         $this->validateSemesterEventConflicts($semesterEvents);
         $this->validateTemplateEntries($templateEntries, $planStart, $planEnd);
+
+        // Coverage must be enforced across every class in the plan's training_batch,
+        // not just the classes submitted in this edit — otherwise classes left out
+        // of the payload silently lose all templates once the old ones are wiped below.
+        $batchClassIds = $plan->training_batch_id !== null
+            ? TrainingClass::query()
+                ->where('training_batch_id', $plan->training_batch_id)
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->all()
+            : collect($classMap)->map(fn (TrainingClass $class): int => (int) $class->id)->unique()->values()->all();
+
+        $conflictChecker = new ScheduleSlotConflictChecker();
+
+        $coverageGaps = $conflictChecker->findMonthsWithoutCoverage($templateEntries, $semesterEvents, $batchClassIds, $planStart, $planEnd);
+        if ($coverageGaps !== []) {
+            throw ValidationException::withMessages([
+                'class_tab_rules' => $this->formatCoverageGapMessages($coverageGaps),
+            ]);
+        }
+
+        $slotConflicts = $conflictChecker->findTemplateEventConflicts($templateEntries, $semesterEvents, $batchClassIds);
+        if ($slotConflicts !== []) {
+            throw ValidationException::withMessages([
+                'class_semester_events' => $slotConflicts,
+            ]);
+        }
 
         $updatedPlan = DB::transaction(function () use (
             $request,
@@ -1040,6 +1068,24 @@ class UpdateScheduleSemesterHandler
     private function classLabelById(int $classId): string
     {
         return TrainingClass::query()->find($classId)?->code ?? (string) $classId;
+    }
+
+    /**
+     * @param array<int, array{class_id:int, month:int, year:int}> $gaps
+     * @return array<int, string>
+     */
+    private function formatCoverageGapMessages(array $gaps): array
+    {
+        return collect($gaps)
+            ->map(fn (array $gap): string => sprintf(
+                'Lop %s thieu du lieu lich (quy tac/su kien) cho thang %d/%d.',
+                $this->classLabelById($gap['class_id']),
+                $gap['month'],
+                $gap['year']
+            ))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function dateRangesOverlap(array $first, array $second): bool

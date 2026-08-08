@@ -70,7 +70,7 @@ class InitializeMonthlyScheduleHandler
                 ];
             }
 
-            if ($planErrors !== []) {
+            if ($preparedPlans === []) {
                 throw ValidationException::withMessages(['month' => $planErrors]);
             }
 
@@ -110,6 +110,7 @@ class InitializeMonthlyScheduleHandler
                 'created_schedules' => $createdCount,
                 'created_slots' => $slotCount,
                 'monthly_schedule_ids' => $monthlyScheduleIds,
+                'skipped_plans' => $planErrors,
             ];
         });
     }

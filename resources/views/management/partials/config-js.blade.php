@@ -5,9 +5,9 @@
                     import: {
                         endpoint: '{{ url('/management/training-programs/import') }}',
                         templateUrl: '{{ route('management.training-programs.import-template') }}',
-                        title: 'Nhap danh sach chuong trinh dao tao tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: code, name. Cot tuy chon: status (active/inactive/archived, mac dinh active).',
+                        title: 'Nhập danh sách chương trình đào tạo từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: code, name. Cột tùy chọn: status (active/inactive/archived, mặc định active).',
                         needsClass: false,
                     },
                     columns: [{
@@ -62,9 +62,9 @@
                     import: {
                         endpoint: '{{ url('/management/training-batches/import') }}',
                         templateUrl: '{{ route('management.training-batches.import-template') }}',
-                        title: 'Nhap danh sach khoa hoc tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: training_program_code, code, name. Cot tuy chon: status (active/inactive/archived, mac dinh active).',
+                        title: 'Nhập danh sách khóa học từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: training_program_code, code, name. Cột tùy chọn: status (active/inactive/archived, mặc định active).',
                         needsClass: false,
                     },
                     columns: [{
@@ -130,49 +130,49 @@
                     import: {
                         endpoint: '{{ url('/management/departments/import') }}',
                         templateUrl: '{{ route('management.departments.import-template') }}',
-                        title: 'Nhap danh sach khoa/bo mon tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: code, name. Cot tuy chon: description, status (active/inactive, mac dinh active).',
+                        title: 'Nhập danh sách khoa/bộ môn từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: code, name. Cột tùy chọn: description, status (active/inactive, mặc định active).',
                         needsClass: false,
                     },
                     columns: [{
                             key: 'code',
-                            label: 'Ma'
+                            label: 'Mã'
                         },
                         {
                             key: 'name',
-                            label: 'Ten'
+                            label: 'Tên'
                         },
                         {
                             key: 'description',
-                            label: 'Mo ta',
+                            label: 'Mô tả',
                             wrap: true
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai'
+                            label: 'Trạng thái'
                         }
                     ],
                     fields: [{
                             key: 'code',
-                            label: 'Ma department',
+                            label: 'Mã department',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'name',
-                            label: 'Ten department',
+                            label: 'Tên department',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'description',
-                            label: 'Mo ta',
+                            label: 'Mô tả',
                             type: 'textarea'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai',
+                            label: 'Trạng thái',
                             type: 'select',
                             required: true,
                             options: [{
@@ -193,9 +193,9 @@
                     import: {
                         endpoint: '{{ url('/management/training-classes/import') }}',
                         templateUrl: '{{ route('management.training-classes.import-template') }}',
-                        title: 'Nhap danh sach lop hoc tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: code, name, training_batch_code, total_students. Cot tuy chon: course_year, default_room_code, status (active/inactive/archived, mac dinh active).',
+                        title: 'Nhập danh sách lớp học từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: code, name, training_batch_code, total_students. Cột tùy chọn: course_year, default_room_code, status (active/inactive/archived, mặc định active).',
                         needsClass: false,
                     },
                     columns: [{
@@ -286,18 +286,18 @@
                     import: {
                         endpoint: '{{ url('/management/teachers/import') }}',
                         templateUrl: '{{ route('management.teachers.import-template') }}',
-                        title: 'Nhap danh sach giao vien tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 500 dong.',
-                        hint: 'Cot bat buoc: teacher_code, name, email, department_code. Cot tuy chon: status (active/inactive, mac dinh active). Moi dong se tao 1 tai khoan giao vien va gui email moi kich hoat.',
+                        title: 'Nhập danh sách giáo viên từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 500 dòng.',
+                        hint: 'Cột bắt buộc: teacher_code, name, email, department_code. Cột tùy chọn: status (active/inactive, mặc định active). Mỗi dòng sẽ tạo 1 tài khoản giáo viên và gửi email mời kích hoạt.',
                         needsClass: false,
                     },
                     columns: [{
                             key: 'teacher_code',
-                            label: 'Ma GV'
+                            label: 'Mã GV'
                         },
                         {
                             key: 'name',
-                            label: 'Ten giao vien'
+                            label: 'Tên giáo viên'
                         },
                         {
                             key: 'department.name',
@@ -305,24 +305,24 @@
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai'
+                            label: 'Trạng thái'
                         }
                     ],
                     fields: [{
                             key: 'teacher_code',
-                            label: 'Ma giao vien',
+                            label: 'Mã giáo viên',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'name',
-                            label: 'Ten giao vien',
+                            label: 'Tên giáo viên',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'email',
-                            label: 'Email (dung de gui thu kich hoat tai khoan, chi nhap khi tao moi)',
+                            label: 'Email (dùng để gửi thư kích hoạt tài khoản, chỉ nhập khi tạo mới)',
                             type: 'email',
                             required: true
                         },
@@ -335,7 +335,7 @@
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai',
+                            label: 'Trạng thái',
                             type: 'select',
                             required: true,
                             options: [{
@@ -351,62 +351,62 @@
                     ]
                 },
                 rooms: {
-                    label: 'Phong hoc',
+                    label: 'Phòng học',
                     endpoint: '{{ url('/management/rooms') }}',
                     import: {
                         endpoint: '{{ url('/management/rooms/import') }}',
                         templateUrl: '{{ route('management.rooms.import-template') }}',
-                        title: 'Nhap danh sach phong hoc tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: code, name. Cot tuy chon: capacity, room_type, status (active/inactive/maintenance, mac dinh active).',
+                        title: 'Nhập danh sách phòng học từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: code, name. Cột tùy chọn: capacity, room_type, status (active/inactive/maintenance, mặc định active).',
                         needsClass: false,
                     },
                     columns: [{
                             key: 'code',
-                            label: 'Ma phong'
+                            label: 'Mã phòng'
                         },
                         {
                             key: 'name',
-                            label: 'Ten phong'
+                            label: 'Tên phòng'
                         },
                         {
                             key: 'capacity',
-                            label: 'Suc chua'
+                            label: 'Sức chứa'
                         },
                         {
                             key: 'room_type',
-                            label: 'Loai phong'
+                            label: 'Loại phòng'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai'
+                            label: 'Trạng thái'
                         }
                     ],
                     fields: [{
                             key: 'code',
-                            label: 'Ma phong',
+                            label: 'Mã phòng',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'name',
-                            label: 'Ten phong',
+                            label: 'Tên phòng',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'capacity',
-                            label: 'Suc chua',
+                            label: 'Sức chứa',
                             type: 'number'
                         },
                         {
                             key: 'room_type',
-                            label: 'Loai phong',
+                            label: 'Loại phòng',
                             type: 'text'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai',
+                            label: 'Trạng thái',
                             type: 'select',
                             required: true,
                             options: [{
@@ -426,23 +426,23 @@
                     ]
                 },
                 subjects: {
-                    label: 'Mon hoc',
+                    label: 'Môn học',
                     endpoint: '{{ url('/management/subjects') }}',
                     import: {
                         endpoint: '{{ url('/management/subjects/import') }}',
                         templateUrl: '{{ route('management.subjects.import-template') }}',
-                        title: 'Nhap danh sach mon hoc tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: code, name, department_code. Cot tuy chon: total_periods, status (active/inactive, mac dinh active).',
+                        title: 'Nhập danh sách môn học từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: code, name, department_code. Cột tùy chọn: total_periods, status (active/inactive, mặc định active).',
                         needsClass: false,
                     },
                     columns: [{
                             key: 'code',
-                            label: 'Ma mon'
+                            label: 'Mã môn'
                         },
                         {
                             key: 'name',
-                            label: 'Ten mon'
+                            label: 'Tên môn'
                         },
                         {
                             key: 'department.name',
@@ -450,11 +450,11 @@
                         },
                         {
                             key: 'total_periods',
-                            label: 'Tong tiet'
+                            label: 'Tổng tiết'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai'
+                            label: 'Trạng thái'
                         }
                     ],
                     fields: [{
@@ -466,24 +466,24 @@
                         },
                         {
                             key: 'code',
-                            label: 'Ma mon',
+                            label: 'Mã môn',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'name',
-                            label: 'Ten mon',
+                            label: 'Tên môn',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'total_periods',
-                            label: 'Tong tiet',
+                            label: 'Tổng tiết',
                             type: 'number'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai',
+                            label: 'Trạng thái',
                             type: 'select',
                             required: true,
                             options: [{
@@ -499,133 +499,133 @@
                     ]
                 },
                 subjectLessons: {
-                    label: 'Bai hoc',
+                    label: 'Bài học',
                     endpoint: '{{ url('/management/subject-lessons') }}',
                     import: {
                         endpoint: '{{ url('/management/subject-lessons/import') }}',
                         templateUrl: '{{ route('management.subject-lessons.import-template') }}',
-                        title: 'Nhap danh sach bai hoc tu CSV',
-                        description: 'Tai file CSV toi da 5 MB va 1.000 dong.',
-                        hint: 'Cot bat buoc: subject_code, code (so thu tu bai hoc), name (tieu de). Cot tuy chon: expected_periods, note.',
+                        title: 'Nhập danh sách bài học từ CSV',
+                        description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
+                        hint: 'Cột bắt buộc: subject_code, code (số thứ tự bài học), name (tiêu đề). Cột tùy chọn: expected_periods, note.',
                         needsClass: false,
                     },
                     columns: [{
                             key: 'subject.code',
-                            label: 'Ma mon'
+                            label: 'Mã môn'
                         },
                         {
                             key: 'lesson_no',
-                            label: 'So bai'
+                            label: 'Số bài'
                         },
                         {
                             key: 'title',
-                            label: 'Tieu de',
+                            label: 'Tiêu đề',
                             wrap: true
                         },
                         {
                             key: 'is_regular_test',
-                            label: 'Kiem tra thuong xuyen'
+                            label: 'Kiểm tra thường xuyên'
                         },
                         {
                             key: 'expected_periods',
-                            label: 'Tiet du kien'
+                            label: 'Tiết dự kiến'
                         }
                     ],
                     fields: [{
                             key: 'subject_id',
-                            label: 'Mon hoc',
+                            label: 'Môn học',
                             type: 'select',
                             lookup: 'subjects',
                             required: true
                         },
                         {
                             key: 'lesson_no',
-                            label: 'So bai',
+                            label: 'Số bài',
                             type: 'number',
                             required: true
                         },
                         {
                             key: 'title',
-                            label: 'Tieu de',
+                            label: 'Tiêu đề',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'is_regular_test',
-                            label: 'La bai kiem tra thuong xuyen',
+                            label: 'Là bài kiểm tra thường xuyên',
                             type: 'checkbox'
                         },
                         {
                             key: 'expected_periods',
-                            label: 'Tiet du kien',
+                            label: 'Tiết dự kiến',
                             type: 'number'
                         },
                         {
                             key: 'note',
-                            label: 'Ghi chu',
+                            label: 'Ghi chú',
                             type: 'textarea'
                         }
                     ]
                 },
                 students: {
-                    label: 'Hoc vien',
+                    label: 'Học viên',
                     endpoint: '{{ url('/management/students') }}',
                     import: {
                         endpoint: '{{ url('/management/students/import') }}',
                         templateUrl: '{{ route('management.students.import-template') }}',
-                        title: 'Nhap danh sach hoc vien tu CSV',
-                        description: 'Chon lop, sau do tai file CSV toi da 5 MB va 5.000 dong.',
-                        hint: 'Cot bat buoc: student_code, name. Cot tuy chon: date_of_birth, status.',
+                        title: 'Nhập danh sách học viên từ CSV',
+                        description: 'Chọn lớp, sau đó tải file CSV tối đa 5 MB và 5.000 dòng.',
+                        hint: 'Cột bắt buộc: student_code, name. Cột tùy chọn: date_of_birth, status.',
                         needsClass: true,
                     },
                     columns: [{
                             key: 'student_code',
-                            label: 'Ma hoc vien'
+                            label: 'Mã học viên'
                         },
                         {
                             key: 'name',
-                            label: 'Ten hoc vien'
+                            label: 'Tên học viên'
                         },
                         {
                             key: 'training_class.code',
-                            label: 'Lop'
+                            label: 'Lớp'
                         },
                         {
                             key: 'date_of_birth',
-                            label: 'Ngay sinh'
+                            label: 'Ngày sinh'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai'
+                            label: 'Trạng thái'
                         }
                     ],
                     fields: [{
                             key: 'class_id',
-                            label: 'Lop hoc',
+                            label: 'Lớp học',
                             type: 'select',
                             lookup: 'trainingClasses',
                             required: true
                         },
                         {
                             key: 'student_code',
-                            label: 'Ma hoc vien',
+                            label: 'Mã học viên',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'name',
-                            label: 'Ten hoc vien',
+                            label: 'Tên học viên',
                             type: 'text',
                             required: true
                         },
                         {
                             key: 'date_of_birth',
-                            label: 'Ngay sinh',
+                            label: 'Ngày sinh',
                             type: 'date'
                         },
                         {
                             key: 'status',
-                            label: 'Trang thai',
+                            label: 'Trạng thái',
                             type: 'select',
                             required: true,
                             options: [{

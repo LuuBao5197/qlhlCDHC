@@ -79,4 +79,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/users/{user}/lock', [App\Http\Controllers\Admin\AdminController::class, 'lock'])->name('users.lock');
     Route::post('/users/{user}/unlock', [App\Http\Controllers\Admin\AdminController::class, 'unlock'])->name('users.unlock');
     Route::post('/users/{user}/position', [App\Http\Controllers\Admin\AdminController::class, 'updatePosition'])->name('users.update-position');
+    Route::post('/settings/login-background', [App\Http\Controllers\Admin\AdminController::class, 'updateLoginBackground'])->name('settings.login-background.update');
+    Route::post('/settings/login-background/reset', [App\Http\Controllers\Admin\AdminController::class, 'resetLoginBackground'])->name('settings.login-background.reset');
 });
