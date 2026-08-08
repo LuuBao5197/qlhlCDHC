@@ -14,7 +14,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ManagementController;
 
 Route::get('/', function () {
-    return view('index.index');
+    return redirect()->route('login');
 });
 
 // Auth routes
