@@ -23,6 +23,14 @@ abstract class CrudHandler
         return [];
     }
 
+    /**
+     * Columns that may be filtered via exact-match query params, e.g. ?status=active.
+     */
+    protected function filterableColumns(): array
+    {
+        return [];
+    }
+
     protected function indexOrderBy(): string
     {
         return 'id';
@@ -40,6 +48,12 @@ abstract class CrudHandler
                     $builder->{$method}($column, 'like', '%' . $term . '%');
                 }
             });
+        }
+
+        foreach ($this->filterableColumns() as $column) {
+            if ($request->filled($column)) {
+                $query->where($column, $request->input($column));
+            }
         }
 
         $perPage = min(max((int) $request->input('per_page', 15), 1), 100);

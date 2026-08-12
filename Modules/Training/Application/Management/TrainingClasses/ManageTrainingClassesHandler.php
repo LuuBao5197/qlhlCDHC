@@ -25,6 +25,11 @@ class ManageTrainingClassesHandler extends CrudHandler
         return ['code', 'name', 'status'];
     }
 
+    protected function filterableColumns(): array
+    {
+        return ['status', 'training_batch_id'];
+    }
+
     protected function rules(Request $request, ?int $id = null): array
     {
         return [

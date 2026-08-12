@@ -33,6 +33,8 @@
                         <button id="reloadBtn" class="btn btn-dark" type="button">Tải lại</button>
                     </div>
 
+                    <div id="filterBar" class="filter-bar d-flex flex-wrap align-items-center mb-3"></div>
+
                     <div id="alertBox" class="mb-3" style="display:none;"></div>
 
                     <div class="table-responsive">
@@ -43,9 +45,10 @@
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap">
-                        <button id="prevBtn" class="btn btn-outline-light btn-sm mb-2" type="button">Trang trước</button>
-                        <div id="pageInfo" class="text-muted mb-2">Trang 1/1</div>
-                        <button id="nextBtn" class="btn btn-outline-light btn-sm mb-2" type="button">Trang sau</button>
+                        <div id="pageSummary" class="text-muted mb-2">Tổng 0 bản ghi</div>
+                        <nav class="mb-2">
+                            <ul class="pagination pagination-sm mb-0" id="pageNumbers"></ul>
+                        </nav>
                     </div>
                 </div>
             </div>
@@ -121,13 +124,17 @@
         }
 
         .resource-tab {
-            border: 1px solid #3f4551;
-            color: #c3cad9;
-            background: #1e2230;
+            border: 1px solid #e2e8f0;
+            color: #4a5568;
+            background: #f8f9fa;
             border-radius: 999px;
             padding: 6px 12px;
             font-size: 13px;
             cursor: pointer;
+        }
+
+        .resource-tab:hover {
+            background: #eef1f4;
         }
 
         .resource-tab.active {
@@ -141,15 +148,111 @@
             width: 100%;
         }
 
+        .filter-bar {
+            gap: 8px;
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--qlhl-radius, 0.5rem);
+            padding: 10px 12px;
+        }
+
+        .filter-bar:empty {
+            display: none;
+            padding: 0;
+            border: none;
+        }
+
+        .filter-bar .filter-field {
+            min-width: 180px;
+        }
+
+        .filter-bar .filter-field label {
+            font-size: 12px;
+            color: #8b93a7;
+            margin-bottom: 2px;
+        }
+
+        .filter-bar .filter-clear {
+            align-self: flex-end;
+        }
+
+        /* Data table: light surface, dark text, soft zebra striping — matches the
+           military-green navbar instead of the old dark/navy table styling. */
+        .table-responsive {
+            background: #ffffff;
+            border: 1px solid var(--qlhl-border, #D9E0D3);
+            border-radius: var(--qlhl-radius, 0.5rem);
+            overflow: hidden;
+        }
+
+        .table {
+            background: #ffffff;
+            color: #212529;
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background: #F4F6F3;
+            color: #2F3B2C;
+            font-weight: 600;
+            border-bottom: 2px solid var(--qlhl-border, #D9E0D3);
+        }
+
         .table td,
-        .table th {
+        .table th,
+        .table-responsive .table tbody td {
+            color: #2d3748;
+            border-color: #E7ECE4;
             vertical-align: middle;
             white-space: nowrap;
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #FAFBF9;
+        }
+
+        .table-striped tbody tr:hover {
+            background-color: #F1F5EF;
         }
 
         .table td.wrap {
             white-space: normal;
             min-width: 180px;
+        }
+
+        /* Action buttons keep their colors; just soften the border for the light bg */
+        .table td [data-action="edit"] {
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        .table td [data-action="delete"] {
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        /* Filter selects sit right above the table — keep them light for consistency */
+        .filter-bar select,
+        .filter-bar input {
+            background: #ffffff;
+            color: #212529;
+            border: 1px solid var(--qlhl-border, #D9E0D3);
+        }
+
+        /* Pagination */
+        .pagination .page-link {
+            background: #ffffff;
+            color: var(--qlhl-primary-dark, #4B5E43);
+            border-color: var(--qlhl-border, #D9E0D3);
+        }
+
+        .pagination .page-item.active .page-link {
+            background: var(--qlhl-primary, #5A7255);
+            border-color: var(--qlhl-primary, #5A7255);
+            color: #ffffff;
+        }
+
+        .pagination .page-item.disabled .page-link {
+            background: #F4F6F3;
+            color: #B7C2B2;
         }
 
         @media (max-width: 767px) {

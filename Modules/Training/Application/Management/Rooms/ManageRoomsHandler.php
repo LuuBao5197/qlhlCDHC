@@ -19,6 +19,11 @@ class ManageRoomsHandler extends CrudHandler
         return ['code', 'name', 'room_type', 'status'];
     }
 
+    protected function filterableColumns(): array
+    {
+        return ['status', 'room_type'];
+    }
+
     protected function rules(Request $request, ?int $id = null): array
     {
         return [

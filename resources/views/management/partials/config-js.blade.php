@@ -23,6 +23,23 @@
                             label: 'Trạng thái'
                         }
                     ],
+                    filters: [{
+                        key: 'status',
+                        label: 'Trạng thái',
+                        options: [{
+                                value: 'active',
+                                label: 'active'
+                            },
+                            {
+                                value: 'inactive',
+                                label: 'inactive'
+                            },
+                            {
+                                value: 'archived',
+                                label: 'archived'
+                            }
+                        ]
+                    }],
                     fields: [{
                             key: 'code',
                             label: 'Mã chương trình đào tạo',
@@ -84,6 +101,29 @@
                             label: 'Trạng thái'
                         }
                     ],
+                    filters: [{
+                            key: 'training_program_id',
+                            label: 'Chương trình đào tạo',
+                            lookup: 'trainingPrograms'
+                        },
+                        {
+                            key: 'status',
+                            label: 'Trạng thái',
+                            options: [{
+                                    value: 'active',
+                                    label: 'active'
+                                },
+                                {
+                                    value: 'inactive',
+                                    label: 'inactive'
+                                },
+                                {
+                                    value: 'archived',
+                                    label: 'archived'
+                                }
+                            ]
+                        }
+                    ],
                     fields: [{
                             key: 'training_program_id',
                             label: 'Chương trình đào tạo',
@@ -125,7 +165,7 @@
                     ]
                 },
                 departments: {
-                    label: 'Department',
+                    label: 'Khoa',
                     endpoint: '{{ url('/management/departments') }}',
                     import: {
                         endpoint: '{{ url('/management/departments/import') }}',
@@ -153,6 +193,19 @@
                             label: 'Trạng thái'
                         }
                     ],
+                    filters: [{
+                        key: 'status',
+                        label: 'Trạng thái',
+                        options: [{
+                                value: 'active',
+                                label: 'active'
+                            },
+                            {
+                                value: 'inactive',
+                                label: 'inactive'
+                            }
+                        ]
+                    }],
                     fields: [{
                             key: 'code',
                             label: 'Mã department',
@@ -221,6 +274,29 @@
                         {
                             key: 'status',
                             label: 'Trạng thái'
+                        }
+                    ],
+                    filters: [{
+                            key: 'training_batch_id',
+                            label: 'Khóa học',
+                            lookup: 'trainingBatches'
+                        },
+                        {
+                            key: 'status',
+                            label: 'Trạng thái',
+                            options: [{
+                                    value: 'active',
+                                    label: 'active'
+                                },
+                                {
+                                    value: 'inactive',
+                                    label: 'inactive'
+                                },
+                                {
+                                    value: 'archived',
+                                    label: 'archived'
+                                }
+                            ]
                         }
                     ],
                     fields: [{
@@ -308,6 +384,25 @@
                             label: 'Trạng thái'
                         }
                     ],
+                    filters: [{
+                            key: 'department_id',
+                            label: 'Department',
+                            lookup: 'departments'
+                        },
+                        {
+                            key: 'status',
+                            label: 'Trạng thái',
+                            options: [{
+                                    value: 'active',
+                                    label: 'active'
+                                },
+                                {
+                                    value: 'inactive',
+                                    label: 'inactive'
+                                }
+                            ]
+                        }
+                    ],
                     fields: [{
                             key: 'teacher_code',
                             label: 'Mã giáo viên',
@@ -382,6 +477,23 @@
                             label: 'Trạng thái'
                         }
                     ],
+                    filters: [{
+                        key: 'status',
+                        label: 'Trạng thái',
+                        options: [{
+                                value: 'active',
+                                label: 'active'
+                            },
+                            {
+                                value: 'inactive',
+                                label: 'inactive'
+                            },
+                            {
+                                value: 'maintenance',
+                                label: 'maintenance'
+                            }
+                        ]
+                    }],
                     fields: [{
                             key: 'code',
                             label: 'Mã phòng',
@@ -455,6 +567,25 @@
                         {
                             key: 'status',
                             label: 'Trạng thái'
+                        }
+                    ],
+                    filters: [{
+                            key: 'department_id',
+                            label: 'Department',
+                            lookup: 'departments'
+                        },
+                        {
+                            key: 'status',
+                            label: 'Trạng thái',
+                            options: [{
+                                    value: 'active',
+                                    label: 'active'
+                                },
+                                {
+                                    value: 'inactive',
+                                    label: 'inactive'
+                                }
+                            ]
                         }
                     ],
                     fields: [{
@@ -531,6 +662,25 @@
                             label: 'Tiết dự kiến'
                         }
                     ],
+                    filters: [{
+                            key: 'subject_id',
+                            label: 'Môn học',
+                            lookup: 'subjects'
+                        },
+                        {
+                            key: 'is_regular_test',
+                            label: 'Kiểm tra thường xuyên',
+                            options: [{
+                                    value: '1',
+                                    label: 'Có'
+                                },
+                                {
+                                    value: '0',
+                                    label: 'Không'
+                                }
+                            ]
+                        }
+                    ],
                     fields: [{
                             key: 'subject_id',
                             label: 'Môn học',
@@ -592,11 +742,35 @@
                         },
                         {
                             key: 'date_of_birth',
-                            label: 'Ngày sinh'
+                            label: 'Ngày sinh',
+                            type: 'date'
                         },
                         {
                             key: 'status',
                             label: 'Trạng thái'
+                        }
+                    ],
+                    filters: [{
+                            key: 'class_id',
+                            label: 'Lớp học',
+                            lookup: 'trainingClasses'
+                        },
+                        {
+                            key: 'status',
+                            label: 'Trạng thái',
+                            options: [{
+                                    value: 'active',
+                                    label: 'active'
+                                },
+                                {
+                                    value: 'suspended',
+                                    label: 'suspended'
+                                },
+                                {
+                                    value: 'graduated',
+                                    label: 'graduated'
+                                }
+                            ]
                         }
                     ],
                     fields: [{
@@ -663,6 +837,7 @@
                 perPage: 10,
                 total: 0,
                 q: '',
+                filters: {},
                 editingId: null,
                 lookups: {
                     departments: [],

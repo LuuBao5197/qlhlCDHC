@@ -23,6 +23,11 @@ class ManageSubjectLessonsHandler extends CrudHandler
         return ['title'];
     }
 
+    protected function filterableColumns(): array
+    {
+        return ['subject_id', 'is_regular_test'];
+    }
+
     protected function rules(Request $request, ?int $id = null): array
     {
         return [

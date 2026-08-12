@@ -33,6 +33,11 @@ class ManageTeachersHandler extends CrudHandler
         return ['teacher_code', 'name', 'status'];
     }
 
+    protected function filterableColumns(): array
+    {
+        return ['status', 'department_id'];
+    }
+
     protected function rules(Request $request, ?int $id = null): array
     {
         $rules = [

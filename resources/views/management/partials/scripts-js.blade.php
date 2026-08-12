@@ -3,14 +3,14 @@
             const resourceBadgeEl = document.getElementById('resourceBadge');
             const tableHeadEl = document.getElementById('tableHead');
             const tableBodyEl = document.getElementById('tableBody');
-            const pageInfoEl = document.getElementById('pageInfo');
+            const pageSummaryEl = document.getElementById('pageSummary');
+            const pageNumbersEl = document.getElementById('pageNumbers');
+            const filterBarEl = document.getElementById('filterBar');
             const alertBoxEl = document.getElementById('alertBox');
             const editorSectionEl = document.getElementById('editorSection');
             const editorTitleEl = document.getElementById('editorTitle');
             const formFieldsEl = document.getElementById('formFields');
             const searchInputEl = document.getElementById('searchInput');
-            const prevBtnEl = document.getElementById('prevBtn');
-            const nextBtnEl = document.getElementById('nextBtn');
             const importBtnEl = document.getElementById('importBtn');
             const importSectionEl = document.getElementById('importSection');
             const importFormEl = document.getElementById('importForm');
@@ -116,6 +116,37 @@
                 importBtnEl.style.display = resource.import ? '' : 'none';
             }
 
+            function renderFilters() {
+                const resource = resources[state.currentResource];
+                const filters = resource.filters || [];
+
+                if (filters.length === 0) {
+                    filterBarEl.innerHTML = '';
+                    filterBarEl.style.display = 'none';
+                    return;
+                }
+
+                filterBarEl.style.display = '';
+                filterBarEl.innerHTML = filters.map((filter) => {
+                    const options = selectOptionsFor(filter);
+                    const currentValue = state.filters[filter.key] ?? '';
+                    return `
+                        <div class="filter-field">
+                            <label class="d-block">${escapeHtml(filter.label)}</label>
+                            <select class="form-control form-control-sm" data-filter-key="${escapeHtml(filter.key)}">
+                                <option value="">-- Tất cả --</option>
+                                ${options.map((option) => {
+                                    const selected = String(option.value) === String(currentValue) ? 'selected' : '';
+                                    return `<option value="${escapeHtml(option.value)}" ${selected}>${escapeHtml(option.label)}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>
+                    `;
+                }).join('') + `
+                    <button type="button" id="filterClearBtn" class="btn btn-outline-secondary btn-sm filter-clear">Bỏ lọc</button>
+                `;
+            }
+
             function renderTable() {
                 const resource = resources[state.currentResource];
                 resourceBadgeEl.textContent = resource.label;
@@ -152,6 +183,9 @@
                     resource.columns.forEach((column) => {
                         const td = document.createElement('td');
                         let value = getValue(row, column.key);
+                        if (column.type === 'date' && value) {
+                            value = formatDate(value);
+                        }
                         td.textContent = (value === null || value === undefined || value === '') ?
                             '-' : value;
                         if (column.wrap) td.classList.add('wrap');
@@ -174,10 +208,53 @@
                 tableBodyEl.appendChild(fragment);
             }
 
+            function buildPageItem(label, page, options = {}) {
+                const { active = false, disabled = false, isEllipsis = false } = options;
+                const classes = ['page-item'];
+                if (active) classes.push('active');
+                if (disabled) classes.push('disabled');
+
+                if (isEllipsis) {
+                    return `<li class="${classes.join(' ')}"><span class="page-link">${label}</span></li>`;
+                }
+
+                return `<li class="${classes.join(' ')}"><a href="#" class="page-link" data-page="${page}">${label}</a></li>`;
+            }
+
+            function pageNumberSequence(current, last) {
+                const pages = new Set([1, last, current, current - 1, current + 1]);
+                return Array.from(pages)
+                    .filter((page) => page >= 1 && page <= last)
+                    .sort((a, b) => a - b);
+            }
+
             function updatePagination() {
-                pageInfoEl.textContent = `Trang ${state.page}/${state.lastPage} - Tong ${state.total} ban ghi`;
-                prevBtnEl.disabled = state.page <= 1;
-                nextBtnEl.disabled = state.page >= state.lastPage;
+                pageSummaryEl.textContent = `Trang ${state.page}/${state.lastPage} - Tổng ${state.total} bản ghi`;
+
+                const items = [];
+                items.push(buildPageItem('&laquo;', state.page - 1, {
+                    disabled: state.page <= 1
+                }));
+
+                const sequence = pageNumberSequence(state.page, state.lastPage);
+                let previousPage = 0;
+                for (const page of sequence) {
+                    if (previousPage && page - previousPage > 1) {
+                        items.push(buildPageItem('...', null, {
+                            isEllipsis: true
+                        }));
+                    }
+                    items.push(buildPageItem(String(page), page, {
+                        active: page === state.page
+                    }));
+                    previousPage = page;
+                }
+
+                items.push(buildPageItem('&raquo;', state.page + 1, {
+                    disabled: state.page >= state.lastPage
+                }));
+
+                pageNumbersEl.innerHTML = items.join('');
             }
 
             function renderLoading() {
@@ -225,6 +302,13 @@
                     label: (lookupLabels[field.lookup] ? lookupLabels[field.lookup](item) : item
                         .name) || item.id,
                 }));
+            }
+
+            function formatDate(value) {
+                const isoDatePart = String(value).substring(0, 10);
+                const [year, month, day] = isoDatePart.split('-');
+                if (!year || !month || !day) return value;
+                return `${day}/${month}/${year}`;
             }
 
             function fieldValue(row, field) {
@@ -408,6 +492,7 @@
                     page: state.page,
                     per_page: state.perPage,
                     q: state.q,
+                    ...state.filters,
                 }));
 
                 state.rows = payload?.data || [];
@@ -424,11 +509,13 @@
                 state.currentResource = resourceKey;
                 state.page = 1;
                 state.q = '';
+                state.filters = {};
                 searchInputEl.value = '';
                 closeEditor();
                 closeImport();
                 renderTabs();
                 updateResourceActions();
+                renderFilters();
                 await loadRows();
             }
 
@@ -608,19 +695,48 @@
                 await loadRows();
             });
 
-            prevBtnEl.addEventListener('click', async function() {
-                if (state.page <= 1) {
+            pageNumbersEl.addEventListener('click', async function(event) {
+                const link = event.target.closest('[data-page]');
+                if (!link || link.closest('.disabled')) {
                     return;
                 }
-                state.page -= 1;
+
+                event.preventDefault();
+                const page = Number(link.dataset.page);
+                if (!page || page === state.page || page < 1 || page > state.lastPage) {
+                    return;
+                }
+
+                state.page = page;
                 await loadRows();
             });
 
-            nextBtnEl.addEventListener('click', async function() {
-                if (state.page >= state.lastPage) {
+            filterBarEl.addEventListener('change', async function(event) {
+                const select = event.target.closest('[data-filter-key]');
+                if (!select) {
                     return;
                 }
-                state.page += 1;
+
+                const key = select.dataset.filterKey;
+                if (select.value === '') {
+                    delete state.filters[key];
+                } else {
+                    state.filters[key] = select.value;
+                }
+
+                state.page = 1;
+                await loadRows();
+            });
+
+            filterBarEl.addEventListener('click', async function(event) {
+                const button = event.target.closest('#filterClearBtn');
+                if (!button) {
+                    return;
+                }
+
+                state.filters = {};
+                state.page = 1;
+                renderFilters();
                 await loadRows();
             });
 
@@ -631,5 +747,6 @@
                 renderTabs();
                 updateResourceActions();
                 await loadLookups();
+                renderFilters();
                 await loadRows();
             })();

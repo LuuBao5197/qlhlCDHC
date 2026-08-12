@@ -24,6 +24,11 @@ class ManageStudentsHandler extends CrudHandler
         return ['student_code', 'name', 'status'];
     }
 
+    protected function filterableColumns(): array
+    {
+        return ['status', 'class_id'];
+    }
+
     protected function rules(Request $request, ?int $id = null): array
     {
         return [
