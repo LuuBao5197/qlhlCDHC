@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\InitializeMonthlySchedule;
 
+use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +24,7 @@ class InitializeMonthlyScheduleHandler
 
         return DB::transaction(function () use ($targetMonth, $targetYear, $targetMonthStart, $targetMonthEnd, $request) {
             $plans = Plans::query()
-                ->whereIn('status', ['draft', 'submitted', 'approved'])
+                ->where('status', 'approved')
                 ->whereNotNull('effective_from')
                 ->whereNotNull('effective_to')
                 ->whereDate('effective_from', '<=', $targetMonthEnd->toDateString())
@@ -102,6 +103,8 @@ class InitializeMonthlyScheduleHandler
                 $monthlyScheduleIds[] = $monthlySchedule->id;
 
                 $slotCount += $this->upsertScheduleSlots($monthlySchedule, $preparedPlan['slots']);
+
+                AdminBackfillContext::log($request, 'monthly_schedule_initialize', $monthlySchedule);
             }
 
             return [

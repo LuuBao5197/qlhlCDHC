@@ -15,7 +15,7 @@ class InitializeMonthlyScheduleController extends Controller
     public function showForm()
     {
         return view('schedule::initialize-monthly-schedule-form', [
-            'activePlans' => Plans::whereIn('status', ['draft', 'submitted', 'approved'])->get(),
+            'activePlans' => Plans::where('status', 'approved')->get(),
         ]);
     }
 
