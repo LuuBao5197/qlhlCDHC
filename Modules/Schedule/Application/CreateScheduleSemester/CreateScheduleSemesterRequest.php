@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\CreateScheduleSemester;
 
+use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Modules\Schedule\Models\Plans;
@@ -49,7 +50,7 @@ class CreateScheduleSemesterRequest extends FormRequest
             'class_semester_events.*.*.note' => 'nullable|string|max:1000',
             'import_file' => 'nullable|array',
             'import_file.*' => 'file|mimes:csv,txt,xlsx',
-        ];
+        ] + AdminBackfillContext::rules();
     }
 
     public function messages(): array
@@ -72,7 +73,7 @@ class CreateScheduleSemesterRequest extends FormRequest
             'class_semester_events.*.*.title.required' => 'Moi su kien cua lop phai nhap ten.',
             'class_semester_events.*.*.start_date.required' => 'Moi su kien cua lop phai co ngay bat dau.',
             'class_semester_events.*.*.end_date.required' => 'Moi su kien cua lop phai co ngay ket thuc.',
-        ];
+        ] + AdminBackfillContext::messages();
     }
 
     protected function prepareForValidation(): void
@@ -113,20 +114,22 @@ class CreateScheduleSemesterRequest extends FormRequest
                 }
             }
 
-            $startDate = $this->validatedDateValue($this->input('start_date'));
-            if ($startDate !== null && $startDate->lt($minAllowedDate)) {
-                $validator->errors()->add(
-                    'start_date',
-                    'Ngay bat dau hoc ky khong duoc som hon ' . $minAllowedDate->format('d/m/Y') . '.'
-                );
-            }
+            if (! AdminBackfillContext::isActive($this)) {
+                $startDate = $this->validatedDateValue($this->input('start_date'));
+                if ($startDate !== null && $startDate->lt($minAllowedDate)) {
+                    $validator->errors()->add(
+                        'start_date',
+                        'Ngay bat dau hoc ky khong duoc som hon ' . $minAllowedDate->format('d/m/Y') . '.'
+                    );
+                }
 
-            $endDate = $this->validatedDateValue($this->input('end_date'));
-            if ($endDate !== null && $endDate->lt($minAllowedDate)) {
-                $validator->errors()->add(
-                    'end_date',
-                    'Ngay ket thuc hoc ky khong duoc som hon ' . $minAllowedDate->format('d/m/Y') . '.'
-                );
+                $endDate = $this->validatedDateValue($this->input('end_date'));
+                if ($endDate !== null && $endDate->lt($minAllowedDate)) {
+                    $validator->errors()->add(
+                        'end_date',
+                        'Ngay ket thuc hoc ky khong duoc som hon ' . $minAllowedDate->format('d/m/Y') . '.'
+                    );
+                }
             }
 
             if (is_numeric($trainingBatchId)) {

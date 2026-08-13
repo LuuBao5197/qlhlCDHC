@@ -74,6 +74,10 @@
                 @endauth
             </div>
 
+            @if ($plan)
+                @include('partials._admin-backfill-badge', ['adminBackfillLog' => $plan->adminBackfillLog])
+            @endif
+
             <div class="legend mt-3">
                 <span class="legend-item"><span class="legend-swatch" style="background:#ffedd5;"></span>Nghỉ lễ</span>
                 <span class="legend-item"><span class="legend-swatch" style="background:#dbeafe;"></span>Ôn thi</span>

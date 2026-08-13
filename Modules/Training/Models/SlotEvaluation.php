@@ -2,10 +2,12 @@
 
 namespace Modules\Training\Models;
 
+use App\Models\AdminBackfillLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Modules\Schedule\Models\ScheduleSlot;
 
 class SlotEvaluation extends Model
@@ -30,5 +32,10 @@ class SlotEvaluation extends Model
     public function evaluator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'evaluator_id');
+    }
+
+    public function adminBackfillLog(): MorphOne
+    {
+        return $this->morphOne(AdminBackfillLog::class, 'loggable');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Modules\Training\Application\TeacherEvaluation\SubmitTeacherSlotEvaluation;
 
+use App\Support\AdminBackfillContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 use Modules\Schedule\Models\ScheduleSlot;
@@ -13,19 +14,24 @@ class SubmitTeacherSlotEvaluationRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && $user->isTeacher();
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->isTeacher() || ($user->isAdmin() && $this->boolean('admin_backfill'));
     }
 
     public function rules(): array
     {
         return [
             'date' => ['required', 'date'],
+            'teacher_id' => ['required_if:admin_backfill,1', 'nullable', 'integer', 'exists:teachers,id'],
             'slots' => ['nullable', 'array'],
             'slots.*.attendance_count' => ['nullable', 'integer', 'min:0'],
             'slots.*.absent_count' => ['nullable', 'integer', 'min:0'],
             'slots.*.rating_level' => ['required', 'in:tot,kha,trung_binh,yeu'],
             'slots.*.comment' => ['required', 'string', 'min:30', 'max:2000'],
-        ];
+        ] + AdminBackfillContext::rules();
     }
 
     public function messages(): array
@@ -33,6 +39,8 @@ class SubmitTeacherSlotEvaluationRequest extends FormRequest
         return [
             'date.required' => 'Ngày không được để trống.',
             'date.date' => 'Ngày không hợp lệ.',
+            'teacher_id.required_if' => 'Vui lòng chọn giáo viên cần bổ sung đánh giá.',
+            'teacher_id.exists' => 'Giáo viên được chọn không tồn tại.',
             'slots.*.attendance_count.integer' => 'Quân số phải là số nguyên.',
             'slots.*.attendance_count.min' => 'Quân số không được âm.',
             'slots.*.absent_count.integer' => 'Số vắng phải là số nguyên.',
@@ -42,14 +50,16 @@ class SubmitTeacherSlotEvaluationRequest extends FormRequest
             'slots.*.comment.required' => 'Vui lòng nhập nhận xét tiết học.',
             'slots.*.comment.min' => 'Nhận xét tiết học tối thiểu 30 ký tự.',
             'slots.*.comment.max' => 'Nhận xét tối đa 2000 ký tự.',
-        ];
+        ] + AdminBackfillContext::messages();
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
             $user = $this->user();
-            $teacher = $this->resolveTeacherFromUser($user?->id, $user?->employee_code, $user?->name);
+            $teacher = AdminBackfillContext::isActive($this)
+                ? Teacher::query()->find($this->input('teacher_id'))
+                : $this->resolveTeacherFromUser($user?->id, $user?->employee_code, $user?->name);
 
             if ($teacher === null) {
                 $validator->errors()->add('slots', 'Không tìm thấy hồ sơ giáo viên tương ứng với tài khoản đăng nhập.');

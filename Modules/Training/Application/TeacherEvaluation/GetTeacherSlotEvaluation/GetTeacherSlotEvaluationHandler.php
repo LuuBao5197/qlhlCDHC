@@ -14,13 +14,26 @@ class GetTeacherSlotEvaluationHandler
     {
         $user = $request->user();
 
-        abort_unless($user !== null && $user->isTeacher(), 403);
+        $isAdminMode = $user !== null && $user->isAdmin();
+
+        abort_unless($user !== null && ($user->isTeacher() || $isAdminMode), 403);
 
         $date = $request->input('date')
             ? Carbon::parse($request->input('date'))->toDateString()
             : Carbon::today()->toDateString();
 
-        $teacher = $this->resolveTeacherFromUser($user?->id, $user?->employee_code, $user?->name);
+        $teachers = collect();
+        $selectedTeacherId = null;
+
+        if ($isAdminMode) {
+            $teachers = Teacher::query()->orderBy('name')->get();
+            $selectedTeacherId = $request->integer('teacher_id') ?: null;
+            $teacher = $selectedTeacherId !== null
+                ? Teacher::query()->find($selectedTeacherId)
+                : null;
+        } else {
+            $teacher = $this->resolveTeacherFromUser($user?->id, $user?->employee_code, $user?->name);
+        }
 
         $slots = collect();
         $evaluations = collect();
@@ -46,6 +59,9 @@ class GetTeacherSlotEvaluationHandler
             'slots' => $slots,
             'evaluations' => $evaluations,
             'authUser' => $user,
+            'isAdminMode' => $isAdminMode,
+            'teachers' => $teachers,
+            'selectedTeacherId' => $selectedTeacherId,
         ]);
     }
 

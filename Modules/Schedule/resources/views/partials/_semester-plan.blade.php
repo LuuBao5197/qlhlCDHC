@@ -36,6 +36,9 @@
                                     $canSubmitPlan = $canManageSemesterPlan && in_array($schedule->status, ['draft', 'returned', 'rejected'], true);
                                     $canTrainingOfficeReviewPlan = $canReviewWorkflow && $schedule->status === 'submitted' && $schedule->current_step === 'training_office_review';
                                     $canLeadershipReviewPlan = $canLeadershipReview && $schedule->status === 'submitted' && $schedule->current_step === 'leadership_review';
+                                    $isAdminBackfilledPlan = $schedule->adminBackfillLog !== null;
+                                    $canEditPlan = $canManageSemesterPlan
+                                        && (in_array($schedule->status, ['draft'], true) || ($isAdminBackfilledPlan && $user?->isAdmin()));
                                 @endphp
                                 <tr>
                                     <td>{{ $schedule->id }}</td>
@@ -59,14 +62,21 @@
                                         @endif
                                     </td>
                                     <td>HK {{ $schedule->semester }} / {{ $schedule->year }}</td>
-                                    <td><span class="badge {{ $statusClass }}">{{ $schedule->status }}</span></td>
+                                    <td>
+                                        <span class="badge {{ $statusClass }}">{{ $schedule->status }}</span>
+                                        @if ($isAdminBackfilledPlan)
+                                            <span class="badge" style="background:#ffe69c; color:#664d03;" title="{{ $schedule->adminBackfillLog->reason }}">
+                                                Dữ liệu cũ (admin)
+                                            </span>
+                                        @endif
+                                    </td>
                                     <td>{{ $schedule->current_step }}</td>
                                     <td>{{ $schedule->submittedBy?->name ?? '-' }}</td>
                                     <td>{{ optional($schedule->submitted_at)->format('d/m/Y H:i') ?? '-' }}</td>
                                     <td>
                                         <div class="d-flex flex-wrap gap-2 align-items-center">
                                             {{-- Edit Button --}}
-                                            @if ($canManageSemesterPlan && in_array($schedule->status, ['draft'], true))
+                                            @if ($canEditPlan)
                                                 <a href="{{ route('schedule.edit', $schedule->id) }}"
                                                     class="btn btn-sm btn-outline-warning">
                                                     <i class="fas fa-edit"></i> Sua

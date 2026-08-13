@@ -151,7 +151,19 @@
 
 <div class="slot-eval-wrapper">
     <div class="slot-eval-toolbar" style="max-width:1100px; margin:0 auto 12px auto;">
-        <form method="GET" action="{{ route('teacher-slot-evaluations.index') }}" style="display:flex; align-items:center; gap:8px;">
+        <form method="GET" action="{{ route('teacher-slot-evaluations.index') }}" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            @if ($isAdminMode ?? false)
+                <input type="hidden" name="admin_backfill" value="1">
+                <label for="slot-eval-teacher" style="margin:0; font-weight:600;">Giáo viên:</label>
+                <select id="slot-eval-teacher" name="teacher_id" class="slot-eval-date-picker" onchange="this.form.submit()">
+                    <option value="">-- Chọn giáo viên --</option>
+                    @foreach ($teachers as $t)
+                        <option value="{{ $t->id }}" @selected(($selectedTeacherId ?? null) === $t->id)>
+                            {{ $t->name }} ({{ $t->teacher_code }})
+                        </option>
+                    @endforeach
+                </select>
+            @endif
             <label for="slot-eval-date" style="margin:0; font-weight:600;">Chọn ngày:</label>
             <input
                 type="date"
@@ -167,12 +179,22 @@
     <div class="slot-eval-card">
         <div class="slot-eval-title">Đánh giá tiết học của giáo viên</div>
         <div class="slot-eval-subtitle">
-            Giáo viên: <strong>{{ $authUser?->name ?? 'N/A' }}</strong>
-            @if ($authUser?->employee_code)
-                ({{ $authUser->employee_code }})
+            @if ($isAdminMode ?? false)
+                Giáo viên: <strong>{{ $teacher?->name ?? 'Chưa chọn' }}</strong>
+                @if ($teacher?->teacher_code)
+                    ({{ $teacher->teacher_code }})
+                @endif
+                <span class="badge" style="background:#ffe69c; color:#664d03;">Admin bổ sung dữ liệu cũ</span>
+            @else
+                Giáo viên: <strong>{{ $authUser?->name ?? 'N/A' }}</strong>
+                @if ($authUser?->employee_code)
+                    ({{ $authUser->employee_code }})
+                @endif
             @endif
             | Ngày: <strong>{{ $date->format('d/m/Y') }}</strong>
         </div>
+
+        @include('partials._admin-backfill-badge', ['adminBackfillLog' => $evaluations->first()?->adminBackfillLog])
 
         @if (session('success'))
             <div class="slot-eval-alert success">{{ session('success') }}</div>
@@ -200,6 +222,19 @@
             <form method="POST" action="{{ route('teacher-slot-evaluations.submit') }}">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+
+                @if ($isAdminMode ?? false)
+                    <input type="hidden" name="admin_backfill" value="1">
+                    <input type="hidden" name="teacher_id" value="{{ $teacher?->id }}">
+                    <div class="slot-eval-alert" style="background:#fff3cd; border:1px solid #ffe69c; color:#664d03; margin-bottom:12px; padding:10px;">
+                        <label style="font-weight:600;">Lý do bổ sung dữ liệu cũ <span style="color:#dc3545;">*</span></label>
+                        <textarea name="admin_backfill_reason" class="slot-eval-comment" style="width:100%;" rows="2"
+                            placeholder="Vi du: Nhap bu danh gia tiet hoc truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                        @error('admin_backfill_reason')
+                            <div class="slot-eval-field-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+                @endif
 
                 <table class="slot-eval-table">
                     <thead>

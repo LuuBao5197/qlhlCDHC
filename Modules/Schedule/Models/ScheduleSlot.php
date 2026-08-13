@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Models;
 
+use App\Models\AdminBackfillLog;
 use Modules\Training\Models\ChangeRequest;
 use Modules\Training\Models\ChangeRequestItem;
 use Modules\Training\Models\DailyTrainingLog;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class ScheduleSlot extends Model
 {
@@ -144,5 +146,10 @@ class ScheduleSlot extends Model
             'schedule_slot_id',
             'batch_id'
         )->withTimestamps();
+    }
+
+    public function adminBackfillLog(): MorphOne
+    {
+        return $this->morphOne(AdminBackfillLog::class, 'loggable');
     }
 }

@@ -271,6 +271,9 @@
 <div class="nhatky-wrapper">
     <div class="nhatky-toolbar">
         <form method="GET" action="{{ route('duty-log.edit') }}" class="d-flex align-items-center gap-2" style="gap: 8px;">
+            @if ($adminBackfillMode ?? false)
+                <input type="hidden" name="admin_backfill" value="1">
+            @endif
             <label for="date-picker" style="font-weight: 600; margin-bottom: 0;">Chọn ngày:</label>
             <input
                 type="date"
@@ -285,6 +288,18 @@
         <a href="{{ route('duty-log.index', ['date' => $date->toDateString()]) }}" class="btn-nhatky-neutral">
             Về trang xem dữ liệu
         </a>
+
+        @if ($adminBackfillEligible ?? false)
+            @if (! ($adminBackfillMode ?? false))
+                <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => 1]) }}" class="btn-nhatky-neutral">
+                    Bật chế độ bổ sung dữ liệu cũ
+                </a>
+            @else
+                <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => null]) }}" class="btn-nhatky-neutral">
+                    Tắt chế độ bổ sung dữ liệu cũ
+                </a>
+            @endif
+        @endif
     </div>
 
     @if (session('success'))
@@ -305,7 +320,19 @@
         </div>
     @endif
 
-    @if (! $canEditDate)
+    @if ($adminBackfillMode ?? false)
+        <div class="nhatky-alert-warning" style="border:1px dashed #b98900;">
+            <strong>Đang ở chế độ bổ sung dữ liệu cũ — bỏ qua ràng buộc "chỉ sửa ngày hiện tại".</strong>
+            <div class="mt-2">
+                <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
+                <textarea form="dailyLogForm" name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
+                    rows="2" placeholder="Vi du: Nhap bu nhat ky truc ban truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                @error('admin_backfill_reason')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
+    @elseif (! $canEditDate)
         <div class="nhatky-alert-warning">
             Chỉ được chỉnh sửa và lưu phần 2 cho ngày hiện tại. Môi trường local/testing mới cho phép sửa các ngày khác.
         </div>
@@ -315,9 +342,12 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('duty-log.submit') }}">
+    <form method="POST" action="{{ route('duty-log.submit') }}" id="dailyLogForm">
         @csrf
         <input type="hidden" name="date" value="{{ $date->toDateString() }}">
+        @if ($adminBackfillMode ?? false)
+            <input type="hidden" name="admin_backfill" value="1">
+        @endif
 
         <div class="nhatky-card">
             <div class="nhatky-header">
@@ -331,6 +361,8 @@
                     <span style="font-size: 12px; color: #555; margin-left: 8px;">({{ $dutyOfficer->employee_code ?? 'N/A' }})</span>
                 </div>
             </div>
+
+            @include('partials._admin-backfill-badge', ['adminBackfillLog' => $dailySummary?->adminBackfillLog])
 
             <div class="nhatky-section-title">1. Quân số, nội dung huấn luyện (chỉ xem dữ liệu)</div>
 

@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\CreateScheduleSemester;
 
+use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -107,6 +108,8 @@ class CreateScheduleSemesterHandler
             $planEnd,
             $trainingBatchId
         ) {
+            $isAdminBackfill = AdminBackfillContext::isActive($request);
+
             $plan = Plans::query()->create([
                 'training_batch_id' => $trainingBatchId,
                 'name' => sprintf('Ke hoach hoc ky %d - %d', $semester, $year),
@@ -115,9 +118,11 @@ class CreateScheduleSemesterHandler
                 'description' => $validated['description'] ?? null,
                 'effective_from' => $planStart->toDateString(),
                 'effective_to' => $planEnd->toDateString(),
-                'status' => 'draft',
-                'current_step' => 'draft',
+                'status' => $isAdminBackfill ? 'approved' : 'draft',
+                'current_step' => $isAdminBackfill ? 'completed' : 'draft',
                 'created_by' => $request->user()?->id,
+                'submitted_by' => $isAdminBackfill ? $request->user()?->id : null,
+                'submitted_at' => $isAdminBackfill ? now() : null,
             ]);
 
             foreach ($templateEntries as $entry) {
@@ -163,6 +168,8 @@ class CreateScheduleSemesterHandler
 
             return $plan;
         });
+
+        AdminBackfillContext::log($request, 'schedule_semester_create', $plan);
 
         $firstClass = reset($classMap);
         $className = $firstClass ? $firstClass->code : null;

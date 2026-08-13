@@ -31,7 +31,9 @@
             : $currentBatchStatus;
         $currentBatchStatusLabel = $currentBatchStatusLabels[$currentBatchStatusKey] ?? strtoupper($currentBatchStatus);
         $currentBatchStatusClass = $currentBatchStatusClasses[$currentBatchStatusKey] ?? 'badge-secondary';
-        $batchReadOnly = in_array($currentBatchStatus, ['submitted', 'approved'], true);
+        $adminBackfillEligible = auth()->user()?->isAdmin() === true;
+        $adminBackfillMode = $adminBackfillEligible && request()->boolean('admin_backfill');
+        $batchReadOnly = in_array($currentBatchStatus, ['submitted', 'approved'], true) && ! $adminBackfillMode;
         $batchCanSubmit = in_array($currentBatchStatus, ['draft', 'returned'], true) || !$currentBatch;
         $specialTeacherOptions = [
             \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY => 'Lớp tự nghiên cứu',
@@ -82,6 +84,8 @@
             ? route('teaching-support-requests.inbox')
             : route('teaching-support-requests.index');
     @endphp
+
+    @include('partials._admin-backfill-badge', ['adminBackfillLog' => $monthlySchedule->adminBackfillLog])
 
     <div class="row mb-3">
         <div class="col-12">
@@ -459,9 +463,33 @@
                         </div>
                     </div>
                                                 
+                    @if ($adminBackfillEligible)
+                        <div class="alert alert-warning" style="border:1px dashed #b98900;">
+                            @if (! $adminBackfillMode)
+                                <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => 1]) }}" class="btn btn-sm btn-outline-warning">
+                                    Bật chế độ bổ sung dữ liệu cũ (bỏ qua khoá batch đã gửi/đã duyệt)
+                                </a>
+                            @else
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>Đang ở chế độ bổ sung dữ liệu cũ — khoá batch đã gửi/đã duyệt bị bỏ qua.</strong>
+                                    <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => null]) }}" class="btn btn-sm btn-outline-secondary">Tắt</a>
+                                </div>
+                                <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
+                                <textarea form="monthlyAssignmentForm" name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
+                                    rows="2" placeholder="Vi du: Nhap bu phan cong giang day truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                                @error('admin_backfill_reason')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            @endif
+                        </div>
+                    @endif
+
                     <form method="POST" action="{{ route('monthly-schedule.assignment.save', $monthlySchedule->id) }}"
                         id="monthlyAssignmentForm" novalidate>
                         @csrf
+                        @if ($adminBackfillMode)
+                            <input type="hidden" name="admin_backfill" value="1">
+                        @endif
 
                         @if ($dateChunks->isEmpty())
                             <div class="text-center py-5">

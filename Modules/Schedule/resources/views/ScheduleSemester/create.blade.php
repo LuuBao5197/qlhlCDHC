@@ -10,6 +10,7 @@
         $oldClassEvents = old('class_semester_events', []);
         $hasAvailableTrainingBatches = $trainingBatches->isNotEmpty();
         $minAllowedPlanDate = now()->startOfDay()->subMonth()->toDateString();
+        $isAdminUser = auth()->user()?->isAdmin() === true;
     @endphp
 
     <style>
@@ -305,6 +306,26 @@
                         id="scheduleForm">
                         @csrf
 
+                        @if (auth()->user()?->isAdmin())
+                            <div class="alert alert-warning" style="border:1px dashed #b98900;">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="admin_backfill" value="1"
+                                        id="adminBackfillToggle" {{ old('admin_backfill') ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold" for="adminBackfillToggle">
+                                        Bổ sung dữ liệu cũ (bỏ qua ràng buộc ngày bắt đầu/kết thúc)
+                                    </label>
+                                </div>
+                                <div class="mt-2">
+                                    <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
+                                    <textarea name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
+                                        rows="2" placeholder="Vi du: Nhap bu lich hoc ky truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                                    @error('admin_backfill_reason')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        @endif
+
                         <div class="quick-actions shadow-sm" id="quickActionsBar">
                             <div class="quick-actions-top">
                                 <div class="quick-actions-left">
@@ -396,6 +417,7 @@
                                     'required' => true,
                                     'min' => $minAllowedPlanDate,
                                     'buttonLabel' => 'Lich',
+                                    'readonly' => ! $isAdminUser,
                                 ])
                             </div>
                             <div class="col-md-3">
@@ -407,6 +429,7 @@
                                     'required' => true,
                                     'min' => $minAllowedPlanDate,
                                     'buttonLabel' => 'Lich',
+                                    'readonly' => ! $isAdminUser,
                                 ])
                             </div>
                         </div>
@@ -531,7 +554,12 @@
             const quickActionsStorageKey = 'schedule-create-quick-actions-collapsed';
             const displayDateInputs = Array.from(document.querySelectorAll('[data-date-display]'));
             const nativeDateInputs = Array.from(document.querySelectorAll('[data-date-native]'));
-            const minAllowedPlanDate = @json($minAllowedPlanDate);
+            const baseMinAllowedPlanDate = @json($minAllowedPlanDate);
+            let minAllowedPlanDate = baseMinAllowedPlanDate;
+            const adminBackfillToggle = document.getElementById('adminBackfillToggle');
+            const planDateFieldWrappers = Array.from(document.querySelectorAll(
+                '.js-schedule-date-field[data-field="start_date"], .js-schedule-date-field[data-field="end_date"]'
+            ));
             const counters = {};
             const eventCounters = { global: 0, classes: {} };
             let activeClassKey = null;
@@ -612,6 +640,20 @@
                 window.ScheduleDatePicker?.refreshBounds(document);
 
                 return valid;
+            };
+
+            const applyAdminBackfillDateBounds = () => {
+                const active = !!(adminBackfillToggle && adminBackfillToggle.checked);
+                minAllowedPlanDate = active ? '' : baseMinAllowedPlanDate;
+                planDateFieldWrappers.forEach((wrapper) => {
+                    if (active) {
+                        wrapper.removeAttribute('data-min');
+                    } else {
+                        wrapper.setAttribute('data-min', baseMinAllowedPlanDate);
+                    }
+                });
+                window.ScheduleDatePicker?.refreshBounds(document);
+                validatePlanDates();
             };
 
             const syncAllDateDisplays = () => {
@@ -1455,6 +1497,9 @@
                     e.preventDefault();
                 }
             });
+
+            adminBackfillToggle?.addEventListener('change', applyAdminBackfillDateBounds);
+            applyAdminBackfillDateBounds();
 
             syncAllDateDisplays();
             validatePlanDates();

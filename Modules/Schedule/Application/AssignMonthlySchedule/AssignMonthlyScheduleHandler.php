@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\AssignMonthlySchedule;
 
+use App\Support\AdminBackfillContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -211,6 +212,10 @@ class AssignMonthlyScheduleHandler
                 500,
                 'Khong the luu phan cong lich thang: ' . $exception->getMessage()
             );
+        }
+
+        if ($updatedSlotIds !== []) {
+            AdminBackfillContext::log($request, 'monthly_schedule_assign', $monthlySchedule, ['slot_ids' => $updatedSlotIds]);
         }
 
         $message = count($updatedSlotIds) === 0

@@ -2,6 +2,7 @@
 
 namespace Modules\Schedule\Application\InitializeMonthlySchedule;
 
+use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -18,7 +19,7 @@ class InitializeMonthlyScheduleRequest extends FormRequest
         return [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2099',
-        ];
+        ] + AdminBackfillContext::rules();
     }
 
     public function messages(): array
@@ -26,13 +27,17 @@ class InitializeMonthlyScheduleRequest extends FormRequest
         return [
             'month.required' => 'Phai chon thang',
             'year.required' => 'Phai chon nam',
-        ];
+        ] + AdminBackfillContext::messages();
     }
 
     public function after(): array
     {
         return [function (Validator $validator): void {
             if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if (AdminBackfillContext::isActive($this)) {
                 return;
             }
 

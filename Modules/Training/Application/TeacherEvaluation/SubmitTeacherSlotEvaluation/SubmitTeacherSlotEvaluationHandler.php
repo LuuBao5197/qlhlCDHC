@@ -2,6 +2,7 @@
 
 namespace Modules\Training\Application\TeacherEvaluation\SubmitTeacherSlotEvaluation;
 
+use App\Support\AdminBackfillContext;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\SlotEvaluation;
 use Modules\Training\Models\Teacher;
@@ -11,7 +12,9 @@ class SubmitTeacherSlotEvaluationHandler
     public function handle(SubmitTeacherSlotEvaluationRequest $request, int $evaluatorId): void
     {
         $validated = $request->validated();
-        $teacher = $this->resolveTeacherFromUser($request->user()?->id, $request->user()?->employee_code, $request->user()?->name);
+        $teacher = AdminBackfillContext::isActive($request)
+            ? Teacher::query()->find($validated['teacher_id'] ?? null)
+            : $this->resolveTeacherFromUser($request->user()?->id, $request->user()?->employee_code, $request->user()?->name);
 
         if ($teacher === null) {
             return;
@@ -74,6 +77,12 @@ class SubmitTeacherSlotEvaluationHandler
                 ]
             );
         }
+
+        AdminBackfillContext::log($request, 'teacher_slot_evaluation', null, [
+            'teacher_id' => $teacher->id,
+            'date' => $validated['date'],
+            'slot_ids' => $slotIds->all(),
+        ]);
     }
 
     private function resolveTeacherFromUser(?int $userId, ?string $employeeCode, ?string $name): ?Teacher

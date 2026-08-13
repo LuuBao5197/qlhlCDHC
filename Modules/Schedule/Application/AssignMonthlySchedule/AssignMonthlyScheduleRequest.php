@@ -3,6 +3,7 @@
 namespace Modules\Schedule\Application\AssignMonthlySchedule;
 
 use App\Models\User;
+use App\Support\AdminBackfillContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Validator;
@@ -50,7 +51,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             ->where('year', (int) $monthlySchedule->year)
             ->first();
 
-        if ($currentBatch && in_array($currentBatch->status, ['submitted', 'approved'], true)) {
+        if ($currentBatch && in_array($currentBatch->status, ['submitted', 'approved'], true) && ! AdminBackfillContext::isActive($this)) {
             return false;
         }
 
@@ -84,7 +85,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'changes.*.room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'changes.*.content' => ['nullable', 'string', 'max:500'],
             'changes.*.note' => ['nullable', 'string', 'max:500'],
-        ];
+        ] + AdminBackfillContext::rules();
     }
 
     public function withValidator($validator): void
@@ -491,7 +492,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
             'changes.*.lesson_type.in' => 'Loai tiet hoc khong hop le.',
             'changes.*.subject_lesson_id.exists' => 'Bai hoc duoc chon khong hop le.',
             'changes.*.room_id.exists' => 'Phong hoc duoc chon khong hop le.',
-        ];
+        ] + AdminBackfillContext::messages();
     }
 
     private function getActiveScheduleSlotGroupId(ScheduleSlot $slot): ?int

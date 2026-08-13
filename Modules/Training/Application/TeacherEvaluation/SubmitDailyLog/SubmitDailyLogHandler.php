@@ -2,6 +2,7 @@
 
 namespace Modules\Training\Application\TeacherEvaluation\SubmitDailyLog;
 
+use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
 use Modules\Training\Models\TeacherDailySummary;
 
@@ -14,7 +15,7 @@ class SubmitDailyLogHandler
 
         // Chỉ lưu nhận xét tổng hợp theo ngày của phòng đào tạo (Phần 2 của nhật ký).
         // Phần 1 chỉ hiển thị dữ liệu và không cho chỉnh sửa từ màn hình trực ban.
-        TeacherDailySummary::updateOrCreate(
+        $summary = TeacherDailySummary::updateOrCreate(
             [
                 'log_date' => $date,
             ],
@@ -26,5 +27,7 @@ class SubmitDailyLogHandler
                 'followup_comment'      => $validated['followup_comment'] ?? null,
             ]
         );
+
+        AdminBackfillContext::log($request, 'teacher_daily_log', $summary);
     }
 }

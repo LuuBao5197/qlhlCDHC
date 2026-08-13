@@ -56,6 +56,26 @@
                 @endif
             </div>
 
+            @if (auth()->user()?->isAdmin())
+                <div class="alert alert-warning mb-6" style="border:1px dashed #b98900;">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="admin_backfill" value="1"
+                            id="adminBackfillToggle" {{ old('admin_backfill') ? 'checked' : '' }}>
+                        <label class="form-check-label fw-bold" for="adminBackfillToggle">
+                            Bổ sung dữ liệu cũ (bỏ qua ràng buộc tháng hiện tại/kế tiếp)
+                        </label>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
+                        <textarea name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
+                            rows="2" placeholder="Vi du: Khoi tao bu lich thang truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                        @error('admin_backfill_reason')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+            @endif
+
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
                 Khởi Tạo Lịch Tháng
             </button>

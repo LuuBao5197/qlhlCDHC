@@ -2,12 +2,14 @@
 
 namespace Modules\Schedule\Models;
 
+use App\Models\AdminBackfillLog;
 use Modules\Training\Models\ApprovalRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Modules\Schedule\Models\PlanTemplates;
 use Modules\Training\Models\TrainingBatch;
 
@@ -71,5 +73,10 @@ class Plans extends Model
     public function approvalRequests(): MorphMany
     {
         return $this->morphMany(ApprovalRequest::class, 'entity', 'entity_type', 'entity_id');
+    }
+
+    public function adminBackfillLog(): MorphOne
+    {
+        return $this->morphOne(AdminBackfillLog::class, 'loggable');
     }
 }

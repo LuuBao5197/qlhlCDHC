@@ -2,6 +2,7 @@
 
 namespace Modules\Training\Application\TeacherEvaluation\SubmitDailyLog;
 
+use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -28,7 +29,7 @@ class SubmitDailyLogRequest extends FormRequest
             'regulation_comment'     => ['nullable', 'string', 'max:2000'],
             'facility_comment'       => ['nullable', 'string', 'max:2000'],
             'followup_comment'       => ['nullable', 'string', 'max:2000'],
-        ];
+        ] + AdminBackfillContext::rules();
     }
 
     public function messages(): array
@@ -36,7 +37,7 @@ class SubmitDailyLogRequest extends FormRequest
         return [
             'date.required'                        => 'Ngày không được để trống.',
             'date.date'                            => 'Ngày không hợp lệ.',
-        ];
+        ] + AdminBackfillContext::messages();
     }
 
     public function withValidator(Validator $validator): void
@@ -51,7 +52,7 @@ class SubmitDailyLogRequest extends FormRequest
             $isTestMode = app()->environment(['local', 'testing']);
             $isToday = Carbon::parse($dateInput)->isSameDay(Carbon::today());
 
-            if (! $isToday && ! $isTestMode) {
+            if (! $isToday && ! $isTestMode && ! AdminBackfillContext::isActive($this)) {
                 $validator->errors()->add('date', 'Chỉ được chỉnh sửa và lưu nhật ký cho ngày hiện tại.');
             }
         });

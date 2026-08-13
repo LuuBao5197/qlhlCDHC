@@ -12,6 +12,7 @@
     $displayId = $displayId ?? '';
     $nativeId = $nativeId ?? '';
     $required = (bool)($required ?? false);
+    $readonly = (bool)($readonly ?? true);
     $min = $min ?? '';
     $max = $max ?? '';
     $minSource = $minSource ?? '';
@@ -44,7 +45,7 @@
             @if ($displayId !== '') id="{{ $displayId }}" @endif
             placeholder="{{ $placeholder }}"
             value="{{ $displayValue }}"
-            readonly
+            @if ($readonly) readonly @endif
             @if ($form !== '') form="{{ $form }}" @endif
             @if ($required) required @endif>
         <input type="hidden"

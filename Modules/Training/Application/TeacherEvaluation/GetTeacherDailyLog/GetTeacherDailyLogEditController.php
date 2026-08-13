@@ -16,7 +16,7 @@ class GetTeacherDailyLogEditController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user !== null && $user->isTrainingOffice(),
+            $user !== null && ($user->isTrainingOffice() || $user->isAdmin()),
             403
         );
 

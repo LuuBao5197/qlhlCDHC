@@ -1,5 +1,6 @@
 <?php
 namespace Modules\Schedule\Models;
+use App\Models\AdminBackfillLog;
 use App\Models\User;
 use Modules\Training\Models\ApprovalRequest;
 use Modules\Training\Models\ChangeRequest;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class MonthlySchedule extends Model
 {
@@ -59,5 +61,10 @@ class MonthlySchedule extends Model
     public function approvalRequests(): MorphMany
     {
         return $this->morphMany(ApprovalRequest::class, 'entity', 'entity_type', 'entity_id');
+    }
+
+    public function adminBackfillLog(): MorphOne
+    {
+        return $this->morphOne(AdminBackfillLog::class, 'loggable');
     }
 }

@@ -25,7 +25,9 @@ class GetTeacherDailyLogHandler
         $dateCarbon = Carbon::parse($date);
         $isToday = $dateCarbon->isSameDay(Carbon::today());
         $isTestMode = app()->environment(['local', 'testing']);
-        $canEditDate = $isToday || $isTestMode;
+        $adminBackfillEligible = $user->isAdmin();
+        $adminBackfillMode = $adminBackfillEligible && $request->boolean('admin_backfill');
+        $canEditDate = $isToday || $isTestMode || $adminBackfillMode;
         $isEditMode = $mode === 'edit';
 
         // Fetch ALL schedule slots happening on the given date (all classes, all teachers)
@@ -68,6 +70,8 @@ class GetTeacherDailyLogHandler
             'canEditDate'  => $canEditDate,
             'isToday'      => $isToday,
             'isTestMode'   => $isTestMode,
+            'adminBackfillEligible' => $adminBackfillEligible,
+            'adminBackfillMode' => $adminBackfillMode,
         ]);
     }
 }
