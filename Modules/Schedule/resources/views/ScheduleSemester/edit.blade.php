@@ -144,6 +144,97 @@
         .btn.btn-primary:disabled {
             cursor: not-allowed;
         }
+
+        .subject-picker-input {
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .subject-picker-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, .45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            padding: 16px;
+        }
+
+        .subject-picker-dialog {
+            background: #fff;
+            border-radius: 12px;
+            width: 440px;
+            max-width: 100%;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+        }
+
+        .subject-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            border-bottom: 1px solid #e5e9f0;
+        }
+
+        .subject-picker-header strong {
+            color: #0f4c81;
+        }
+
+        .subject-picker-close {
+            border: none;
+            background: transparent;
+            font-size: 1.4rem;
+            line-height: 1;
+            color: #6b7785;
+            cursor: pointer;
+        }
+
+        .subject-picker-body {
+            padding: 14px 18px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .subject-picker-list {
+            overflow-y: auto;
+            border: 1px solid #e5e9f0;
+            border-radius: 8px;
+            max-height: 50vh;
+        }
+
+        .subject-picker-item {
+            padding: 9px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f2f5;
+        }
+
+        .subject-picker-item:last-child {
+            border-bottom: none;
+        }
+
+        .subject-picker-item:hover,
+        .subject-picker-item.is-active {
+            background: #eef4fb;
+        }
+
+        .subject-picker-item .subject-picker-code {
+            font-weight: 700;
+            color: #0f4c81;
+            margin-right: 6px;
+        }
+
+        .subject-picker-empty {
+            padding: 14px;
+            color: #6b7785;
+            text-align: center;
+        }
     </style>
 
     <div class="row">
@@ -298,6 +389,20 @@
         @endforeach
     </datalist>
 
+    <div id="subjectPickerModal" class="subject-picker-overlay" style="display:none;">
+        <div class="subject-picker-dialog">
+            <div class="subject-picker-header">
+                <strong>Chon mon hoc</strong>
+                <button type="button" class="subject-picker-close" id="subjectPickerClose" aria-label="Dong">&times;</button>
+            </div>
+            <div class="subject-picker-body">
+                <input type="text" id="subjectPickerSearch" class="form-control form-control-sm"
+                    placeholder="Tim theo ma hoac ten mon hoc...">
+                <div id="subjectPickerList" class="subject-picker-list"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const weekdayOptions = @json($weekdayOptions);
@@ -308,6 +413,13 @@
             const importUrl = @json(route('schedule.import-template'));
             const globalEventTypes = @json($globalEventTypes);
             const classEventTypes = @json($classEventTypes);
+            const allSubjectSuggestions = @json($subjectSuggestions);
+            const currentSubjectList = allSubjectSuggestions;
+            const subjectPickerModal = document.getElementById('subjectPickerModal');
+            const subjectPickerSearch = document.getElementById('subjectPickerSearch');
+            const subjectPickerList = document.getElementById('subjectPickerList');
+            const subjectPickerClose = document.getElementById('subjectPickerClose');
+            let subjectPickerTargetInput = null;
             const tabs = document.getElementById('classTabs');
             const content = document.getElementById('classTabContent');
             const emptyMsg = document.getElementById('noClassSelectedMsg');
@@ -979,6 +1091,76 @@
                 return `<label><input type="checkbox" name="class_tab_rules[${esc(k)}][${i}][weekdays][]" value="${d.value}" ${checked}> ${esc(d.label)}</label>`;
             }).join('');
 
+            const renderSubjectPickerList = (query) => {
+                const q = query.trim().toLowerCase();
+                const options = q === '' ? currentSubjectList : currentSubjectList.filter((s) =>
+                    s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+
+                if (options.length === 0) {
+                    subjectPickerList.innerHTML = '<div class="subject-picker-empty">Khong tim thay mon hoc phu hop.</div>';
+                    return;
+                }
+
+                subjectPickerList.innerHTML = options.map((s) => `
+                    <div class="subject-picker-item" data-code="${esc(s.code)}">
+                        <span class="subject-picker-code">${esc(s.code)}</span>${esc(s.name)}
+                    </div>
+                `).join('');
+            };
+
+            const openSubjectPicker = (inputEl) => {
+                subjectPickerTargetInput = inputEl;
+                subjectPickerSearch.value = '';
+                renderSubjectPickerList('');
+                subjectPickerModal.style.display = 'flex';
+                subjectPickerSearch.focus();
+            };
+
+            const closeSubjectPicker = () => {
+                subjectPickerModal.style.display = 'none';
+                subjectPickerTargetInput = null;
+            };
+
+            if (subjectPickerSearch) {
+                subjectPickerSearch.addEventListener('input', () => renderSubjectPickerList(subjectPickerSearch.value));
+            }
+
+            if (subjectPickerList) {
+                subjectPickerList.addEventListener('click', (event) => {
+                    const item = event.target.closest('.subject-picker-item');
+                    if (!item || !subjectPickerTargetInput) return;
+                    subjectPickerTargetInput.value = item.dataset.code;
+                    subjectPickerTargetInput.dispatchEvent(new Event('change', {
+                        bubbles: true
+                    }));
+                    closeSubjectPicker();
+                });
+            }
+
+            if (subjectPickerClose) {
+                subjectPickerClose.addEventListener('click', closeSubjectPicker);
+            }
+
+            if (subjectPickerModal) {
+                subjectPickerModal.addEventListener('click', (event) => {
+                    if (event.target === subjectPickerModal) closeSubjectPicker();
+                });
+            }
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && subjectPickerModal && subjectPickerModal.style.display !== 'none') {
+                    closeSubjectPicker();
+                }
+            });
+
+            document.addEventListener('click', (event) => {
+                const trigger = event.target.closest('.subject-picker-input, .subject-picker-trigger');
+                if (!trigger) return;
+                const wrapper = trigger.closest('.subject-picker-group');
+                const input = wrapper ? wrapper.querySelector('.subject-picker-input') : null;
+                if (input) openSubjectPicker(input);
+            });
+
             const addRule = (k, data = {}, options = {}) => {
                 const box = document.getElementById(rulesId(k));
                 const i = counters[k] ?? 0;
@@ -999,7 +1181,13 @@
                         <div class="col-md-3"><label class="form-label">Tiet ket thuc</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_to]" value="${esc(data.period_to || '')}"></div>
                     </div>
                     <div class="row mt-3">
-                        <div class="col-md-6"><label class="form-label">Mon hoc</label><input type="text" list="subject-suggestions" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][subject]" value="${esc(data.subject || '')}"></div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mon hoc</label>
+                            <div class="input-group input-group-sm subject-picker-group">
+                                <input type="text" class="form-control subject-picker-input" name="class_tab_rules[${esc(k)}][${i}][subject]" value="${esc(data.subject || '')}" placeholder="Chon mon hoc..." readonly>
+                                <button type="button" class="btn btn-outline-secondary subject-picker-trigger">Tim</button>
+                            </div>
+                        </div>
                         <div class="col-md-6"><label class="form-label">Noi dung</label><input type="text" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][content]" value="${esc(data.content || '')}"></div>
                     </div>
                     <div class="mt-3"><label class="form-label d-block">Thu hoc</label><div class="weekday-list">${weekdayHtml(k, i, data.weekdays || [])}</div></div>
