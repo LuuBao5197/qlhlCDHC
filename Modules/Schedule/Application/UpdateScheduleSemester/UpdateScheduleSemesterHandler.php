@@ -16,6 +16,7 @@ use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\SemesterEvent;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\Subject;
+use Modules\Training\Models\TrainingBatch;
 use Modules\Training\Models\TrainingClass;
 
 class UpdateScheduleSemesterHandler
@@ -52,12 +53,15 @@ class UpdateScheduleSemesterHandler
             ]);
         }
 
+        $allowedSubjectIds = $this->resolveAllowedSubjectIds($plan->training_batch_id);
+
         $templateEntries = array_merge(
             $this->parseClassTabRules(
                 $validated['class_tab_rules'] ?? [],
-                $classMap
+                $classMap,
+                $allowedSubjectIds
             ),
-            $this->parseImportFiles($request, $classMap)
+            $this->parseImportFiles($request, $classMap, $allowedSubjectIds)
         );
 
         if ($templateEntries === []) {
@@ -260,6 +264,28 @@ class UpdateScheduleSemesterHandler
         return $classMap;
     }
 
+    /**
+     * @return array<int, int>|null Null means no restriction (program has not configured a subject list yet).
+     */
+    private function resolveAllowedSubjectIds(?int $trainingBatchId): ?array
+    {
+        if ($trainingBatchId === null) {
+            return null;
+        }
+
+        $trainingProgramId = TrainingBatch::query()->where('id', $trainingBatchId)->value('training_program_id');
+        if ($trainingProgramId === null) {
+            return null;
+        }
+
+        $subjectIds = DB::table('subject_training_program')
+            ->where('training_program_id', $trainingProgramId)
+            ->pluck('subject_id')
+            ->all();
+
+        return $subjectIds === [] ? null : $subjectIds;
+    }
+
     private function normalizeClassCode(string $className): string
     {
         return Str::upper((string) preg_replace('/[^A-Z0-9_]/', '_', trim($className)));
@@ -267,7 +293,8 @@ class UpdateScheduleSemesterHandler
 
     private function parseClassTabRules(
         array|string|null $rawRules,
-        array $classMap
+        array $classMap,
+        ?array $allowedSubjectIds = null
     ): array {
         if ($rawRules === null || $rawRules === '' || $rawRules === []) {
             return [];
@@ -306,7 +333,7 @@ class UpdateScheduleSemesterHandler
 
                 $rows[] = [
                     'class_id' => $classMap[(string) $classKey]->id,
-                    'subject_id' => $this->resolveSubjectId($subjectText),
+                    'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
@@ -480,7 +507,8 @@ class UpdateScheduleSemesterHandler
 
     private function parseImportFiles(
         UpdateScheduleSemesterRequest $request,
-        array $classMap
+        array $classMap,
+        ?array $allowedSubjectIds = null
     ): array {
         $rows = [];
         $rawImports = $request->file('import_file', []);
@@ -641,7 +669,7 @@ class UpdateScheduleSemesterHandler
 
                 $rows[] = [
                     'class_id' => $class->id,
-                    'subject_id' => $this->resolveSubjectId($subjectText),
+                    'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
@@ -729,7 +757,7 @@ class UpdateScheduleSemesterHandler
             ->all();
     }
 
-    private function resolveSubjectId(string $subjectText): int
+    private function resolveSubjectId(string $subjectText, ?array $allowedSubjectIds = null): int
     {
         $subjectText = trim($subjectText);
 
@@ -741,6 +769,12 @@ class UpdateScheduleSemesterHandler
         if (!$subject) {
             throw ValidationException::withMessages([
                 'class_tab_rules' => "Mon hoc '{$subjectText}' khong ton tai trong he thong. Vui long tao mon hoc truoc trong danh muc mon hoc.",
+            ]);
+        }
+
+        if ($allowedSubjectIds !== null && !in_array($subject->id, $allowedSubjectIds, true)) {
+            throw ValidationException::withMessages([
+                'class_tab_rules' => "Mon hoc '{$subjectText}' khong thuoc chuong trinh dao tao cua khoa dao tao da chon.",
             ]);
         }
 

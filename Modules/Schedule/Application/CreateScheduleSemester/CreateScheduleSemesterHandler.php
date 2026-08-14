@@ -17,6 +17,7 @@ use Modules\Schedule\Models\Plans;
 use Modules\Schedule\Models\SemesterEvent;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Training\Models\Subject;
+use Modules\Training\Models\TrainingBatch;
 use Modules\Training\Models\TrainingClass;
 
 class CreateScheduleSemesterHandler
@@ -57,9 +58,11 @@ class CreateScheduleSemesterHandler
             ]);
         }
 
-        $importedData = $this->parseImportFiles($request, $classMap, $planStart, $planEnd);
+        $allowedSubjectIds = $this->resolveAllowedSubjectIds($trainingBatchId);
+
+        $importedData = $this->parseImportFiles($request, $classMap, $planStart, $planEnd, $allowedSubjectIds);
         $templateEntries = array_merge(
-            $this->parseClassTabRules($validated['class_tab_rules'] ?? [], $classMap),
+            $this->parseClassTabRules($validated['class_tab_rules'] ?? [], $classMap, $allowedSubjectIds),
             $importedData['templates']
         );
 
@@ -182,6 +185,24 @@ class CreateScheduleSemesterHandler
         ])->with('success', 'Da tao ke hoach hoc ky va lich tong quat thanh cong.');
     }
 
+    /**
+     * @return array<int, int>|null Null means no restriction (program has not configured a subject list yet).
+     */
+    private function resolveAllowedSubjectIds(int $trainingBatchId): ?array
+    {
+        $trainingProgramId = TrainingBatch::query()->where('id', $trainingBatchId)->value('training_program_id');
+        if ($trainingProgramId === null) {
+            return null;
+        }
+
+        $subjectIds = DB::table('subject_training_program')
+            ->where('training_program_id', $trainingProgramId)
+            ->pluck('subject_id')
+            ->all();
+
+        return $subjectIds === [] ? null : $subjectIds;
+    }
+
     private function resolveClasses(int $trainingBatchId): array
     {
         return TrainingClass::query()
@@ -192,7 +213,7 @@ class CreateScheduleSemesterHandler
             ->all();
     }
 
-    private function parseClassTabRules(array|string|null $rawRules, array $classMap): array
+    private function parseClassTabRules(array|string|null $rawRules, array $classMap, ?array $allowedSubjectIds = null): array
     {
         if ($rawRules === null || $rawRules === '' || $rawRules === []) {
             return [];
@@ -231,7 +252,7 @@ class CreateScheduleSemesterHandler
 
                 $rows[] = [
                     'class_id' => $classMap[(string) $classKey]->id,
-                    'subject_id' => $this->resolveSubjectId($subjectText),
+                    'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
@@ -246,7 +267,7 @@ class CreateScheduleSemesterHandler
         return $rows;
     }
 
-    private function parseImportFiles(CreateScheduleSemesterRequest $request, array $classMap, Carbon $planStart, Carbon $planEnd): array
+    private function parseImportFiles(CreateScheduleSemesterRequest $request, array $classMap, Carbon $planStart, Carbon $planEnd, ?array $allowedSubjectIds = null): array
     {
         $parsed = [
             'templates' => [],
@@ -432,7 +453,7 @@ class CreateScheduleSemesterHandler
 
                 $parsed['templates'][] = [
                     'class_id' => $class->id,
-                    'subject_id' => $this->resolveSubjectId($subjectText),
+                    'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
@@ -733,7 +754,7 @@ class CreateScheduleSemesterHandler
             ->all();
     }
 
-    private function resolveSubjectId(string $subjectText): int
+    private function resolveSubjectId(string $subjectText, ?array $allowedSubjectIds = null): int
     {
         $subjectText = trim($subjectText);
 
@@ -745,6 +766,12 @@ class CreateScheduleSemesterHandler
         if (!$subject) {
             throw ValidationException::withMessages([
                 'class_tab_rules' => "Mon hoc '{$subjectText}' khong ton tai trong he thong. Vui long tao mon hoc truoc trong danh muc mon hoc.",
+            ]);
+        }
+
+        if ($allowedSubjectIds !== null && !in_array($subject->id, $allowedSubjectIds, true)) {
+            throw ValidationException::withMessages([
+                'class_tab_rules' => "Mon hoc '{$subjectText}' khong thuoc chuong trinh dao tao cua khoa dao tao da chon.",
             ]);
         }
 

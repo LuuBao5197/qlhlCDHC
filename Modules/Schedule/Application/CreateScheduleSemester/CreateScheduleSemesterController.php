@@ -3,6 +3,7 @@
 namespace Modules\Schedule\Application\CreateScheduleSemester;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingBatch;
@@ -49,6 +50,18 @@ class CreateScheduleSemesterController extends Controller
             ])
             ->values();
 
+        $batchProgramMap = $trainingBatches
+            ->mapWithKeys(fn (TrainingBatch $batch) => [(string) $batch->id => $batch->training_program_id])
+            ->all();
+
+        $programSubjectCodes = DB::table('subject_training_program')
+            ->join('subjects', 'subjects.id', '=', 'subject_training_program.subject_id')
+            ->select('subject_training_program.training_program_id', 'subjects.code')
+            ->get()
+            ->groupBy('training_program_id')
+            ->map(fn ($rows) => $rows->pluck('code')->values())
+            ->all();
+
         $weekdayOptions = [
             ['value' => 2, 'label' => 'Thu 2'],
             ['value' => 3, 'label' => 'Thu 3'],
@@ -75,6 +88,8 @@ class CreateScheduleSemesterController extends Controller
             'existingPlanKeys' => $existingPlanKeys,
             'subjects' => $subjects,
             'subjectSuggestions' => $subjectSuggestions,
+            'batchProgramMap' => $batchProgramMap,
+            'programSubjectCodes' => $programSubjectCodes,
             'weekdayOptions' => $weekdayOptions,
             'globalEventTypes' => $globalEventTypes,
             'classEventTypes' => $classEventTypes,

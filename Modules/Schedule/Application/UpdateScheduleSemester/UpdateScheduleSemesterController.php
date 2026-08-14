@@ -30,9 +30,12 @@ class UpdateScheduleSemesterController extends Controller
 
         $classes = $classesQuery->get(['id', 'training_batch_id', 'code', 'name']);
 
-        $subjects = Subject::query()
-            ->orderBy('code')
-            ->get(['id', 'code', 'name']);
+        $trainingProgram = $plan->trainingBatch?->trainingProgram;
+        $programSubjects = $trainingProgram ? $trainingProgram->subjects()->orderBy('code')->get(['subjects.id', 'subjects.code', 'subjects.name']) : collect();
+
+        $subjects = $programSubjects->isNotEmpty()
+            ? $programSubjects
+            : Subject::query()->orderBy('code')->get(['id', 'code', 'name']);
 
         $subjectSuggestions = $subjects
             ->map(fn(Subject $subject) => [

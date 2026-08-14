@@ -312,6 +312,11 @@
             }
 
             function fieldValue(row, field) {
+                if (field.type === 'multiselect') {
+                    const items = row?.[field.relationKey || field.key] || [];
+                    return items.map((item) => item.id);
+                }
+
                 let value = row?.[field.key] ?? '';
                 if (field.type === 'date' && value) {
                     value = String(value).substring(0, 10);
@@ -357,6 +362,29 @@
                                                 })
                                                 .join('')}
                                         </select>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        if (field.type === 'multiselect') {
+                            const options = selectOptionsFor(field);
+                            const selectedIds = Array.isArray(value) ? value.map(String) : [];
+                            return `
+                                <div class="col-12">
+                                    <div class="form-group">
+                                        <label>${escapeHtml(field.label)}${requiredBadge}</label>
+                                        <div class="border rounded p-2" style="max-height:220px; overflow-y:auto;" data-multiselect="${escapeHtml(field.key)}">
+                                            ${options.length === 0 ? '<span class="text-muted">Không có dữ liệu</span>' : options.map((option) => {
+                                                const checked = selectedIds.includes(String(option.value)) ? 'checked' : '';
+                                                return `
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" id="ms-${escapeHtml(field.key)}-${escapeHtml(option.value)}" value="${escapeHtml(option.value)}" ${checked}>
+                                                        <label class="form-check-label" for="ms-${escapeHtml(field.key)}-${escapeHtml(option.value)}">${escapeHtml(option.label)}</label>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
                                     </div>
                                 </div>
                             `;
@@ -457,6 +485,12 @@
                 const formData = {};
 
                 for (const field of resource.fields) {
+                    if (field.type === 'multiselect') {
+                        const checked = formFieldsEl.querySelectorAll(`[data-multiselect="${field.key}"] input[type="checkbox"]:checked`);
+                        formData[field.key] = Array.from(checked).map((el) => Number(el.value));
+                        continue;
+                    }
+
                     const input = formFieldsEl.querySelector(`[name="${field.key}"]`);
                     if (!input) {
                         continue;

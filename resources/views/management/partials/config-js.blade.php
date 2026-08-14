@@ -70,6 +70,13 @@
                                     label: 'archived'
                                 }
                             ]
+                        },
+                        {
+                            key: 'subject_ids',
+                            label: 'Danh sách môn học áp dụng',
+                            type: 'multiselect',
+                            lookup: 'subjects',
+                            relationKey: 'subjects'
                         }
                     ]
                 },

@@ -526,6 +526,10 @@
             const importUrl = @json(route('schedule.import-template'));
             const globalEventTypes = @json($globalEventTypes);
             const classEventTypes = @json($classEventTypes);
+            const allSubjectSuggestions = @json($subjectSuggestions);
+            const batchProgramMap = @json($batchProgramMap);
+            const programSubjectCodes = @json($programSubjectCodes);
+            const subjectSuggestionsList = document.getElementById('subject-suggestions');
             const tabs = document.getElementById('classTabs');
             const content = document.getElementById('classTabContent');
             const emptyMsg = document.getElementById('noClassSelectedMsg');
@@ -1376,13 +1380,35 @@
                 filter.addEventListener('input', applyClassFilters);
             }
 
+            const refreshSubjectSuggestions = () => {
+                if (!subjectSuggestionsList) {
+                    return;
+                }
+
+                const batchId = batchSelect ? String(batchSelect.value || '') : '';
+                const programId = batchId ? batchProgramMap[batchId] : null;
+                const allowedCodes = programId !== null && programId !== undefined ?
+                    programSubjectCodes[String(programId)] : null;
+
+                const suggestions = (allowedCodes && allowedCodes.length > 0) ?
+                    allSubjectSuggestions.filter((s) => allowedCodes.includes(s.code)) :
+                    allSubjectSuggestions;
+
+                subjectSuggestionsList.innerHTML = suggestions
+                    .map((s) => `<option value="${s.code}">${s.name}</option>`)
+                    .join('');
+            };
+
             if (batchSelect) {
                 batchSelect.addEventListener('change', function() {
                     applyClassFilters();
                     syncChecks();
                     validateRuleConflicts();
+                    refreshSubjectSuggestions();
                 });
             }
+
+            refreshSubjectSuggestions();
 
             if (semesterInput) {
                 semesterInput.addEventListener('change', validateRuleConflicts);

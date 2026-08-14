@@ -5,6 +5,7 @@ namespace Modules\Training\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Schedule\Models\ScheduleSlot;
 
@@ -34,5 +35,10 @@ class Subject extends Model
     public function scheduleSlots(): HasMany
     {
         return $this->hasMany(ScheduleSlot::class);
+    }
+
+    public function trainingPrograms(): BelongsToMany
+    {
+        return $this->belongsToMany(TrainingProgram::class, 'subject_training_program')->withTimestamps();
     }
 }
