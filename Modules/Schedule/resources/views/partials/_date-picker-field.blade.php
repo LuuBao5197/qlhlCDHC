@@ -12,7 +12,7 @@
     $displayId = $displayId ?? '';
     $nativeId = $nativeId ?? '';
     $required = (bool)($required ?? false);
-    $readonly = (bool)($readonly ?? true);
+    $readonly = (bool)($readonly ?? false);
     $min = $min ?? '';
     $max = $max ?? '';
     $minSource = $minSource ?? '';

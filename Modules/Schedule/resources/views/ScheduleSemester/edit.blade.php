@@ -235,6 +235,160 @@
             color: #6b7785;
             text-align: center;
         }
+
+        .quick-actions {
+            position: fixed;
+            top: 84px;
+            left: 276px;
+            right: 20px;
+            z-index: 1050;
+            width: auto;
+            padding: 10px 12px 12px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid #dbe7f3;
+            box-shadow: 0 14px 36px rgba(15, 76, 129, 0.16);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .quick-actions-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .quick-actions-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-actions .quick-title {
+            font-size: .78rem;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #6b7b8f;
+            font-weight: 700;
+            margin-right: 2px;
+        }
+
+        .quick-actions-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #dbe7f3;
+            border-radius: 999px;
+            background: #fff;
+            color: #0f4c81;
+            padding: 8px 12px;
+            font-size: .86rem;
+            font-weight: 700;
+            line-height: 1;
+            transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+        }
+
+        .quick-actions-toggle:hover {
+            background: #f5f9ff;
+            border-color: #b9d6ef;
+            box-shadow: 0 4px 12px rgba(15, 76, 129, 0.08);
+        }
+
+        .quick-actions-toggle-icon {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .quick-actions-toggle-icon span {
+            display: block;
+            width: 15px;
+            height: 2px;
+            border-radius: 999px;
+            background: currentColor;
+        }
+
+        .quick-actions-toggle .quick-actions-caret {
+            transition: transform .2s ease;
+        }
+
+        .quick-actions.is-collapsed .quick-actions-caret {
+            transform: rotate(-90deg);
+        }
+
+        .quick-actions-body {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-actions .btn {
+            min-width: 132px;
+        }
+
+        .quick-actions .quick-spacer {
+            flex: 1 1 auto;
+        }
+
+        .quick-actions .quick-label {
+            font-size: .88rem;
+            color: #516072;
+            white-space: nowrap;
+        }
+
+        .quick-actions .quick-label strong {
+            color: #0f4c81;
+        }
+
+        .quick-actions.is-collapsed .quick-actions-body {
+            display: none;
+        }
+
+        .quick-actions-spacer {
+            height: 90px;
+        }
+
+        @media (max-width: 1200px) {
+            .quick-actions {
+                left: 20px;
+                right: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .quick-actions {
+                top: 12px;
+                border-radius: 14px;
+            }
+
+            .quick-actions-spacer {
+                height: 108px;
+            }
+
+            .quick-actions-top {
+                align-items: flex-start;
+            }
+
+            .quick-actions .quick-label {
+                width: 100%;
+            }
+
+            .quick-actions .btn {
+                min-width: unset;
+                flex: 1 1 calc(50% - 4px);
+            }
+
+            .quick-actions .quick-spacer {
+                flex-basis: 100%;
+                height: 0;
+            }
+        }
     </style>
 
     <div class="row">
@@ -264,6 +418,45 @@
                         id="scheduleForm">
                         @csrf
                         @method('PUT')
+
+                        <div class="quick-actions shadow-sm" id="quickActionsBar">
+                            <div class="quick-actions-top">
+                                <div class="quick-actions-left">
+                                    <button type="button" class="quick-actions-toggle" id="quickActionsToggleBtn"
+                                        aria-expanded="true" aria-controls="quickActionsBody">
+                                        <span class="quick-actions-toggle-icon" aria-hidden="true">
+                                            <span></span>
+                                            <span></span>
+                                            <span></span>
+                                        </span>
+                                        <span>Menu nhanh</span>
+                                        <span class="quick-actions-caret" aria-hidden="true">▾</span>
+                                    </button>
+                                    <div class="quick-title">Thao tác nhanh</div>
+                                </div>
+                                <div class="quick-label">
+                                    Lớp hiện tại: <strong id="quickActiveClassLabel">Chưa chọn</strong>
+                                </div>
+                            </div>
+                            <div class="quick-actions-body" id="quickActionsBody">
+                                <button type="button" class="btn btn-sm btn-primary" id="quickAddRuleBtn">
+                                    Thêm rule
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddClassEventBtn">
+                                    Thêm sự kiện
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddHolidayBtn">
+                                    Thêm nghỉ lễ
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" id="quickPreviewBtn">
+                                    Xem trước
+                                </button>
+                                <button type="button" class="btn btn-sm btn-light border" id="quickScrollTopBtn">
+                                    Lên đầu
+                                </button>
+                            </div>
+                        </div>
+                        <div class="quick-actions-spacer"></div>
 
                         <h5 class="mb-3">1. Thong tin hoc ky</h5>
                         @if ($plan->trainingBatch)
@@ -403,8 +596,13 @@
         </div>
     </div>
 
+    @include('schedule::ScheduleSemester.partials.preview-modal')
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const previewUrl = @json(route('schedule.semester-preview'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            window.ScheduleSemesterPreview?.init({ url: previewUrl, csrfToken });
             const weekdayOptions = @json($weekdayOptions);
             const oldRules = @json($oldRules);
             const oldGlobalEvents = @json($oldGlobalEvents);
@@ -431,6 +629,17 @@
             const submitButton = form.querySelector('button[type="submit"]');
             const globalHolidayEventList = document.getElementById('globalHolidayEventList');
             const addGlobalHolidayBtn = document.getElementById('addGlobalHolidayBtn');
+            const quickAddRuleBtn = document.getElementById('quickAddRuleBtn');
+            const quickAddClassEventBtn = document.getElementById('quickAddClassEventBtn');
+            const quickAddHolidayBtn = document.getElementById('quickAddHolidayBtn');
+            const quickPreviewBtn = document.getElementById('quickPreviewBtn');
+            const quickScrollTopBtn = document.getElementById('quickScrollTopBtn');
+            const quickActiveClassLabel = document.getElementById('quickActiveClassLabel');
+            const quickActionsBar = document.getElementById('quickActionsBar');
+            const quickActionsToggleBtn = document.getElementById('quickActionsToggleBtn');
+            const quickActionsBody = document.getElementById('quickActionsBody');
+            const quickActionsStorageKey = 'schedule-edit-quick-actions-collapsed';
+            let activeClassKey = null;
             const displayDateInputs = Array.from(document.querySelectorAll('[data-date-display]'));
             const nativeDateInputs = Array.from(document.querySelectorAll('[data-date-native]'));
             const minAllowedPlanDate = @json($minAllowedPlanDate);
@@ -505,12 +714,36 @@
             };
 
             const activate = (k) => {
+                activeClassKey = String(k);
                 tabs.querySelectorAll('[data-key]').forEach((btn) => {
                     btn.className =
                         `btn btn-sm mr-2 mb-2 ${btn.dataset.key === String(k) ? 'btn-primary' : 'btn-outline-primary'}`;
                 });
                 content.querySelectorAll('.class-pane').forEach((pane) => pane.classList.toggle('active', pane
                     .dataset.key === String(k)));
+                syncQuickActions();
+            };
+
+            const syncQuickActionsCollapsedState = (collapsed) => {
+                if (!quickActionsBar || !quickActionsToggleBtn) return;
+                quickActionsBar.classList.toggle('is-collapsed', collapsed);
+                quickActionsToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+                quickActionsToggleBtn.dataset.collapsed = collapsed ? '1' : '0';
+                try {
+                    localStorage.setItem(quickActionsStorageKey, collapsed ? '1' : '0');
+                } catch (error) {
+                    // Ignore storage failures and keep the menu usable.
+                }
+            };
+
+            const syncQuickActions = () => {
+                const hasActiveClass = Boolean(activeClassKey && document.getElementById(paneId(activeClassKey)));
+                if (quickAddRuleBtn) quickAddRuleBtn.disabled = !hasActiveClass;
+                if (quickAddClassEventBtn) quickAddClassEventBtn.disabled = !hasActiveClass;
+                if (quickPreviewBtn) quickPreviewBtn.disabled = !hasActiveClass;
+                if (quickActiveClassLabel) {
+                    quickActiveClassLabel.textContent = hasActiveClass ? labelOf(activeClassKey) : 'Chua chon';
+                }
             };
 
             const updateEmpty = () => {
@@ -553,6 +786,54 @@
                     errorNode.dataset.messages = messages.join('||');
                     errorNode.innerHTML = messages.map((item) => `<div>${esc(item)}</div>`).join('');
                 }
+            };
+
+            const collectPreviewPayload = (k) => {
+                const pane = document.getElementById(paneId(k));
+                if (!pane) return null;
+
+                const rulesBox = document.getElementById(rulesId(k));
+                const rules = Array.from(rulesBox ? rulesBox.querySelectorAll('.rule-card') : []).map((card) => {
+                    const shape = validateRuleShape(card);
+                    if (!shape.valid) return null;
+                    const subject = (card.querySelector('input[name$="[subject]"]')?.value || '').trim();
+                    if (!subject) return null;
+                    return {
+                        subject,
+                        weekdays: shape.data.weekdays,
+                        period_from: shape.data.periodFrom,
+                        period_to: shape.data.periodTo,
+                        start_date: shape.data.startDate,
+                        end_date: shape.data.endDate,
+                    };
+                }).filter(Boolean);
+
+                const eventCardsToPayload = (listEl) => Array.from(listEl ? listEl.querySelectorAll('.event-card') : [])
+                    .map((card) => {
+                        const parsed = parseEvent(card);
+                        if (!parsed) return null;
+                        return {
+                            title: parsed.title,
+                            start_date: parsed.startDate,
+                            end_date: parsed.endDate,
+                            period_from: parsed.periodFrom,
+                            period_to: parsed.periodTo,
+                        };
+                    }).filter(Boolean);
+
+                const cb = checkboxes.find((item) => item.value === String(k));
+                const importFile = pane.querySelector('input[type="file"]')?.files?.[0] || null;
+
+                return {
+                    title: `Xem truoc lich - ${labelOf(k)}`,
+                    startDate: planStartInput?.value || '',
+                    endDate: planEndInput?.value || '',
+                    rules,
+                    classEvents: eventCardsToPayload(document.getElementById(classEventsId(k))),
+                    globalEvents: eventCardsToPayload(globalHolidayEventList),
+                    classCode: cb?.dataset.code || '',
+                    importFile,
+                };
             };
 
             const eventMeta = (type, list) => list.find((item) => String(item.value) === String(type));
@@ -667,7 +948,7 @@
                         <label class="form-label">${esc(label)}</label>
                         <div class="schedule-date-input-group input-group">
                             <input type="text" class="form-control schedule-date-display js-schedule-date-display"
-                                data-date-display="${esc(fieldName)}" placeholder="DD/MM/YYYY" value="${esc(window.ScheduleDatePicker?.formatDisplay(value) || '')}" readonly required>
+                                data-date-display="${esc(fieldName)}" placeholder="DD/MM/YYYY" value="${esc(window.ScheduleDatePicker?.formatDisplay(value) || '')}"${fieldOptions.readonly ? ' readonly' : ''} required>
                             <input type="hidden" name="${esc(name)}" data-date-native="${esc(fieldName)}" value="${esc(value || '')}">
                             <button type="button" class="btn btn-outline-secondary schedule-date-toggle"
                                 data-date-picker="${esc(fieldName)}">Lich</button>
@@ -1235,6 +1516,7 @@
                             <div class="pane-actions">
                                 <button type="button" class="btn btn-sm btn-primary add-rule" data-key="${esc(k)}">Them rule</button>
                                 <button type="button" class="btn btn-sm btn-outline-primary add-class-event" data-key="${esc(k)}">Them su kien</button>
+                                <button type="button" class="btn btn-sm btn-outline-info preview-schedule" data-key="${esc(k)}">Xem truoc</button>
                             </div>
                         </div>
                         <div class="border rounded p-3 mb-3 bg-light">
@@ -1277,6 +1559,10 @@
                 delete counters[k];
                 delete eventCounters.classes[k];
                 updateEmpty();
+                if (tabs.children.length === 0) {
+                    activeClassKey = null;
+                    syncQuickActions();
+                }
                 validateRuleConflicts();
                 if (active && tabs.firstElementChild) activate(tabs.firstElementChild.dataset.key);
             };
@@ -1321,6 +1607,12 @@
             });
 
             content.addEventListener('click', function(e) {
+                const previewBtn = e.target.closest('.preview-schedule');
+                if (previewBtn) {
+                    const payload = collectPreviewPayload(previewBtn.dataset.key);
+                    if (payload) window.ScheduleSemesterPreview?.open(payload);
+                    return;
+                }
                 const add = e.target.closest('.add-rule');
                 if (add) return addRule(add.dataset.key);
                 const addClassEventBtn = e.target.closest('.add-class-event');
@@ -1375,11 +1667,48 @@
                 addGlobalHoliday();
                 validateAllSemesterEvents();
             });
+            quickAddRuleBtn?.addEventListener('click', () => {
+                if (!activeClassKey) return;
+                addRule(activeClassKey);
+            });
+            quickAddClassEventBtn?.addEventListener('click', () => {
+                if (!activeClassKey) return;
+                addClassEvent(activeClassKey);
+            });
+            quickAddHolidayBtn?.addEventListener('click', () => {
+                addGlobalHoliday();
+                validateAllSemesterEvents();
+            });
+            quickPreviewBtn?.addEventListener('click', () => {
+                if (!activeClassKey) return;
+                const payload = collectPreviewPayload(activeClassKey);
+                if (payload) window.ScheduleSemesterPreview?.open(payload);
+            });
+            quickScrollTopBtn?.addEventListener('click', () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            quickActionsToggleBtn?.addEventListener('click', () => {
+                const collapsed = quickActionsBar?.classList.contains('is-collapsed') ?? false;
+                syncQuickActionsCollapsedState(!collapsed);
+            });
             form.addEventListener('submit', function(e) {
                 if (!validateRuleConflicts() || !validateAllSemesterEvents()) {
                     e.preventDefault();
                 }
             });
+
+            const initialQuickActionsCollapsed = (() => {
+                try {
+                    return localStorage.getItem(quickActionsStorageKey) === '1';
+                } catch (error) {
+                    return false;
+                }
+            })();
+            syncQuickActionsCollapsedState(initialQuickActionsCollapsed);
+            syncQuickActions();
 
             syncChecks();
             updateEmpty();
@@ -1397,6 +1726,7 @@
             });
             validateAllSemesterEvents();
             applyServerRuleErrors();
+            syncQuickActions();
         });
 
 

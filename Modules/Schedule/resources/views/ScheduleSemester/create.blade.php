@@ -446,6 +446,9 @@
                                 <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddHolidayBtn">
                                     Thêm nghỉ lễ
                                 </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" id="quickPreviewBtn">
+                                    Xem trước
+                                </button>
                                 <button type="button" class="btn btn-sm btn-light border" id="quickScrollTopBtn">
                                     Lên đầu
                                 </button>
@@ -621,8 +624,13 @@
         </div>
     </div>
 
+    @include('schedule::ScheduleSemester.partials.preview-modal')
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const previewUrl = @json(route('schedule.semester-preview'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            window.ScheduleSemesterPreview?.init({ url: previewUrl, csrfToken });
             const weekdayOptions = @json($weekdayOptions);
             const oldRules = @json($oldRules);
             const oldGlobalEvents = @json($oldGlobalEvents);
@@ -661,6 +669,7 @@
             const quickAddRuleBtn = document.getElementById('quickAddRuleBtn');
             const quickAddClassEventBtn = document.getElementById('quickAddClassEventBtn');
             const quickAddHolidayBtn = document.getElementById('quickAddHolidayBtn');
+            const quickPreviewBtn = document.getElementById('quickPreviewBtn');
             const quickScrollTopBtn = document.getElementById('quickScrollTopBtn');
             const quickActiveClassLabel = document.getElementById('quickActiveClassLabel');
             const quickActionsBar = document.getElementById('quickActionsBar');
@@ -803,6 +812,7 @@
                 const hasActiveClass = Boolean(activeClassKey && document.getElementById(paneId(activeClassKey)));
                 if (quickAddRuleBtn) quickAddRuleBtn.disabled = !hasActiveClass;
                 if (quickAddClassEventBtn) quickAddClassEventBtn.disabled = !hasActiveClass;
+                if (quickPreviewBtn) quickPreviewBtn.disabled = !hasActiveClass;
                 if (quickActiveClassLabel) {
                     quickActiveClassLabel.textContent = hasActiveClass ? labelOf(activeClassKey) : 'Chua chon';
                 }
@@ -994,7 +1004,7 @@
                         <label class="form-label">${esc(label)}</label>
                         <div class="schedule-date-input-group input-group">
                             <input type="text" class="form-control schedule-date-display js-schedule-date-display"
-                                data-date-display="${esc(fieldName)}" placeholder="DD/MM/YYYY" value="${esc(window.ScheduleDatePicker?.formatDisplay(value) || '')}" readonly required>
+                                data-date-display="${esc(fieldName)}" placeholder="DD/MM/YYYY" value="${esc(window.ScheduleDatePicker?.formatDisplay(value) || '')}"${fieldOptions.readonly ? ' readonly' : ''} required>
                             <input type="hidden" name="${esc(name)}" data-date-native="${esc(fieldName)}" value="${esc(value || '')}">
                             <button type="button" class="btn btn-outline-secondary schedule-date-toggle"
                                 data-date-picker="${esc(fieldName)}">Lich</button>
@@ -1041,6 +1051,54 @@
                 scrollToEl(div);
                 const firstInput = div.querySelector('input, select, textarea');
                 if (firstInput) firstInput.focus({ preventScroll: true });
+            };
+
+            const collectPreviewPayload = (k) => {
+                const pane = document.getElementById(paneId(k));
+                if (!pane) return null;
+
+                const rulesBox = document.getElementById(rulesId(k));
+                const rules = Array.from(rulesBox ? rulesBox.querySelectorAll('.rule-card') : []).map((card) => {
+                    const parsed = parseRule(card);
+                    if (!parsed) return null;
+                    const subject = (card.querySelector('input[name$="[subject]"]')?.value || '').trim();
+                    if (!subject) return null;
+                    return {
+                        subject,
+                        weekdays: parsed.weekdays,
+                        period_from: parsed.periodFrom,
+                        period_to: parsed.periodTo,
+                        start_date: parsed.startDate,
+                        end_date: parsed.endDate,
+                    };
+                }).filter(Boolean);
+
+                const eventCardsToPayload = (listEl) => Array.from(listEl ? listEl.querySelectorAll('.event-card') : [])
+                    .map((card) => {
+                        const parsed = parseEvent(card);
+                        if (!parsed) return null;
+                        return {
+                            title: parsed.title,
+                            start_date: parsed.startDate,
+                            end_date: parsed.endDate,
+                            period_from: parsed.periodFrom,
+                            period_to: parsed.periodTo,
+                        };
+                    }).filter(Boolean);
+
+                const cb = checkboxes.find((item) => item.value === String(k));
+                const importFile = pane.querySelector('input[type="file"]')?.files?.[0] || null;
+
+                return {
+                    title: `Xem truoc lich - ${labelOf(k)}`,
+                    startDate: planStartInput?.value || '',
+                    endDate: planEndInput?.value || '',
+                    rules,
+                    classEvents: eventCardsToPayload(document.getElementById(classEventsId(k))),
+                    globalEvents: eventCardsToPayload(globalHolidayEventList),
+                    classCode: cb?.dataset.code || '',
+                    importFile,
+                };
             };
 
             const eventMeta = (type, list) => list.find((item) => String(item.value) === String(type));
@@ -1343,6 +1401,7 @@
                                 <div class="pane-actions">
                                     <button type="button" class="btn btn-sm btn-primary add-rule" data-key="${esc(k)}">Them rule</button>
                                     <button type="button" class="btn btn-sm btn-outline-primary add-class-event" data-key="${esc(k)}">Them su kien</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info preview-schedule" data-key="${esc(k)}">Xem truoc</button>
                                 </div>
                             </div>
                         </div>
@@ -1618,6 +1677,12 @@
             });
 
             content.addEventListener('click', function(e) {
+                const previewBtn = e.target.closest('.preview-schedule');
+                if (previewBtn) {
+                    const payload = collectPreviewPayload(previewBtn.dataset.key);
+                    if (payload) window.ScheduleSemesterPreview?.open(payload);
+                    return;
+                }
                 const add = e.target.closest('.add-rule');
                 if (add) return addRule(add.dataset.key);
                 const addClassEventBtn = e.target.closest('.add-class-event');
@@ -1684,6 +1749,11 @@
             quickAddHolidayBtn?.addEventListener('click', () => {
                 addGlobalHoliday();
                 validateAllSemesterEvents();
+            });
+            quickPreviewBtn?.addEventListener('click', () => {
+                if (!activeClassKey) return;
+                const payload = collectPreviewPayload(activeClassKey);
+                if (payload) window.ScheduleSemesterPreview?.open(payload);
             });
             quickScrollTopBtn?.addEventListener('click', () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });

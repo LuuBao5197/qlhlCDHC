@@ -206,7 +206,7 @@
 
         $(displayInput)
             .datepicker(options)
-            .on('changeDate clearDate change', syncFromDisplay);
+            .on('changeDate clearDate change input', syncFromDisplay);
 
         wrapper.querySelector(BUTTON_SELECTOR)?.addEventListener('click', () => {
             $(displayInput).datepicker('show');
@@ -311,7 +311,7 @@
                 ${label ? `<label class="form-label">${escapeHtml(label)}</label>` : ''}
                 <div class="schedule-date-input-group input-group">
                     <input type="text" class="form-control schedule-date-display js-schedule-date-display ${escapeHtml(inputClass)}"
-                        data-date-display="${escapeHtml(fieldName)}"${displayId ? ` id="${escapeHtml(displayId)}"` : ''} placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" readonly${formAttr}${required}>
+                        data-date-display="${escapeHtml(fieldName)}"${displayId ? ` id="${escapeHtml(displayId)}"` : ''} placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}"${options.readonly ? ' readonly' : ''}${formAttr}${required}>
                     <input type="hidden" name="${escapeHtml(name)}" data-date-native="${escapeHtml(fieldName)}"
                         ${nativeId ? `id="${escapeHtml(nativeId)}"` : ''} value="${escapeHtml(nativeValue)}"${formAttr}>
                     <button type="button" class="btn btn-outline-secondary schedule-date-toggle"

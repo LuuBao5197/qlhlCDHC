@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Schedule\Application\GetSchedule\GetScheduleController;
 use Modules\Schedule\Application\GetScheduleSemester\GetScheduleSemesterController;
 use Modules\Schedule\Application\CreateScheduleSemester\CreateScheduleSemesterController;
+use Modules\Schedule\Application\CreateScheduleSemester\PreviewScheduleSemesterController;
 use Modules\Schedule\Application\UpdateSchedule\UpdateScheduleController;
 use Modules\Schedule\Application\DeleteSchedule\DeleteScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleController;
@@ -45,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/schedules/import-template', [CreateScheduleSemesterController::class, 'downloadImportTemplate'])
         ->name('schedule.import-template');
     Route::post('/schedules', CreateScheduleSemesterController::class)->name('schedule.store');
+    Route::post('/schedules/semester-preview', PreviewScheduleSemesterController::class)
+        ->name('schedule.semester-preview');
 
     // Show schedule
     Route::get('/schedules/{id}', [GetScheduleController::class, 'show'])
