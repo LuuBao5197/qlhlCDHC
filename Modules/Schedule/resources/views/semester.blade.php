@@ -7,6 +7,10 @@
     $dates = collect($dates ?? []);
     $periods = collect($periods ?? range(1, 9));
     $renderRows = $renderRows ?? [];
+    $classOptions = collect($classOptions ?? []);
+    $planOptions = collect($planOptions ?? []);
+    $className = $className ?? null;
+    $ambiguous = $ambiguous ?? false;
 
     $dateHeaders = collect($dates)->map(function ($date) {
         $dow = $date->dayOfWeekIso;
@@ -62,6 +66,7 @@
                     <h2 style="margin: 0; font-weight: 800; color: #1e293b;">Lịch học kỳ</h2>
                     <p style="margin: 5px 0 0; color: #64748b;">
                         Học kỳ: {{ $plan->semester ?? '-' }} | Năm học: {{ $plan->year ?? '-' }}
+                        @if($plan?->trainingBatch) | Khóa: <strong>{{ $plan->trainingBatch->code }}</strong> @endif
                         @if($className) | Lớp: <strong>{{ $className }}</strong> @endif
                     </p>
                 </div>
@@ -84,9 +89,53 @@
                 <span class="legend-item"><span class="legend-swatch" style="background:#fee2e2;"></span>Thi</span>
                 <span class="legend-item"><span class="legend-swatch" style="background:#ede9fe;"></span>Sự kiện khác</span>
             </div>
+
+            @if ($plan)
+                <form method="GET" action="{{ route('schedule.semester', ['semester' => $plan->semester, 'year' => $plan->year]) }}"
+                    class="d-flex flex-wrap align-items-end gap-2 mt-3">
+                    <input type="hidden" name="training_batch_id" value="{{ $plan->training_batch_id }}">
+                    <div>
+                        <label class="mb-1 small text-muted">Lớp</label>
+                        <select name="className" class="form-control form-control-sm" style="min-width: 200px;"
+                            onchange="this.form.submit()">
+                            <option value="">-- Tất cả các lớp --</option>
+                            @foreach ($classOptions as $classOption)
+                                <option value="{{ $classOption->code }}" @selected($className === $classOption->code)>
+                                    {{ $classOption->code }}@if($classOption->name) - {{ $classOption->name }}@endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary">Xem</button>
+                    <a href="{{ route('schedule.semester') }}" class="btn btn-sm btn-outline-secondary">Chọn học kỳ khác</a>
+                </form>
+            @endif
         </div>
 
-        @if (!$plan || $dates->isEmpty())
+        @if (!$plan)
+            <div class="p-4">
+                @if ($planOptions->isEmpty())
+                    <div class="text-muted">Chưa có kế hoạch học kỳ nào để hiển thị.</div>
+                @else
+                    <p class="text-muted mb-2">
+                        @if ($ambiguous)
+                            Học kỳ/năm học này có nhiều khóa học khác nhau, vui lòng chọn khóa cần xem:
+                        @else
+                            Chọn học kỳ để xem lịch tổng quát:
+                        @endif
+                    </p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach ($planOptions as $planOption)
+                            <a href="{{ route('schedule.semester', ['semester' => $planOption->semester, 'year' => $planOption->year, 'training_batch_id' => $planOption->training_batch_id]) }}"
+                                class="btn btn-sm btn-outline-primary">
+                                HK {{ $planOption->semester }} / {{ $planOption->year }}
+                                @if ($planOption->trainingBatch) - {{ $planOption->trainingBatch->code }} @endif
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @elseif ($dates->isEmpty())
             <div class="p-4 text-muted">Chưa có dữ liệu lịch học kỳ để hiển thị.</div>
         @else
             <div class="table-container" onclick="openScheduleModal()">

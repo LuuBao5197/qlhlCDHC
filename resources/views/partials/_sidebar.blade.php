@@ -23,6 +23,15 @@
       </a>
     </li>
 
+    @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin() || auth()->user()->isDepartmentStaff() || auth()->user()->isLeadership()))
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('schedule.semester') }}">
+          <span class="menu-icon"><i class="mdi mdi-calendar-month"></i></span>
+          <span class="menu-title">Lịch tổng quát học kỳ</span>
+        </a>
+      </li>
+    @endif
+
     @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin() || auth()->user()->isLeadership() || auth()->user()->isDepartmentStaff() || auth()->user()->isTeacher()))
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('reports.teaching.overview') }}">

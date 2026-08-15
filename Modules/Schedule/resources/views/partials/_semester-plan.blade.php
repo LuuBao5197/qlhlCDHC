@@ -109,6 +109,12 @@
                                     </td>
                                     <td class="text-nowrap">
                                         <div class="d-flex flex-wrap gap-2 align-items-center">
+                                            {{-- View overview schedule --}}
+                                            <a href="{{ route('schedule.semester', ['semester' => $schedule->semester, 'year' => $schedule->year, 'training_batch_id' => $schedule->training_batch_id]) }}"
+                                                class="btn btn-sm btn-outline-info" title="Xem lịch tổng quát học kỳ" target="_blank">
+                                                <i class="mdi mdi-calendar-month"></i>
+                                            </a>
+
                                             {{-- Edit --}}
                                             @if ($canEditPlan)
                                                 <a href="{{ route('schedule.edit', $schedule->id) }}"

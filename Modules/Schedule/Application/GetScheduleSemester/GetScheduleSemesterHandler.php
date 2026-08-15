@@ -18,20 +18,49 @@ class GetScheduleSemesterHandler
         $className = $validated['className'] ?? null;
 
         if (!$semester || !$year) {
-            return view('schedule::semester', ['plan' => null]);
+            $planOptions = Plans::query()
+                ->with('trainingBatch')
+                ->orderByDesc('year')
+                ->orderByDesc('semester')
+                ->get(['id', 'semester', 'year', 'training_batch_id']);
+
+            return view('schedule::semester', ['plan' => null, 'classOptions' => [], 'planOptions' => $planOptions]);
         }
 
-        $plan = Plans::query()
+        $matchingPlans = Plans::query()
             ->with('trainingBatch')
             ->where('semester', $semester)
             ->where('year', $year)
             ->when($trainingBatchId, fn ($query) => $query->where('training_batch_id', (int) $trainingBatchId))
             ->latest()
-            ->first();
+            ->get();
 
-        if (!$plan) {
-            return view('schedule::semester', ['plan' => null]);
+        if ($matchingPlans->isEmpty()) {
+            return view('schedule::semester', ['plan' => null, 'classOptions' => []]);
         }
+
+        // Multiple plans share this semester/year across different training batches (khóa học) —
+        // ask the user to disambiguate instead of silently guessing one.
+        if (!$trainingBatchId && $matchingPlans->count() > 1) {
+            return view('schedule::semester', [
+                'plan' => null,
+                'classOptions' => [],
+                'planOptions' => $matchingPlans,
+                'ambiguous' => true,
+            ]);
+        }
+
+        $plan = $matchingPlans->first();
+
+        $classOptions = PlanTemplates::query()
+            ->with('trainingClass')
+            ->where('plan_id', $plan->id)
+            ->get()
+            ->pluck('trainingClass')
+            ->filter()
+            ->unique('id')
+            ->sortBy('code')
+            ->values();
 
         $planTemplates = PlanTemplates::query()
             ->with(['subjects', 'trainingClass'])
@@ -65,6 +94,7 @@ class GetScheduleSemesterHandler
                 'dates' => [],
                 'periods' => range(1, 9),
                 'className' => $className,
+                'classOptions' => $classOptions,
             ]);
         }
 
@@ -205,7 +235,7 @@ class GetScheduleSemesterHandler
             }
         }
 
-        return view('schedule::semester', compact('plan', 'renderRows', 'dates', 'periods', 'className'));
+        return view('schedule::semester', compact('plan', 'renderRows', 'dates', 'periods', 'className', 'classOptions'));
     }
 
     private function normalizeDaysOfWeek(mixed $value): array
