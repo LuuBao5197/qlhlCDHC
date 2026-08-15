@@ -159,12 +159,12 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
                         <div>
                             <h5 class="card-title mb-1">Phiếu đề nghị thay đổi kế hoạch giảng dạy</h5>
-                            <small class="text-muted">UC6 phe duyet hoac tu choi phieu de nghi thay doi.</small>
+                            <small class="text-muted">Danh sách phiếu đề nghị thay đổi kế hoạch giảng dạy.</small>
                         </div>
                         @if ($canDepartmentAssign || $canReviewWorkflow)
                             <div class="mt-2 mt-sm-0">
                                 <a href="{{ route('change-request.create') }}" class="btn btn-primary btn-sm">
-                                    Mo trang tao phieu rieng
+                                    Tạo phiếu đề nghị thay đổi
                                 </a>
                             </div>
                         @endif

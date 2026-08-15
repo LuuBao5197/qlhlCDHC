@@ -374,8 +374,8 @@
         <div class="col-12">
             <div class="box shadow-sm">
                 <div class="box-head">
-                    <h4 class="mb-2">Tao ke hoach va lich tong quat hoc ky</h4>
-                    <div>Moi lop can co it nhat mot rule hop le hoac mot file import Excel/CSV.</div>
+                    <h4 class="mb-2">Tạo kế hoạch và lịch tổng quát học kỳ</h4>
+                    <div>Mỗi lớp cần có ít nhất một rule hợp lệ hoặc một file import Excel/CSV.</div>
                 </div>
 
                 <div class="box-body">
@@ -409,7 +409,7 @@
                                 <div class="mt-2">
                                     <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
                                     <textarea name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
-                                        rows="2" placeholder="Vi du: Nhap bu lich hoc ky truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                                        rows="2" placeholder="Ví dụ: Nhập bù lịch học kỳ trước khi hệ thống vận hành...">{{ old('admin_backfill_reason') }}</textarea>
                                     @error('admin_backfill_reason')
                                         <div class="invalid-feedback d-block">{{ $message }}</div>
                                     @enderror
@@ -456,13 +456,13 @@
                         </div>
                         <div class="quick-actions-spacer"></div>
 
-                        <h5 class="mb-3">1. Thong tin hoc ky</h5>
+                        <h5 class="mb-3">1. Thông tin học kỳ</h5>
                         <div class="row">
                             <div class="col-md-6">
-                                <label class="form-label">Khoa dao tao <span class="text-danger">*</span></label>
+                                <label class="form-label">Khóa đào tạo <span class="text-danger">*</span></label>
                                 <select name="training_batch_id" id="trainingBatchSelect" class="form-control" required
                                     {{ $hasAvailableTrainingBatches ? '' : 'disabled' }}>
-                                    <option value="">Chon khoa dao tao</option>
+                                    <option value="">Chọn khóa đào tạo</option>
                                     @foreach ($trainingBatches as $batch)
                                         @php
                                             $programLabel = $batch->trainingProgram
@@ -476,14 +476,14 @@
                                             @if ($programLabel)
                                                 ({{ $programLabel }})
                                             @endif
-                                            - {{ $batch->classes_count }} lop
+                                            - {{ $batch->classes_count }} lớp
                                         </option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted d-block mt-2">Chi hien thi khoa dao tao dang hoat dong.</small>
+                                <small class="text-muted d-block mt-2">Chỉ hiển thị khóa đào tạo đang hoạt động.</small>
                                 @if (!$hasAvailableTrainingBatches)
                                     <div class="alert alert-warning mt-3 mb-0">
-                                        Chua co khoa dao tao kha dung de tao ke hoach moi.
+                                        Chưa có khóa đào tạo khả dụng để tạo kế hoạch mới.
                                     </div>
                                 @endif
                             </div>
@@ -491,38 +491,38 @@
 
                         <div class="row mt-3">
                             <div class="col-md-3">
-                                <label class="form-label">Hoc ky</label>
+                                <label class="form-label">Học kỳ</label>
                                 <select name="semester" class="form-control" required>
-                                    <option value="1" {{ old('semester') == 1 ? 'selected' : '' }}>Hoc ky 1</option>
-                                    <option value="2" {{ old('semester') == 2 ? 'selected' : '' }}>Hoc ky 2</option>
+                                    <option value="1" {{ old('semester') == 1 ? 'selected' : '' }}>Học kỳ 1</option>
+                                    <option value="2" {{ old('semester') == 2 ? 'selected' : '' }}>Học kỳ 2</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Nam hoc</label>
+                                <label class="form-label">Năm học</label>
                                 <input type="number" name="year" class="form-control"
                                     value="{{ old('year', date('Y')) }}" required>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Ngay bat dau</label>
+                                <label class="form-label">Ngày bắt đầu</label>
                                 @include('schedule::partials._date-picker-field', [
                                     'name' => 'start_date',
                                     'field' => 'start_date',
                                     'value' => old('start_date'),
                                     'required' => true,
                                     'min' => $minAllowedPlanDate,
-                                    'buttonLabel' => 'Lich',
+                                    'buttonLabel' => 'Lịch',
                                     'readonly' => ! $isAdminUser,
                                 ])
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Ngay ket thuc</label>
+                                <label class="form-label">Ngày kết thúc</label>
                                 @include('schedule::partials._date-picker-field', [
                                     'name' => 'end_date',
                                     'field' => 'end_date',
                                     'value' => old('end_date'),
                                     'required' => true,
                                     'min' => $minAllowedPlanDate,
-                                    'buttonLabel' => 'Lich',
+                                    'buttonLabel' => 'Lịch',
                                     'readonly' => ! $isAdminUser,
                                 ])
                             </div>
@@ -530,20 +530,20 @@
                         <div id="planDuplicateHint" class="alert alert-warning mt-3 d-none"></div>
 
                         <div class="mt-3">
-                            <label class="form-label">Mo ta ke hoach</label>
+                            <label class="form-label">Mô tả kế hoạch</label>
                             <textarea name="description" rows="3" class="form-control">{{ old('description') }}</textarea>
                         </div>
 
                         <hr class="my-4">
 
-                        <h5 class="mb-3">2. Chon lop ap dung</h5>
+                        <h5 class="mb-3">2. Chọn lớp áp dụng</h5>
                         <div class="row">
                             <div class="col-lg-7">
                                 <div id="classBatchHint" class="alert alert-light border mb-3">
-                                    Chon khoa dao tao de hien thi danh sach lop.
+                                    Chọn khóa đào tạo để hiển thị danh sách lớp.
                                 </div>
                                 <input type="text" class="form-control mb-3" id="classFilterInput"
-                                    placeholder="Tim theo ma hoac ten lop">
+                                    placeholder="Tìm theo mã hoặc tên lớp">
                                 <div class="class-list">
                                     @foreach ($classes as $class)
                                         <div class="class-item mb-2"
@@ -568,35 +568,35 @@
                         <hr class="my-4">
 
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">3. Cau hinh tung lop</h5>
+                            <h5 class="mb-0">3. Cấu hình từng lớp</h5>
                             <a href="{{ route('schedule.import-template') }}" class="btn btn-sm btn-outline-secondary">
-                                Tai file mau
+                                Tải file mẫu
                             </a>
                         </div>
                         <div id="classTabs" class="d-flex flex-wrap mb-3"></div>
                         <div id="classTabContent">
                             <div id="noClassSelectedMsg" class="alert alert-light border">
-                                Chon it nhat mot lop o tren de them rule hoac upload file import.
+                                Chọn ít nhất một lớp ở trên để thêm rule hoặc upload file import.
                             </div>
                         </div>
 
                         <hr class="my-4">
 
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0">4. Su kien chung</h5>
+                            <h5 class="mb-0">4. Sự kiện chung</h5>
                             <button type="button" class="btn btn-sm btn-outline-primary" id="addGlobalHolidayBtn">
-                                Them nghi le
+                                Thêm nghỉ lễ
                             </button>
                         </div>
                         <div class="text-muted small mb-3">
-                            Chi dung cho su kien ap dung cho tat ca cac lop, vi du nghi le. Su kien nay chi can
-                            nhap mot lan va se hien thi tren tat ca tab lop.
+                            Chỉ dùng cho sự kiện áp dụng cho tất cả các lớp, ví dụ nghỉ lễ. Sự kiện này chỉ cần
+                            nhập một lần và sẽ hiển thị trên tất cả tab lớp.
                         </div>
                         <div id="globalHolidayEventList"></div>
 
                         <div class="d-flex justify-content-end mt-4">
                             <button type="submit" class="btn btn-primary px-4"
-                                {{ $hasAvailableTrainingBatches ? '' : 'disabled' }}>Tao ke hoach</button>
+                                {{ $hasAvailableTrainingBatches ? '' : 'disabled' }}>Tạo kế hoạch</button>
                         </div>
                     </form>
                 </div>
@@ -613,12 +613,12 @@
     <div id="subjectPickerModal" class="subject-picker-overlay" style="display:none;">
         <div class="subject-picker-dialog">
             <div class="subject-picker-header">
-                <strong>Chon mon hoc</strong>
-                <button type="button" class="subject-picker-close" id="subjectPickerClose" aria-label="Dong">&times;</button>
+                <strong>Chọn môn học</strong>
+                <button type="button" class="subject-picker-close" id="subjectPickerClose" aria-label="Đóng">&times;</button>
             </div>
             <div class="subject-picker-body">
                 <input type="text" id="subjectPickerSearch" class="form-control form-control-sm"
-                    placeholder="Tim theo ma hoac ten mon hoc...">
+                    placeholder="Tìm theo mã hoặc tên môn học...">
                 <div id="subjectPickerList" class="subject-picker-list"></div>
             </div>
         </div>
@@ -755,7 +755,7 @@
 
                 if (start && end && start.value && end.value && end.value < start.value) {
                     if (endDisplay) {
-                        endDisplay.setCustomValidity('Ngay ket thuc phai lon hon hoac bang ngay bat dau.');
+                        endDisplay.setCustomValidity('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.');
                     }
                     valid = false;
                 }
@@ -814,7 +814,7 @@
                 if (quickAddClassEventBtn) quickAddClassEventBtn.disabled = !hasActiveClass;
                 if (quickPreviewBtn) quickPreviewBtn.disabled = !hasActiveClass;
                 if (quickActiveClassLabel) {
-                    quickActiveClassLabel.textContent = hasActiveClass ? labelOf(activeClassKey) : 'Chua chon';
+                    quickActiveClassLabel.textContent = hasActiveClass ? labelOf(activeClassKey) : 'Chưa chọn';
                 }
             };
 
@@ -829,7 +829,7 @@
                 if (!hint) {
                     hint = document.createElement('div');
                     hint.className = 'alert alert-light border rule-empty mb-0';
-                    hint.textContent = 'Chua co rule. Ban co the them rule tay hoac chi upload file import.';
+                    hint.textContent = 'Chưa có rule. Bạn có thể thêm rule tay hoặc chỉ upload file import.';
                     wrap.appendChild(hint);
                 }
                 hint.style.display = wrap.querySelectorAll('.rule-card').length ? 'none' : 'block';
@@ -913,7 +913,7 @@
                     if (duplicated) {
                         planDuplicateHint.classList.remove('d-none');
                         planDuplicateHint.textContent =
-                            `Khoa dao tao nay da co ke hoach hoc ky ${semesterInput.value} nam ${yearInput.value}.`;
+                            `Khóa đào tạo này đã có kế hoạch học kỳ ${semesterInput.value} năm ${yearInput.value}.`;
                     } else {
                         planDuplicateHint.classList.add('d-none');
                         planDuplicateHint.textContent = '';
@@ -929,7 +929,7 @@
                 let hasConflict = false;
                 content.querySelectorAll('.class-pane').forEach((pane) => {
                     const slotOwners = new Map();
-                    const classLabel = pane.querySelector('h6')?.textContent || 'lop';
+                    const classLabel = pane.querySelector('h6')?.textContent || 'lớp';
 
                     pane.querySelectorAll('.rule-card').forEach((card) => {
                         const parsed = parseRule(card);
@@ -952,10 +952,10 @@
                                 if (slotOwners.has(slotKey)) {
                                     hasConflict = true;
                                     appendRuleError(card,
-                                        `Trung lich voi rule khac trong ${classLabel} tai ${dateKey}, tiet ${period}.`
+                                        `Trùng lịch với rule khác trong ${classLabel} tại ${dateKey}, tiết ${period}.`
                                     );
                                     appendRuleError(slotOwners.get(slotKey),
-                                        `Trung lich voi rule khac trong ${classLabel} tai ${dateKey}, tiet ${period}.`
+                                        `Trùng lịch với rule khác trong ${classLabel} tại ${dateKey}, tiết ${period}.`
                                     );
                                 } else {
                                     slotOwners.set(slotKey, card);
@@ -987,7 +987,7 @@
                     value,
                     fieldName,
                     required: true,
-                    buttonLabel: 'Lich',
+                    buttonLabel: 'Lịch',
                     minSource: 'start_date',
                     maxSource: 'end_date',
                     ...options,
@@ -1007,7 +1007,7 @@
                                 data-date-display="${esc(fieldName)}" placeholder="DD/MM/YYYY" value="${esc(window.ScheduleDatePicker?.formatDisplay(value) || '')}"${fieldOptions.readonly ? ' readonly' : ''} required>
                             <input type="hidden" name="${esc(name)}" data-date-native="${esc(fieldName)}" value="${esc(value || '')}">
                             <button type="button" class="btn btn-outline-secondary schedule-date-toggle"
-                                data-date-picker="${esc(fieldName)}">Lich</button>
+                                data-date-picker="${esc(fieldName)}">Lịch</button>
                         </div>
                     </div>
                 `;
@@ -1024,25 +1024,25 @@
                 div.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <strong>Rule</strong>
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-rule">Xoa</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-rule">Xóa</button>
                     </div>
                     <div class="row">
-                        <div class="col-md-3">${renderDateField('Tu ngay', `class_tab_rules[${esc(k)}][${i}][start_date]`, startDate, `${safe(k)}_${i}_start_date`)}</div>
-                        <div class="col-md-3">${renderDateField('Den ngay', `class_tab_rules[${esc(k)}][${i}][end_date]`, endDate, `${safe(k)}_${i}_end_date`)}</div>
-                        <div class="col-md-3"><label class="form-label">Tiet bat dau</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_from]" value="${esc(data.period_from || '')}"></div>
-                        <div class="col-md-3"><label class="form-label">Tiet ket thuc</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_to]" value="${esc(data.period_to || '')}"></div>
+                        <div class="col-md-3">${renderDateField('Từ ngày', `class_tab_rules[${esc(k)}][${i}][start_date]`, startDate, `${safe(k)}_${i}_start_date`)}</div>
+                        <div class="col-md-3">${renderDateField('Đến ngày', `class_tab_rules[${esc(k)}][${i}][end_date]`, endDate, `${safe(k)}_${i}_end_date`)}</div>
+                        <div class="col-md-3"><label class="form-label">Tiết bắt đầu</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_from]" value="${esc(data.period_from || '')}"></div>
+                        <div class="col-md-3"><label class="form-label">Tiết kết thúc</label><input type="number" min="1" max="9" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][period_to]" value="${esc(data.period_to || '')}"></div>
                     </div>
                     <div class="row mt-3">
                         <div class="col-md-6">
-                            <label class="form-label">Mon hoc</label>
+                            <label class="form-label">Môn học</label>
                             <div class="input-group input-group-sm subject-picker-group">
-                                <input type="text" class="form-control subject-picker-input" name="class_tab_rules[${esc(k)}][${i}][subject]" value="${esc(data.subject || '')}" placeholder="Chon mon hoc..." readonly>
-                                <button type="button" class="btn btn-outline-secondary subject-picker-trigger">Tim</button>
+                                <input type="text" class="form-control subject-picker-input" name="class_tab_rules[${esc(k)}][${i}][subject]" value="${esc(data.subject || '')}" placeholder="Chọn môn học..." readonly>
+                                <button type="button" class="btn btn-outline-secondary subject-picker-trigger">Tìm</button>
                             </div>
                         </div>
-                        <div class="col-md-6"><label class="form-label">Noi dung</label><input type="text" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][content]" value="${esc(data.content || '')}"></div>
+                        <div class="col-md-6"><label class="form-label">Nội dung</label><input type="text" class="form-control form-control-sm" name="class_tab_rules[${esc(k)}][${i}][content]" value="${esc(data.content || '')}"></div>
                     </div>
-                    <div class="mt-3"><label class="form-label d-block">Thu hoc</label><div class="weekday-list">${weekdayHtml(k, i, data.weekdays || [])}</div></div>
+                    <div class="mt-3"><label class="form-label d-block">Thứ học</label><div class="weekday-list">${weekdayHtml(k, i, data.weekdays || [])}</div></div>
                 `;
                 box.appendChild(div);
                 window.ScheduleDatePicker?.init(div);
@@ -1090,7 +1090,7 @@
                 const importFile = pane.querySelector('input[type="file"]')?.files?.[0] || null;
 
                 return {
-                    title: `Xem truoc lich - ${labelOf(k)}`,
+                    title: `Xem trước lịch - ${labelOf(k)}`,
                     startDate: planStartInput?.value || '',
                     endDate: planEndInput?.value || '',
                     rules,
@@ -1102,7 +1102,7 @@
             };
 
             const eventMeta = (type, list) => list.find((item) => String(item.value) === String(type));
-            const eventLabel = (type, list) => eventMeta(type, list)?.label || 'Su kien';
+            const eventLabel = (type, list) => eventMeta(type, list)?.label || 'Sự kiện';
             const eventColor = (type, list) => eventMeta(type, list)?.color || '#ede9fe';
             const eventCount = (listEl) => listEl ? listEl.querySelectorAll('.event-card').length : 0;
 
@@ -1197,39 +1197,39 @@
 
                 return `
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <strong>${esc(defaultLabel || 'Su kien')} #${index + 1}</strong>
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-event">Xoa</button>
+                        <strong>${esc(defaultLabel || 'Sự kiện')} #${index + 1}</strong>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-event">Xóa</button>
                     </div>
                     <div class="row">
                         <div class="col-md-3">
-                            <label class="form-label">Loai su kien</label>
+                            <label class="form-label">Loại sự kiện</label>
                             <select class="form-control form-control-sm" name="${namePrefix}[event_type]">
                                 ${buildEventOptions(types, eventType)}
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Ten su kien</label>
-                            <input type="text" class="form-control form-control-sm" name="${namePrefix}[title]" value="${esc(label)}" placeholder="Nhap ten su kien">
+                            <label class="form-label">Tên sự kiện</label>
+                            <input type="text" class="form-control form-control-sm" name="${namePrefix}[title]" value="${esc(label)}" placeholder="Nhập tên sự kiện">
                         </div>
-                        <div class="col-md-3">${renderDateField('Tu ngay', `${namePrefix}[start_date]`, data.start_date || planStartInput?.value || '', `${fieldKeyBase}_start_date`)}</div>
-                        <div class="col-md-3">${renderDateField('Den ngay', `${namePrefix}[end_date]`, data.end_date || planEndInput?.value || '', `${fieldKeyBase}_end_date`)}</div>
+                        <div class="col-md-3">${renderDateField('Từ ngày', `${namePrefix}[start_date]`, data.start_date || planStartInput?.value || '', `${fieldKeyBase}_start_date`)}</div>
+                        <div class="col-md-3">${renderDateField('Đến ngày', `${namePrefix}[end_date]`, data.end_date || planEndInput?.value || '', `${fieldKeyBase}_end_date`)}</div>
                     </div>
                     <div class="row mt-3">
                         <div class="col-md-2">
-                            <label class="form-label">Tiet bat dau</label>
+                            <label class="form-label">Tiết bắt đầu</label>
                             <input type="number" min="1" max="9" class="form-control form-control-sm" name="${namePrefix}[period_from]" value="${esc(data.period_from || 1)}">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label">Tiet ket thuc</label>
+                            <label class="form-label">Tiết kết thúc</label>
                             <input type="number" min="1" max="9" class="form-control form-control-sm" name="${namePrefix}[period_to]" value="${esc(data.period_to || 9)}">
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label">Ghi chu</label>
+                            <label class="form-label">Ghi chú</label>
                             <input type="text" class="form-control form-control-sm" name="${namePrefix}[note]" value="${esc(data.note || '')}">
                         </div>
                     </div>
                     <input type="hidden" name="${namePrefix}[color]" value="${esc(color)}">
-                    <div class="mt-2 small text-muted">Mau hien thi: <span class="badge badge-light" style="background:${esc(color)};">${esc(eventLabel(eventType, types))}</span></div>
+                    <div class="mt-2 small text-muted">Màu hiển thị: <span class="badge badge-light" style="background:${esc(color)};">${esc(eventLabel(eventType, types))}</span></div>
                 `;
             };
 
@@ -1244,11 +1244,11 @@
                     data,
                     index,
                     `global_semester_events[${index}]`,
-                    'Nghi le'
+                    'Nghỉ lễ'
                 );
                 globalHolidayEventList.appendChild(card);
                 window.ScheduleDatePicker?.init(card);
-                updateEventEmpty(globalHolidayEventList, 'Chua co su kien nghi le nao.');
+                updateEventEmpty(globalHolidayEventList, 'Chưa có sự kiện nghỉ lễ nào.');
                 scrollToEl(card);
                 const firstInput = card.querySelector('input, select, textarea');
                 if (firstInput) firstInput.focus({ preventScroll: true });
@@ -1266,11 +1266,11 @@
                     data,
                     index,
                     `class_semester_events[${classKey}][${index}]`,
-                    'Su kien lop'
+                    'Sự kiện lớp'
                 );
                 listEl.appendChild(card);
                 window.ScheduleDatePicker?.init(card);
-                updateEventEmpty(listEl, 'Chua co su kien nao trong lop nay.');
+                updateEventEmpty(listEl, 'Chưa có sự kiện nào trong lớp này.');
                 scrollToEl(card);
                 const firstInput = card.querySelector('input, select, textarea');
                 if (firstInput) firstInput.focus({ preventScroll: true });
@@ -1285,13 +1285,13 @@
                     const parsed = parseEvent(card);
                     if (!parsed) {
                         valid = false;
-                        appendEventError(card, 'Vui long dien day du thong tin su kien.');
+                        appendEventError(card, 'Vui lòng điền đầy đủ thông tin sự kiện.');
                         return;
                     }
 
                     if (parsed.periodFrom > parsed.periodTo) {
                         valid = false;
-                        appendEventError(card, 'Tiet ket thuc phai lon hon hoac bang tiet bat dau.');
+                        appendEventError(card, 'Tiết kết thúc phải lớn hơn hoặc bằng tiết bắt đầu.');
                         return;
                     }
 
@@ -1304,7 +1304,7 @@
                         const otherCard = seenSlots.get(slotKey);
                         if (otherCard !== card) {
                             valid = false;
-                            const conflictMessage = `Bi trung ngay/tiet tai ${slotKey.replace('|', ', tiet ')}.`;
+                            const conflictMessage = `Bị trùng ngày/tiết tại ${slotKey.replace('|', ', tiết ')}.`;
                             appendEventError(card, conflictMessage);
                             appendEventError(otherCard, conflictMessage);
                         }
@@ -1356,7 +1356,7 @@
                             if (eventsOverlap(globalEvent, classEvent)) {
                                 valid = false;
                                 const conflictMessage =
-                                    `Su kien chung '${globalEvent.title}' bi trung ngay/tiet voi su kien lop '${classEvent.title}'.`;
+                                    `Sự kiện chung '${globalEvent.title}' bị trùng ngày/tiết với sự kiện lớp '${classEvent.title}'.`;
                                 appendEventError(globalCard, conflictMessage);
                                 appendEventError(classCard, conflictMessage);
                             }
@@ -1396,29 +1396,29 @@
                             <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="mb-1">${esc(labelOf(k))}</h6>
-                                <small class="text-muted">Them rule tay hoac upload Excel/CSV rieng cho lop nay.</small>
+                                <small class="text-muted">Thêm rule tay hoặc upload Excel/CSV riêng cho lớp này.</small>
                             </div>
                                 <div class="pane-actions">
-                                    <button type="button" class="btn btn-sm btn-primary add-rule" data-key="${esc(k)}">Them rule</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary add-class-event" data-key="${esc(k)}">Them su kien</button>
-                                    <button type="button" class="btn btn-sm btn-outline-info preview-schedule" data-key="${esc(k)}">Xem truoc</button>
+                                    <button type="button" class="btn btn-sm btn-primary add-rule" data-key="${esc(k)}">Thêm rule</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary add-class-event" data-key="${esc(k)}">Thêm sự kiện</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info preview-schedule" data-key="${esc(k)}">Xem trước</button>
                                 </div>
                             </div>
                         </div>
                         <div class="border rounded p-3 mb-3 bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <strong>Su kien cua lop</strong>
+                                <strong>Sự kiện của lớp</strong>
                             </div>
-                            <small class="text-muted d-block mb-2">Dung cho on thi, thi hoac su kien rieng cua lop nay.</small>
+                            <small class="text-muted d-block mb-2">Dùng cho ôn thi, thi hoặc sự kiện riêng của lớp này.</small>
                             <div id="${classEventsId(k)}"></div>
                         </div>
                         <div class="border rounded p-3 mb-3 bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <strong>Import Excel/CSV</strong>
-                                <a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tai template</a>
+                                <a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tải template</a>
                             </div>
                             <input type="file" name="import_file[${esc(k)}]" class="form-control form-control-sm" accept=".xlsx,.csv,.txt">
-                            <small class="text-muted">Cot chinh: row_type, class_code, start_date, end_date, period_from, period_to. Dong rule dung them subject/content/weekdays; dong event dung event_type/title/note.</small>
+                            <small class="text-muted">Cột chính: row_type, class_code, start_date, end_date, period_from, period_to. Dòng rule dùng thêm subject/content/weekdays; dòng event dùng event_type/title/note.</small>
                         </div>
                         <div id="${rulesId(k)}"></div>
                     `;
@@ -1472,9 +1472,9 @@
                     });
                 });
 
-                updateEventEmpty(globalHolidayEventList, 'Chua co su kien nghi le nao.');
+                updateEventEmpty(globalHolidayEventList, 'Chưa có sự kiện nghỉ lễ nào.');
                 Object.keys(eventCounters.classes).forEach((classKey) => {
-                    updateEventEmpty(document.getElementById(classEventsId(classKey)), 'Chua co su kien nao trong lop nay.');
+                    updateEventEmpty(document.getElementById(classEventsId(classKey)), 'Chưa có sự kiện nào trong lớp này.');
                 });
             };
 
@@ -1535,15 +1535,15 @@
                     classBatchHint.className = 'alert border mb-3 ' + (batchId ? 'alert-info' : 'alert-light');
 
                     if (!batchId) {
-                        classBatchHint.textContent = 'Chon khoa dao tao de hien thi danh sach lop.';
+                        classBatchHint.textContent = 'Chọn khóa đào tạo để hiển thị danh sách lớp.';
                     } else if (batchClassCount === 0) {
                         classBatchHint.className = 'alert alert-warning border mb-3';
-                        classBatchHint.textContent = 'Khoa dao tao nay chua co lop nao.';
+                        classBatchHint.textContent = 'Khóa đào tạo này chưa có lớp nào.';
                     } else if (visibleClassCount === 0) {
-                        classBatchHint.textContent = 'Khong co lop nao khop voi tu khoa tim kiem.';
+                        classBatchHint.textContent = 'Không có lớp nào khớp với từ khóa tìm kiếm.';
                     } else {
                         classBatchHint.textContent =
-                            `Da tu dong chon tat ca ${batchClassCount} lop thuoc khoa dao tao. Dang hien thi ${visibleClassCount} lop.`;
+                            `Đã tự động chọn tất cả ${batchClassCount} lớp thuộc khóa đào tạo. Đang hiển thị ${visibleClassCount} lớp.`;
                     }
                 }
 
@@ -1594,7 +1594,7 @@
                     s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
 
                 if (options.length === 0) {
-                    subjectPickerList.innerHTML = '<div class="subject-picker-empty">Khong tim thay mon hoc phu hop.</div>';
+                    subjectPickerList.innerHTML = '<div class="subject-picker-empty">Không tìm thấy môn học phù hợp.</div>';
                     return;
                 }
 
@@ -1693,8 +1693,8 @@
                     if (card) {
                         const listEl = card.parentElement;
                         const emptyMessage = listEl === globalHolidayEventList
-                            ? 'Chua co su kien nghi le nao.'
-                            : 'Chua co su kien nao trong lop nay.';
+                            ? 'Chưa có sự kiện nghỉ lễ nào.'
+                            : 'Chưa có sự kiện nào trong lớp này.';
                         card.remove();
                         updateEventEmpty(listEl, emptyMessage);
                         validateAllSemesterEvents();
@@ -1707,7 +1707,7 @@
                 if (card) {
                     const listEl = card.parentElement;
                     card.remove();
-                    updateEventEmpty(listEl, 'Chua co su kien nao trong lop nay.');
+                    updateEventEmpty(listEl, 'Chưa có sự kiện nào trong lớp này.');
                     validateAllSemesterEvents();
                     return;
                 }
@@ -1729,7 +1729,7 @@
 
                 const listEl = card.parentElement;
                 card.remove();
-                updateEventEmpty(listEl, 'Chua co su kien nghi le nao.');
+                updateEventEmpty(listEl, 'Chưa có sự kiện nghỉ lễ nào.');
                 validateAllSemesterEvents();
             });
             globalHolidayEventList?.addEventListener('input', () => validateAllSemesterEvents());

@@ -93,7 +93,7 @@
           @endif
           <form method="POST" action="{{ route('logout') }}" class="m-0">
             @csrf
-            <button type="submit" class="dropdown-item preview-item btn btn-link p-0 text-left" style="color: #000;">
+            <button type="submit" class="dropdown-item preview-item btn btn-link p-0 text-left">
               <div class="preview-thumbnail">
                 <div class="preview-icon bg-dark rounded-circle">
                   <i class="mdi mdi-logout text-danger"></i>
