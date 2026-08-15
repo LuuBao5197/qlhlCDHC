@@ -194,6 +194,30 @@ class AssignMonthlyScheduleRequest extends FormRequest
                 );
             }
 
+            // Tiet da huy (nghi le/tet) hoac da giang day (co nhat ky DailyTrainingLog)
+            // khong duoc phep sua lai qua man phan cong thang.
+            $lockedHolidayOrTaughtSlotIds = ScheduleSlot::query()
+                ->whereIn('id', array_keys($submittedSlotsById))
+                ->where(function ($query): void {
+                    $query->where('slot_status', 'cancelled')
+                        ->orWhereHas('dailyTrainingLogs');
+                })
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            foreach ($lockedHolidayOrTaughtSlotIds as $lockedSlotId) {
+                $slotInfo = $submittedSlotsById[$lockedSlotId] ?? null;
+                if ($slotInfo === null) {
+                    continue;
+                }
+
+                $validator->errors()->add(
+                    "changes.{$slotInfo['index']}.slot_id",
+                    'Tiet da huy do nghi le hoac da giang day, khong the chinh sua.'
+                );
+            }
+
             $teacherIdsForLabels = collect($submittedChanges)
                 ->pluck('teacher_id')
                 ->filter(fn ($id) => is_numeric($id))

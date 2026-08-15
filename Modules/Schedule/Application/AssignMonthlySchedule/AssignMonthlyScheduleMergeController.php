@@ -104,6 +104,16 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 422);
         }
 
+        if ($this->isSlotLocked($baseSlot)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tiet da huy (nghi le) hoac da giang day, khong duoc ghep lop.',
+                'errors' => [
+                    'slots.0' => ['Tiet da huy (nghi le) hoac da giang day, khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
+
         $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
         if ($scope === null) {
             return response()->json([
@@ -179,9 +189,20 @@ class AssignMonthlyScheduleMergeController extends Controller
 
         $slots = collect([$baseSlot]);
         $candidateSlots = ScheduleSlot::query()
+            ->with('dailyTrainingLogs')
             ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
             ->whereIn('id', $candidateIds)
             ->get();
+
+        if ($candidateSlots->contains(fn (ScheduleSlot $slot) => $this->isSlotLocked($slot))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mot hoac nhieu tiet duoc chon da huy (nghi le) hoac da giang day, khong duoc ghep lop.',
+                'errors' => [
+                    'candidate_slot_ids' => ['Mot hoac nhieu tiet duoc chon da huy (nghi le) hoac da giang day, khong duoc ghep lop.'],
+                ],
+            ], 422);
+        }
 
         if ($candidateSlots->count() !== count($candidateIds)) {
             return response()->json([
@@ -297,8 +318,14 @@ class AssignMonthlyScheduleMergeController extends Controller
     private function findMonthlyScheduleSlot(int $monthlyScheduleId, int $slotId): ?ScheduleSlot
     {
         return ScheduleSlot::query()
+            ->with('dailyTrainingLogs')
             ->where('monthly_schedule_id', $monthlyScheduleId)
             ->find($slotId);
+    }
+
+    private function isSlotLocked(ScheduleSlot $slot): bool
+    {
+        return $slot->slot_status === 'cancelled' || $slot->dailyTrainingLogs->isNotEmpty();
     }
 
     private function formatCandidate(ScheduleSlot $candidate): array

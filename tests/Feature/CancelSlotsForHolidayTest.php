@@ -222,4 +222,33 @@ class CancelSlotsForHolidayTest extends TestCase
         $this->assertSame('cancelled', DB::table('schedule_slots')->where('id', $lastDay['slot_id'])->value('slot_status'));
         $this->assertSame('planned', DB::table('schedule_slots')->where('id', $afterRange['slot_id'])->value('slot_status'));
     }
+
+    public function test_cancelled_unassigned_slot_does_not_block_batch_resubmission(): void
+    {
+        $department = Department::factory()->create();
+        $staff = $this->makeDepartmentUser($department, Position::DEPARTMENT_STAFF);
+        $trainingHead = $this->makeTrainingOfficeUser(Position::TRAINING_HEAD);
+
+        $seed = $this->seedMonthlyScheduleWithSlot($department, 6, 2026, '15', 1);
+
+        // Tiet chua duoc phan cong giao vien/tu nghien cuu tai thoi diem nghi le phat sinh.
+        DB::table('schedule_slots')->where('id', $seed['slot_id'])->update(['assignment_type' => null]);
+
+        $holiday = HolidayCalendar::query()->create([
+            'name' => 'Nghi le dot xuat 4',
+            'start_date' => '2026-06-15',
+            'end_date' => '2026-06-15',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($trainingHead)
+            ->post(route('holiday-calendar.cancel-slots', $holiday->id))
+            ->assertRedirect();
+
+        $this->assertSame('cancelled', DB::table('schedule_slots')->where('id', $seed['slot_id'])->value('slot_status'));
+
+        $this->actingAs($staff)
+            ->postJson(route('department-monthly-assignment-batches.submit', $seed['monthly_schedule_id']))
+            ->assertSuccessful();
+    }
 }

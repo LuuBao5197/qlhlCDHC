@@ -69,9 +69,13 @@ class SubmitDepartmentMonthlyAssignmentBatch
             'batchSlots.scheduleSlot.subjectLesson',
         ]);
 
+        // Tiet da huy (nghi le/tet) khong can phan cong giang vien/bai hoc va khong tinh vao
+        // kiem tra trung lich, nhung van giu trong batch de hien thi cho Khoa.
         $subjectSlots = $batch->batchSlots
             ->map->scheduleSlot
-            ->filter(fn ($slot): bool => $slot instanceof ScheduleSlot && ($slot->slot_type ?? 'subject') === 'subject')
+            ->filter(fn ($slot): bool => $slot instanceof ScheduleSlot
+                && ($slot->slot_type ?? 'subject') === 'subject'
+                && ($slot->slot_status ?? 'planned') !== 'cancelled')
             ->values();
 
         $errors = [];

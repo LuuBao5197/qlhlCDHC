@@ -63,6 +63,10 @@ class AssignMonthlyScheduleHandler
                     ->whereIn('monthly_schedule_id', $scope['monthly_schedule_ids'])
                     ->where('slot_type', 'subject')
                     ->where('assignment_source', 'internal')
+                    // Tiet da huy (nghi le/tet) hoac da giang day (co nhat ky DailyTrainingLog)
+                    // khong duoc phep sua lai qua man phan cong thang.
+                    ->where('slot_status', '!=', 'cancelled')
+                    ->whereDoesntHave('dailyTrainingLogs')
                     ->whereIn('id', $validSlots->keys()->all())
                     ->lockForUpdate()
                     ->get()

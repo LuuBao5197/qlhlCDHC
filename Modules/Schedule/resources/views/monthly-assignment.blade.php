@@ -567,9 +567,15 @@
                                                                 @php
                                                                     $isEvent =
                                                                         ($slot->slot_type ?? 'subject') === 'event';
+                                                                    $isCancelled =
+                                                                        ($slot->slot_status ?? 'planned') === 'cancelled';
+                                                                    $isTaught =
+                                                                        !$isEvent && $slot->dailyTrainingLogs->isNotEmpty();
+                                                                    $isRowLocked = $isCancelled || $isTaught;
                                                                     $assignmentType = $slot->assignment_type ?? null;
                                                                     $canMergeSlot =
                                                                         !$isEvent &&
+                                                                        !$isRowLocked &&
                                                                         $assignmentType !== \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY;
                                                                     $supportMeta = $supportSlotMeta[$slot->id] ?? null;
                                                                     $supportLocked = (bool) ($supportMeta['locked'] ?? false);
@@ -588,9 +594,11 @@
                                                                     $hasTeacher = !$isEvent && !blank($selectedTeacherValue);
                                                                     $rowClass = $isEvent
                                                                         ? 'slot-event'
-                                                                        : ($hasTeacher
-                                                                            ? 'slot-assigned'
-                                                                            : 'slot-unassigned');
+                                                                        : ($isRowLocked
+                                                                            ? 'slot-locked'
+                                                                            : ($hasTeacher
+                                                                                ? 'slot-assigned'
+                                                                                : 'slot-unassigned'));
                                                                     $mergeGroupId =
                                                                         $slot->schedule_slot_group_id ?? null;
                                                                     $mergeGroupStatus =
@@ -637,7 +645,7 @@
                                                                     data-period="{{ $slot->period_number }}">
                                                                     <td class="text-center">
                                                                         <input type="checkbox" class="slot-check"
-                                                                            @disabled($isEvent || $batchReadOnly || $supportLocked)>
+                                                                            @disabled($isEvent || $isRowLocked || $batchReadOnly || $supportLocked)>
                                                                     </td>
                                                                     <td class="text-center">
                                                                         <span
@@ -689,6 +697,12 @@
                                                                             <span class="event-readonly-pill"><i
                                                                                     class="fas fa-lock mr-1"></i>Không phân
                                                                                 công</span>
+                                                                        @elseif ($isCancelled)
+                                                                            <span class="event-readonly-pill"><i
+                                                                                    class="fas fa-lock mr-1"></i>Đã hủy do nghỉ lễ</span>
+                                                                        @elseif ($isTaught)
+                                                                            <span class="event-readonly-pill"><i
+                                                                                    class="fas fa-lock mr-1"></i>Đã giảng dạy</span>
                                                                         @elseif ($supportLocked)
                                                                             <span class="event-readonly-pill"><i
                                                                                     class="fas fa-lock mr-1"></i>Khóa bởi hỗ trợ liên khoa</span>
@@ -710,7 +724,7 @@
                                                                             <select data-field="teacher_id"
                                                                                 class="form-control form-control-sm"
                                                                                 data-initial-value="{{ $selectedTeacherValue }}"
-                                                                                @disabled($batchReadOnly)>
+                                                                                @disabled($isRowLocked || $batchReadOnly)>
                                                                                 <option value="">-- Chọn GV --
                                                                                 </option>
                                                                                 <optgroup label="Lớp tự nghiên cứu">
@@ -794,7 +808,7 @@
                                                                             <select data-field="subject_lesson_id"
                                                                                 class="form-control form-control-sm"
                                                                                 data-initial-value="{{ (string) ($slot->subject_lesson_id ?? '') }}"
-                                                                                @disabled($batchReadOnly || $supportLocked)>
+                                                                                @disabled($isRowLocked || $batchReadOnly || $supportLocked)>
                                                                                 <option value="">-- Chọn bài --
                                                                                 </option>
                                                                                 @foreach ($lessonOptions as $lesson)
@@ -817,7 +831,7 @@
                                                                             <select data-field="lesson_type"
                                                                                 class="form-control form-control-sm"
                                                                                 data-initial-value="{{ $lessonTypeDisabled ? '' : $selectedLessonType }}"
-                                                                                @disabled($lessonTypeDisabled || $batchReadOnly || $supportLocked)>
+                                                                                @disabled($lessonTypeDisabled || $isRowLocked || $batchReadOnly || $supportLocked)>
                                                                                 <option value="theory"
                                                                                     @selected($selectedLessonType === 'theory')>
                                                                                     Lý thuyết
@@ -839,7 +853,7 @@
                                                                             <select data-field="room_id"
                                                                                 class="form-control form-control-sm"
                                                                                 data-initial-value="{{ (string) ($slot->room_id ?? '') }}"
-                                                                                @disabled($batchReadOnly || $supportLocked)>
+                                                                                @disabled($isRowLocked || $batchReadOnly || $supportLocked)>
                                                                                 <option value="">-- Phòng --</option>
                                                                                 @foreach ($rooms as $room)
                                                                                     @php $selectedRoom = $oldSlot['room_id'] ?? $slot->room_id; @endphp
@@ -862,7 +876,7 @@
                                                                                 value="{{ $oldSlot['content'] ?? $slot->content }}"
                                                                                 data-initial-value="{{ $slot->content ?? '' }}"
                                                                                 maxlength="500" placeholder="Nội dung"
-                                                                                @disabled($batchReadOnly || $supportLocked)>
+                                                                                @disabled($isRowLocked || $batchReadOnly || $supportLocked)>
                                                                         @endif
                                                                     </td>
                                                                     <td>
@@ -877,7 +891,7 @@
                                                                                 value="{{ $oldSlot['note'] ?? $slot->note }}"
                                                                                 data-initial-value="{{ $slot->note ?? '' }}"
                                                                                 maxlength="500" placeholder="Ghi chú"
-                                                                                @disabled($batchReadOnly || $supportLocked)>
+                                                                                @disabled($isRowLocked || $batchReadOnly || $supportLocked)>
                                                                         @endif
                                                                     </td>
                                                                     @if (!$isEvent)

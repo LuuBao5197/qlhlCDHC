@@ -80,6 +80,7 @@ class AssignMonthlyScheduleController extends Controller
                 'subjectLesson',
                 'room',
                 'scheduleSlotGroup',
+                'dailyTrainingLogs',
             ])
             ->whereIn('monthly_schedule_id', $aggregateMonthlyScheduleIds)
             ->where('slot_type', 'subject')
