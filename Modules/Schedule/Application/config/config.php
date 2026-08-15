@@ -2,11 +2,6 @@
 
 return [
     'name' => 'Schedule',
-    'holiday_reschedule' => [
-        'enabled' => (bool) env('SCHEDULE_HOLIDAY_RESCHEDULE_ENABLED', true),
-        'max_shift_days' => (int) env('SCHEDULE_HOLIDAY_RESCHEDULE_MAX_SHIFT_DAYS', 7),
-        'allow_weekend_if_template_allows' => (bool) env('SCHEDULE_HOLIDAY_RESCHEDULE_ALLOW_WEEKEND_IF_TEMPLATE_ALLOWS', true),
-    ],
     'change_request' => [
         // Test default: show past slots so workflow can be verified end-to-end.
         // Flip to false later to hide already-happened slots from the picker.

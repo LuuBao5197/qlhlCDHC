@@ -15,7 +15,8 @@ class UpdateHolidayCalendarHandler
         try {
             $holiday->update([
                 'name' => (string) $validated['name'],
-                'date' => (string) $validated['date'],
+                'start_date' => (string) $validated['start_date'],
+                'end_date' => (string) $validated['end_date'],
                 'note' => $validated['note'] ?? null,
                 'is_active' => (bool) ($validated['is_active'] ?? false),
                 'updated_by' => $request->user()?->id,

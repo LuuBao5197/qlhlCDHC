@@ -4,6 +4,7 @@ namespace Modules\Schedule\Models;
 
 use App\Models\AdminBackfillLog;
 use Modules\Training\Models\ChangeRequest;
+use Modules\Training\Models\HolidayCalendar;
 use Modules\Training\Models\ChangeRequestItem;
 use Modules\Training\Models\DailyTrainingLog;
 use Modules\Training\Models\Room;
@@ -43,6 +44,7 @@ class ScheduleSlot extends Model
         'slot_type',
         'semester_event_id',
         'event_type',
+        'holiday_calendar_id',
         'date',
         'day_of_week',
         'period',
@@ -111,6 +113,11 @@ class ScheduleSlot extends Model
     public function semesterEvent(): BelongsTo
     {
         return $this->belongsTo(SemesterEvent::class, 'semester_event_id');
+    }
+
+    public function holidayCalendar(): BelongsTo
+    {
+        return $this->belongsTo(HolidayCalendar::class, 'holiday_calendar_id');
     }
 
     public function room(): BelongsTo

@@ -73,8 +73,8 @@ class ChangeRequestPageDataBuilder
 
         $holidayCalendars = Schema::hasTable('holiday_calendars')
             ? HolidayCalendar::query()
-                ->orderByDesc('date')
-                ->get(['id', 'name', 'date', 'note', 'is_active'])
+                ->orderByDesc('start_date')
+                ->get(['id', 'name', 'start_date', 'end_date', 'note', 'is_active'])
             : collect();
 
         $payload = [

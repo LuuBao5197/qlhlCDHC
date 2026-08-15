@@ -241,6 +241,29 @@ class InternalNotificationService
         ));
     }
 
+    /**
+     * Batch phan cong bi he thong tu dong mo lai ve draft do phat sinh ngay nghi le/tet dot xuat.
+     */
+    public function notifyDepartmentMonthlyAssignmentBatchReopenedForHoliday(DepartmentMonthlyAssignmentBatch $batch, User $actor, string $holidayName): void
+    {
+        $recipients = $this->departmentStaffRecipients((int) $batch->department_id)
+            ->merge($this->recipientUsers($batch->submittedBy));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            InternalNotificationType::ASSIGNMENT_BATCH_RETURNED,
+            'Batch phan cong bi mo lai do nghi le',
+            'Batch phan cong cua khoa ' . ($batch->department?->name ?? 'khong xac dinh')
+                . ' da bi mo lai ve trang thai nhap do phat sinh ngay nghi "' . $holidayName . '". Vui long phan cong lai cac tiet con thieu va gui duyet.',
+            route('department-monthly-assignment-batches.show', $batch->id),
+            'assignment-batch-reopened-holiday:' . $batch->id . ':' . now()->timestamp,
+            [
+                'batch_id' => $batch->id,
+                'department_id' => $batch->department_id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
     public function notifyMonthlyAssignmentDossierSubmitted(MonthlyAssignmentDossier $dossier, User $actor): void
     {
         $this->notifyUsers($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]), $this->makeNotification(
@@ -307,6 +330,32 @@ class InternalNotificationService
                 : sprintf('Ho so phan cong thang %02d/%d da bi Ban Giam hieu tu choi.', $dossier->month, $dossier->year),
             route('monthly-assignment-dossiers.show', $dossier->id),
             'monthly-assignment-dossier-reviewed:' . $dossier->id . ':' . now()->timestamp,
+            [
+                'dossier_id' => $dossier->id,
+                'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    /**
+     * Ho so phan cong thang bi he thong tu dong mo lai ve draft do phat sinh ngay nghi le/tet dot xuat.
+     */
+    public function notifyMonthlyAssignmentDossierReopenedForHoliday(MonthlyAssignmentDossier $dossier, User $actor, string $holidayName): void
+    {
+        $recipients = $this->recipientUsers($dossier->submittedBy)
+            ->merge($this->roleRecipients([User::ROLE_TRAINING_OFFICE, User::ROLE_ADMIN]));
+
+        $this->notifyUsers($recipients, $this->makeNotification(
+            InternalNotificationType::MONTHLY_ASSIGNMENT_DOSSIER_REJECTED,
+            'Ho so phan cong thang bi mo lai do nghi le',
+            sprintf(
+                'Ho so phan cong thang %02d/%d da bi mo lai ve trang thai nhap do phat sinh ngay nghi "%s". Can cho cac khoa gui lai batch truoc khi tong hop lai.',
+                $dossier->month,
+                $dossier->year,
+                $holidayName
+            ),
+            route('monthly-assignment-dossiers.show', $dossier->id),
+            'monthly-assignment-dossier-reopened-holiday:' . $dossier->id . ':' . now()->timestamp,
             [
                 'dossier_id' => $dossier->id,
                 'actor_id' => $actor->id,

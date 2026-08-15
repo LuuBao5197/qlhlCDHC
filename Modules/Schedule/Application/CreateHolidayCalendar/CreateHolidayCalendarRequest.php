@@ -23,7 +23,8 @@ class CreateHolidayCalendarRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'date' => ['required', 'date', 'unique:holiday_calendars,date'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'note' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['nullable', 'boolean'],
         ];
