@@ -552,7 +552,7 @@
                         templateUrl: '{{ route('management.subjects.import-template') }}',
                         title: 'Nhập danh sách môn học từ CSV',
                         description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
-                        hint: 'Cột bắt buộc: code, name, department_code. Cột tùy chọn: total_periods, status (active/inactive, mặc định active).',
+                        hint: 'Cột bắt buộc: code, name, department_code. Cột tùy chọn: total_periods, status (active/inactive, mặc định active). Mã môn học ở cột code sẽ được hệ thống tự động thêm hậu tố "_MãKhoa".',
                         needsClass: false,
                     },
                     columns: [{
@@ -605,8 +605,13 @@
                         {
                             key: 'code',
                             label: 'Mã môn',
-                            type: 'text',
-                            required: true
+                            type: 'text_suffix',
+                            required: true,
+                            suffixField: 'department_id',
+                            suffixLookup: 'departments',
+                            suffixProperty: 'code',
+                            suffixRelation: 'department',
+                            hint: 'Mã khoa được hệ thống tự động thêm vào cuối, không thể chỉnh sửa.'
                         },
                         {
                             key: 'name',
@@ -644,12 +649,16 @@
                         templateUrl: '{{ route('management.subject-lessons.import-template') }}',
                         title: 'Nhập danh sách bài học từ CSV',
                         description: 'Tải file CSV tối đa 5 MB và 1.000 dòng.',
-                        hint: 'Cột bắt buộc: subject_code, code (số thứ tự bài học), name (tiêu đề). Cột tùy chọn: expected_periods, note.',
+                        hint: 'Cột bắt buộc: subject_code, training_program_code, code (số thứ tự bài học), name (tiêu đề). Cột tùy chọn: expected_periods, note. Môn học phải đã được gán vào chương trình đào tạo tương ứng.',
                         needsClass: false,
                     },
                     columns: [{
                             key: 'subject.code',
                             label: 'Mã môn'
+                        },
+                        {
+                            key: 'training_program.code',
+                            label: 'Chương trình'
                         },
                         {
                             key: 'lesson_no',
@@ -675,6 +684,11 @@
                             lookup: 'subjects'
                         },
                         {
+                            key: 'training_program_id',
+                            label: 'Chương trình đào tạo',
+                            lookup: 'trainingPrograms'
+                        },
+                        {
                             key: 'is_regular_test',
                             label: 'Kiểm tra thường xuyên',
                             options: [{
@@ -694,6 +708,17 @@
                             type: 'select',
                             lookup: 'subjects',
                             required: true
+                        },
+                        {
+                            key: 'training_program_id',
+                            label: 'Chương trình đào tạo',
+                            type: 'select',
+                            lookup: 'trainingPrograms',
+                            required: true,
+                            dependsOn: 'subject_id',
+                            dependsOnLookup: 'subjects',
+                            dependsOnRelationKey: 'training_programs',
+                            hint: 'Chỉ hiện các chương trình đào tạo đã gán cho môn học được chọn ở trên.'
                         },
                         {
                             key: 'lesson_no',

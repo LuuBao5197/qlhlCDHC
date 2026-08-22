@@ -33,4 +33,9 @@ class TrainingProgram extends Model
     {
         return $this->belongsToMany(Subject::class, 'subject_training_program')->withTimestamps();
     }
+
+    public function subjectLessons(): HasMany
+    {
+        return $this->hasMany(SubjectLesson::class);
+    }
 }

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\SubjectLesson;
+use Modules\Training\Models\TrainingProgram;
 
 class ImportSubjectLessonsHandler
 {
@@ -30,6 +31,7 @@ class ImportSubjectLessonsHandler
         $now = now();
         $records = array_map(fn (array $row): array => [
             'subject_id' => $row['subject_id'],
+            'training_program_id' => $row['training_program_id'],
             'lesson_no' => $row['lesson_no'],
             'title' => $row['title'],
             'expected_periods' => $row['expected_periods'],
@@ -85,6 +87,18 @@ class ImportSubjectLessonsHandler
                 ->get(['id', 'code'])
                 ->keyBy(fn (Subject $subject): string => mb_strtolower($subject->code, 'UTF-8'));
 
+            $trainingProgramsByCode = TrainingProgram::query()
+                ->get(['id', 'code'])
+                ->keyBy(fn (TrainingProgram $trainingProgram): string => mb_strtolower($trainingProgram->code, 'UTF-8'));
+
+            $linkedSubjectProgramPairs = [];
+            DB::table('subject_training_program')
+                ->select('subject_id', 'training_program_id')
+                ->get()
+                ->each(function ($pivot) use (&$linkedSubjectProgramPairs): void {
+                    $linkedSubjectProgramPairs[$pivot->subject_id . ':' . $pivot->training_program_id] = true;
+                });
+
             $rows = [];
             $errors = [];
             $seenPairs = [];
@@ -105,7 +119,7 @@ class ImportSubjectLessonsHandler
                 }
 
                 $row = $this->normalizeRow($values, $headerMap);
-                $rowErrors = $this->validateRow($row, $lineNumber, $subjectsByCode);
+                $rowErrors = $this->validateRow($row, $lineNumber, $subjectsByCode, $trainingProgramsByCode, $linkedSubjectProgramPairs);
 
                 if ($rowErrors !== []) {
                     array_push($errors, ...$rowErrors);
@@ -113,10 +127,11 @@ class ImportSubjectLessonsHandler
                 }
 
                 $subject = $subjectsByCode->get(mb_strtolower($row['subject_code'], 'UTF-8'));
-                $pairKey = $subject->id . ':' . $row['code'];
+                $trainingProgram = $trainingProgramsByCode->get(mb_strtolower($row['training_program_code'], 'UTF-8'));
+                $pairKey = $subject->id . ':' . $trainingProgram->id . ':' . $row['code'];
 
                 if (array_key_exists($pairKey, $seenPairs)) {
-                    $errors[] = "Dòng {$lineNumber}: bài học '{$row['code']}' của môn '{$row['subject_code']}' bị trùng với dòng {$seenPairs[$pairKey]}.";
+                    $errors[] = "Dòng {$lineNumber}: bài học '{$row['code']}' của môn '{$row['subject_code']}' - chương trình '{$row['training_program_code']}' bị trùng với dòng {$seenPairs[$pairKey]}.";
                     continue;
                 }
                 $seenPairs[$pairKey] = $lineNumber;
@@ -125,6 +140,8 @@ class ImportSubjectLessonsHandler
                     'line_number' => $lineNumber,
                     'subject_code' => $row['subject_code'],
                     'subject_id' => $subject->id,
+                    'training_program_code' => $row['training_program_code'],
+                    'training_program_id' => $trainingProgram->id,
                     'lesson_no' => (int) $row['code'],
                     'title' => $row['name'],
                     'expected_periods' => $row['expected_periods'] === '' ? null : (int) $row['expected_periods'],
@@ -181,7 +198,7 @@ class ImportSubjectLessonsHandler
     {
         $errors = [];
 
-        foreach (['subject_code', 'code', 'name'] as $requiredHeader) {
+        foreach (['subject_code', 'training_program_code', 'code', 'name'] as $requiredHeader) {
             if (!array_key_exists($requiredHeader, $headerMap)) {
                 $errors[] = "File CSV thiếu cột bắt buộc '{$requiredHeader}'.";
             }
@@ -218,7 +235,7 @@ class ImportSubjectLessonsHandler
     {
         $row = [];
 
-        foreach (['subject_code', 'code', 'name', 'expected_periods', 'note'] as $column) {
+        foreach (['subject_code', 'training_program_code', 'code', 'name', 'expected_periods', 'note'] as $column) {
             $value = array_key_exists($column, $headerMap)
                 ? (string) ($values[$headerMap[$column]] ?? '')
                 : '';
@@ -234,9 +251,11 @@ class ImportSubjectLessonsHandler
     /**
      * @param array<string, string> $row
      * @param \Illuminate\Support\Collection<string, Subject> $subjectsByCode
+     * @param \Illuminate\Support\Collection<string, TrainingProgram> $trainingProgramsByCode
+     * @param array<string, bool> $linkedSubjectProgramPairs
      * @return array<int, string>
      */
-    private function validateRow(array $row, int $lineNumber, $subjectsByCode): array
+    private function validateRow(array $row, int $lineNumber, $subjectsByCode, $trainingProgramsByCode, array $linkedSubjectProgramPairs): array
     {
         $errors = [];
 
@@ -246,10 +265,28 @@ class ImportSubjectLessonsHandler
             }
         }
 
+        $subject = null;
         if ($row['subject_code'] === '') {
             $errors[] = "Dòng {$lineNumber}: subject_code là bắt buộc.";
         } elseif (!$subjectsByCode->has(mb_strtolower($row['subject_code'], 'UTF-8'))) {
             $errors[] = "Dòng {$lineNumber}: subject_code '{$row['subject_code']}' không tồn tại.";
+        } else {
+            $subject = $subjectsByCode->get(mb_strtolower($row['subject_code'], 'UTF-8'));
+        }
+
+        $trainingProgram = null;
+        if ($row['training_program_code'] === '') {
+            $errors[] = "Dòng {$lineNumber}: training_program_code là bắt buộc.";
+        } elseif (!$trainingProgramsByCode->has(mb_strtolower($row['training_program_code'], 'UTF-8'))) {
+            $errors[] = "Dòng {$lineNumber}: training_program_code '{$row['training_program_code']}' không tồn tại.";
+        } else {
+            $trainingProgram = $trainingProgramsByCode->get(mb_strtolower($row['training_program_code'], 'UTF-8'));
+        }
+
+        if ($subject !== null && $trainingProgram !== null
+            && !isset($linkedSubjectProgramPairs[$subject->id . ':' . $trainingProgram->id])
+        ) {
+            $errors[] = "Dòng {$lineNumber}: môn '{$row['subject_code']}' chưa được gán vào chương trình đào tạo '{$row['training_program_code']}'.";
         }
 
         if ($row['code'] === '') {
@@ -287,17 +324,17 @@ class ImportSubjectLessonsHandler
         foreach (array_chunk($subjectIds, 500) as $idChunk) {
             SubjectLesson::query()
                 ->whereIn('subject_id', $idChunk)
-                ->get(['subject_id', 'lesson_no'])
+                ->get(['subject_id', 'training_program_id', 'lesson_no'])
                 ->each(function (SubjectLesson $lesson) use (&$existingPairs): void {
-                    $existingPairs[$lesson->subject_id . ':' . $lesson->lesson_no] = true;
+                    $existingPairs[$lesson->subject_id . ':' . $lesson->training_program_id . ':' . $lesson->lesson_no] = true;
                 });
         }
 
         $errors = [];
         foreach ($rows as $row) {
-            $pairKey = $row['subject_id'] . ':' . $row['lesson_no'];
+            $pairKey = $row['subject_id'] . ':' . $row['training_program_id'] . ':' . $row['lesson_no'];
             if (array_key_exists($pairKey, $existingPairs)) {
-                $errors[] = "Dòng {$row['line_number']}: bài học '{$row['lesson_no']}' của môn '{$row['subject_code']}' đã tồn tại.";
+                $errors[] = "Dòng {$row['line_number']}: bài học '{$row['lesson_no']}' của môn '{$row['subject_code']}' - chương trình '{$row['training_program_code']}' đã tồn tại.";
             }
         }
 

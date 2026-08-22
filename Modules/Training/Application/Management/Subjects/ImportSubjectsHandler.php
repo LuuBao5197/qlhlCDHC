@@ -86,6 +86,7 @@ class ImportSubjectsHandler
             $departmentsByCode = Department::query()
                 ->get(['id', 'code'])
                 ->keyBy(fn (Department $department): string => mb_strtolower($department->code, 'UTF-8'));
+            $allDepartmentCodes = $departmentsByCode->map(fn (Department $department): string => $department->code)->values()->all();
 
             $rows = [];
             $errors = [];
@@ -108,25 +109,31 @@ class ImportSubjectsHandler
                 }
 
                 $row = $this->normalizeRow($values, $headerMap);
-                $rowErrors = $this->validateRow($row, $lineNumber, $seenCodes, $seenNames, $departmentsByCode);
+
+                $department = $row['department_code'] === ''
+                    ? null
+                    : $departmentsByCode->get(mb_strtolower($row['department_code'], 'UTF-8'));
+
+                // The subject code is always suffixed with the department's code (MãMH_MãKhoa).
+                $composedCode = ($department !== null && $row['code'] !== '')
+                    ? Subject::composeCode($row['code'], $department->code, $allDepartmentCodes)
+                    : $row['code'];
+
+                $rowErrors = $this->validateRow($row, $composedCode, $lineNumber, $seenCodes, $seenNames, $departmentsByCode);
 
                 if ($rowErrors !== []) {
                     array_push($errors, ...$rowErrors);
                     continue;
                 }
 
-                $normalizedCode = mb_strtolower($row['code'], 'UTF-8');
+                $normalizedCode = mb_strtolower($composedCode, 'UTF-8');
                 $normalizedName = mb_strtolower($row['name'], 'UTF-8');
                 $seenCodes[$normalizedCode] = $lineNumber;
                 $seenNames[$normalizedName] = $lineNumber;
 
-                $department = $row['department_code'] === ''
-                    ? null
-                    : $departmentsByCode->get(mb_strtolower($row['department_code'], 'UTF-8'));
-
                 $rows[] = [
                     'line_number' => $lineNumber,
-                    'code' => $row['code'],
+                    'code' => $composedCode,
                     'name' => $row['name'],
                     'department_id' => $department?->id,
                     'total_periods' => $row['total_periods'] === '' ? null : (int) $row['total_periods'],
@@ -238,7 +245,7 @@ class ImportSubjectsHandler
      * @param \Illuminate\Support\Collection<string, Department> $departmentsByCode
      * @return array<int, string>
      */
-    private function validateRow(array $row, int $lineNumber, array $seenCodes, array $seenNames, $departmentsByCode): array
+    private function validateRow(array $row, string $composedCode, int $lineNumber, array $seenCodes, array $seenNames, $departmentsByCode): array
     {
         $errors = [];
 
@@ -250,12 +257,12 @@ class ImportSubjectsHandler
 
         if ($row['code'] === '') {
             $errors[] = "Dòng {$lineNumber}: code là bắt buộc.";
-        } elseif (mb_strlen($row['code']) > 255) {
+        } elseif (mb_strlen($composedCode) > 255) {
             $errors[] = "Dòng {$lineNumber}: code không được dài quá 255 ký tự.";
         } else {
-            $normalizedCode = mb_strtolower($row['code'], 'UTF-8');
+            $normalizedCode = mb_strtolower($composedCode, 'UTF-8');
             if (array_key_exists($normalizedCode, $seenCodes)) {
-                $errors[] = "Dòng {$lineNumber}: mã môn học '{$row['code']}' bị trùng với dòng {$seenCodes[$normalizedCode]}.";
+                $errors[] = "Dòng {$lineNumber}: mã môn học '{$composedCode}' bị trùng với dòng {$seenCodes[$normalizedCode]}.";
             }
         }
 

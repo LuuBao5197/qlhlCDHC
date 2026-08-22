@@ -46,9 +46,9 @@ class ManageSubjectLessonsController extends Controller
 
     public function downloadImportTemplate(): Response
     {
-        $content = "\xEF\xBB\xBFsubject_code,code,name,expected_periods,note\r\n"
-            . "MH-001,1,Giới thiệu môn học,2,\r\n"
-            . "MH-001,2,Các khái niệm cơ bản,3,\r\n";
+        $content = "\xEF\xBB\xBFsubject_code,training_program_code,code,name,expected_periods,note\r\n"
+            . "MH-001_KHOA-CNTT,CT-2026,1,Giới thiệu môn học,2,\r\n"
+            . "MH-001_KHOA-CNTT,CT-2026,2,Các khái niệm cơ bản,3,\r\n";
 
         return response($content, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',

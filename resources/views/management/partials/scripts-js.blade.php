@@ -288,7 +288,7 @@
                 }
             }
 
-            function selectOptionsFor(field) {
+            function selectOptionsFor(field, context = {}) {
                 if (Array.isArray(field.options)) {
                     return field.options;
                 }
@@ -297,11 +297,79 @@
                     return [];
                 }
 
-                return (state.lookups[field.lookup] || []).map((item) => ({
+                let items = state.lookups[field.lookup] || [];
+
+                if (field.dependsOn) {
+                    const dependValue = context[field.dependsOn];
+                    if (!dependValue) {
+                        return [];
+                    }
+
+                    const dependItems = state.lookups[field.dependsOnLookup] || [];
+                    const dependItem = dependItems.find((item) => String(item.id) === String(dependValue));
+                    const allowedIds = (dependItem?.[field.dependsOnRelationKey] || [])
+                        .map((item) => String(item.id));
+                    items = items.filter((item) => allowedIds.includes(String(item.id)));
+                }
+
+                return items.map((item) => ({
                     value: item.id,
                     label: (lookupLabels[field.lookup] ? lookupLabels[field.lookup](item) : item
                         .name) || item.id,
                 }));
+            }
+
+            function fieldHintHtml(field) {
+                return field.hint ? `<small class="form-text text-muted">${escapeHtml(field.hint)}</small>` : '';
+            }
+
+            function codeSuffixFor(field, formValues) {
+                const sourceId = formValues[field.suffixField];
+                const items = state.lookups[field.suffixLookup] || [];
+                const match = items.find((item) => String(item.id) === String(sourceId));
+                return match ? `_${match[field.suffixProperty || 'code']}` : '_...';
+            }
+
+            function currentFormValues() {
+                const resource = resources[state.currentResource];
+                const values = {};
+                resource.fields.forEach((field) => {
+                    const input = formFieldsEl.querySelector(`[name="${field.key}"]`);
+                    if (input) {
+                        values[field.key] = input.value;
+                    }
+                });
+                return values;
+            }
+
+            function refreshDependentFields() {
+                const resource = resources[state.currentResource];
+                const formValues = currentFormValues();
+
+                resource.fields.forEach((field) => {
+                    if (field.type === 'select' && field.dependsOn) {
+                        const select = formFieldsEl.querySelector(`[name="${field.key}"]`);
+                        if (!select) return;
+
+                        const currentValue = select.value;
+                        const options = selectOptionsFor(field, formValues);
+                        select.innerHTML = `<option value="">-- Chọn --</option>` +
+                            options.map((option) =>
+                                `<option value="${escapeHtml(option.value)}" ${String(option.value) === currentValue ? 'selected' : ''}>${escapeHtml(option.label)}</option>`
+                            ).join('');
+
+                        if (!options.some((option) => String(option.value) === currentValue)) {
+                            select.value = '';
+                        }
+                    }
+
+                    if (field.type === 'text_suffix') {
+                        const badge = formFieldsEl.querySelector(`[data-code-suffix-badge="${field.key}"]`);
+                        if (badge) {
+                            badge.textContent = codeSuffixFor(field, formValues);
+                        }
+                    }
+                });
             }
 
             function formatDate(value) {
@@ -318,6 +386,18 @@
                 }
 
                 let value = row?.[field.key] ?? '';
+
+                if (field.type === 'text_suffix') {
+                    const relatedCode = row?.[field.suffixRelation]?.[field.suffixProperty || 'code'];
+                    if (relatedCode && typeof value === 'string') {
+                        const suffix = `_${relatedCode}`;
+                        if (value.toLowerCase().endsWith(suffix.toLowerCase())) {
+                            value = value.slice(0, value.length - suffix.length);
+                        }
+                    }
+                    return value;
+                }
+
                 if (field.type === 'date' && value) {
                     value = String(value).substring(0, 10);
                 }
@@ -348,7 +428,10 @@
                         }
 
                         if (field.type === 'select') {
-                            const options = selectOptionsFor(field);
+                            const context = field.dependsOn ? {
+                                [field.dependsOn]: row ? row[field.dependsOn] : ''
+                            } : {};
+                            const options = selectOptionsFor(field, context);
                             return `
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -362,6 +445,7 @@
                                                 })
                                                 .join('')}
                                         </select>
+                                        ${fieldHintHtml(field)}
                                     </div>
                                 </div>
                             `;
@@ -402,12 +486,30 @@
                             `;
                         }
 
+                        if (field.type === 'text_suffix') {
+                            return `
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>${escapeHtml(field.label)}${requiredBadge}</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" name="${field.key}" value="${escapeHtml(value)}">
+                                            <div class="input-group-append">
+                                                <span class="input-group-text" data-code-suffix-badge="${escapeHtml(field.key)}">_...</span>
+                                            </div>
+                                        </div>
+                                        ${fieldHintHtml(field)}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
                         const inputType = field.type || 'text';
                         return `
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>${escapeHtml(field.label)}${requiredBadge}</label>
                                     <input type="${escapeHtml(inputType)}" class="form-control" name="${field.key}" value="${escapeHtml(value)}">
+                                    ${fieldHintHtml(field)}
                                 </div>
                             </div>
                         `;
@@ -419,6 +521,8 @@
                     behavior: 'smooth',
                     block: 'start'
                 });
+
+                refreshDependentFields();
             }
 
             function closeEditor() {
@@ -772,6 +876,12 @@
                 state.page = 1;
                 renderFilters();
                 await loadRows();
+            });
+
+            formFieldsEl.addEventListener('change', function(event) {
+                if (event.target.matches('select')) {
+                    refreshDependentFields();
+                }
             });
 
             document.getElementById('editorForm').addEventListener('submit', saveRecord);

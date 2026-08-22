@@ -15,6 +15,7 @@ class SubjectLesson extends Model
 
     protected $fillable = [
         'subject_id',
+        'training_program_id',
         'lesson_no',
         'title',
         'is_regular_test',
@@ -34,6 +35,11 @@ class SubjectLesson extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function trainingProgram(): BelongsTo
+    {
+        return $this->belongsTo(TrainingProgram::class);
     }
 
     public function scheduleSlots(): HasMany
