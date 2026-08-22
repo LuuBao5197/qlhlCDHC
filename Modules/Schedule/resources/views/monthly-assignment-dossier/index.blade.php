@@ -4,6 +4,8 @@
 
 @section('content')
     @php
+        $adminBackfillEligible = auth()->user()?->isAdmin() === true;
+        $adminBackfillMode = $adminBackfillEligible && request()->boolean('admin_backfill');
         $statusLabelsDossier = [
             'draft' => 'Nháp',
             'submitted' => 'Đã gửi',
@@ -97,16 +99,42 @@
                 </h5>
                 @if ($canBuild)
                     <form method="POST" action="{{ route('monthly-assignment-dossiers.store') }}"
-                        onsubmit="return confirm('Tạo/làm mới bản nháp hồ sơ tổng hợp cho tháng {{ $month }}/{{ $year }}?');">
+                        onsubmit="return confirm({{ $adminBackfillMode ? "'Bo sung du lieu cu: tao ho so va DUYET NGAY qua ca PDT va BGH, khong can cho duyet thu cong?'" : "'Tạo/làm mới bản nháp hồ sơ tổng hợp cho tháng {{ $month }}/{{ $year }}?'" }});">
                         @csrf
                         <input type="hidden" name="month" value="{{ $month }}">
                         <input type="hidden" name="year" value="{{ $year }}">
+                        @if ($adminBackfillMode)
+                            <input type="hidden" name="admin_backfill" value="1">
+                            <input type="hidden" name="admin_backfill_reason" value="{{ old('admin_backfill_reason') }}" id="dossierAdminBackfillReasonHidden">
+                        @endif
                         <button type="submit" class="btn btn-success btn-sm" @disabled(! $isComplete)>
-                            <i class="fas fa-layer-group mr-1"></i>Tạo/làm mới bản nháp tổng hợp
+                            <i class="fas fa-layer-group mr-1"></i>{{ $adminBackfillMode ? 'Tạo và duyệt nhanh (dữ liệu cũ)' : 'Tạo/làm mới bản nháp tổng hợp' }}
                         </button>
                     </form>
                 @endif
             </div>
+
+            @if ($adminBackfillEligible)
+                <div class="alert alert-warning" style="border:1px dashed #b98900;">
+                    @if (! $adminBackfillMode)
+                        <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => 1]) }}" class="btn btn-sm btn-outline-warning">
+                            Bật chế độ bổ sung dữ liệu cũ (tạo hồ sơ và duyệt luôn qua PĐT + BGH)
+                        </a>
+                    @else
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>Đang ở chế độ bổ sung dữ liệu cũ — khi tạo hồ sơ sẽ được duyệt ngay (bỏ qua PĐT/BGH thủ công).</strong>
+                            <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => null]) }}" class="btn btn-sm btn-outline-secondary">Tắt</a>
+                        </div>
+                        <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
+                        <textarea class="form-control @error('admin_backfill_reason') is-invalid @enderror" rows="2"
+                            placeholder="Vi du: Bo sung ho so phan cong giang day truoc khi he thong van hanh..."
+                            oninput="var el = document.getElementById('dossierAdminBackfillReasonHidden'); if (el) { el.value = this.value; }">{{ old('admin_backfill_reason') }}</textarea>
+                        @error('admin_backfill_reason')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    @endif
+                </div>
+            @endif
 
             @if (! $isComplete)
                 <div class="alert alert-warning mb-3">

@@ -15,7 +15,7 @@ class GetTeacherSlotEvaluationController extends Controller
     {
         $user = $request->user();
 
-        abort_unless($user !== null && $user->isTeacher(), 403);
+        abort_unless($user !== null && ($user->isTeacher() || $user->isAdmin()), 403);
 
         return $this->handler->handle($request);
     }

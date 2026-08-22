@@ -17,10 +17,10 @@ class SubmitDepartmentMonthlyAssignmentBatch
         private BuildOrRefreshDraftBatch $buildOrRefreshDraftBatch
     ) {}
 
-    public function handle(MonthlySchedule $anchorMonthlySchedule, User $actor): DepartmentMonthlyAssignmentBatch
+    public function handle(MonthlySchedule $anchorMonthlySchedule, User $actor, bool $isAdminBackfill = false, ?int $requestedDepartmentId = null): DepartmentMonthlyAssignmentBatch
     {
-        return DB::transaction(function () use ($anchorMonthlySchedule, $actor): DepartmentMonthlyAssignmentBatch {
-            $batch = $this->buildOrRefreshDraftBatch->handle($anchorMonthlySchedule, $actor);
+        return DB::transaction(function () use ($anchorMonthlySchedule, $actor, $isAdminBackfill, $requestedDepartmentId): DepartmentMonthlyAssignmentBatch {
+            $batch = $this->buildOrRefreshDraftBatch->handle($anchorMonthlySchedule, $actor, $requestedDepartmentId);
 
             if (! in_array($batch->status, ['draft', 'returned'], true)) {
                 throw ValidationException::withMessages([
@@ -30,21 +30,40 @@ class SubmitDepartmentMonthlyAssignmentBatch
 
             $this->validateSubmission($batch);
 
-            $batch->fill([
-                'status' => DepartmentMonthlyAssignmentBatch::STATUS_SUBMITTED,
-                'current_step' => DepartmentMonthlyAssignmentBatch::STEP_DEPARTMENT_REVIEW,
-                'submitted_by' => $actor->id,
-                'submitted_at' => now(),
-                'department_reviewed_by' => null,
-                'department_reviewed_at' => null,
-                'department_review_note' => null,
-                'training_office_reviewed_by' => null,
-                'training_office_reviewed_at' => null,
-                'training_office_review_note' => null,
-            ]);
+            $now = now();
+
+            // Admin bo sung du lieu cu: duyet thang batch qua ca 2 vong (Lanh dao Khoa + PDT)
+            // ngay khi gui, khong can cho tung nguoi duyet thu cong.
+            $batch->fill($isAdminBackfill
+                ? [
+                    'status' => DepartmentMonthlyAssignmentBatch::STATUS_APPROVED,
+                    'current_step' => DepartmentMonthlyAssignmentBatch::STEP_COMPLETED,
+                    'submitted_by' => $actor->id,
+                    'submitted_at' => $now,
+                    'department_reviewed_by' => $actor->id,
+                    'department_reviewed_at' => $now,
+                    'department_review_note' => null,
+                    'training_office_reviewed_by' => $actor->id,
+                    'training_office_reviewed_at' => $now,
+                    'training_office_review_note' => null,
+                ]
+                : [
+                    'status' => DepartmentMonthlyAssignmentBatch::STATUS_SUBMITTED,
+                    'current_step' => DepartmentMonthlyAssignmentBatch::STEP_DEPARTMENT_REVIEW,
+                    'submitted_by' => $actor->id,
+                    'submitted_at' => $now,
+                    'department_reviewed_by' => null,
+                    'department_reviewed_at' => null,
+                    'department_review_note' => null,
+                    'training_office_reviewed_by' => null,
+                    'training_office_reviewed_at' => null,
+                    'training_office_review_note' => null,
+                ]);
             $batch->save();
 
-            app(InternalNotificationService::class)->notifyDepartmentMonthlyAssignmentBatchSubmitted($batch, $actor);
+            if (! $isAdminBackfill) {
+                app(InternalNotificationService::class)->notifyDepartmentMonthlyAssignmentBatchSubmitted($batch, $actor);
+            }
 
             return $batch->fresh([
                 'department',

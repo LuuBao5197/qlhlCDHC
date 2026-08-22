@@ -23,8 +23,8 @@ class ResolveAggregateAssignmentScope
      *     monthly_schedules:\Illuminate\Support\Collection<int, MonthlySchedule>
      * }|null
      */
-    public function handle(MonthlySchedule $anchorMonthlySchedule, ?User $user = null): ?array
+    public function handle(MonthlySchedule $anchorMonthlySchedule, ?User $user = null, ?int $requestedDepartmentId = null): ?array
     {
-        return $this->scopeResolver->resolve($anchorMonthlySchedule, $user);
+        return $this->scopeResolver->resolve($anchorMonthlySchedule, $user, $requestedDepartmentId);
     }
 }

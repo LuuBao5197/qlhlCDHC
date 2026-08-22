@@ -49,7 +49,7 @@ class AssignMonthlyScheduleMergeController extends Controller
             ]);
         }
 
-        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user(), $request->integer('department_id') ?: null);
         if ($scope === null) {
             return response()->json([
                 'success' => false,
@@ -114,7 +114,7 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 422);
         }
 
-        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user(), $request->integer('department_id') ?: null);
         if ($scope === null) {
             return response()->json([
                 'success' => false,
@@ -275,7 +275,7 @@ class AssignMonthlyScheduleMergeController extends Controller
             ], 404);
         }
 
-        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user(), $request->integer('department_id') ?: null);
         if ($scope === null) {
             return response()->json([
                 'success' => false,

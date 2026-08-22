@@ -41,7 +41,8 @@ class AssignMonthlyScheduleRequest extends FormRequest
 
         $departmentId = $user->department_id;
         if ($departmentId === null) {
-            $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $user);
+            $requestedDepartmentId = $this->integer('department_id') ?: null;
+            $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $user, $requestedDepartmentId);
             $departmentId = $scope['department_id'] ?? $monthlySchedule->department_id ?? $monthlySchedule->trainingClass?->department_id;
         }
 
@@ -76,6 +77,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'department_id' => ['nullable', 'integer'],
             'changes' => ['required', 'array', 'max:5000'],
             'changes.*.slot_id' => ['required', 'integer', 'distinct', 'exists:schedule_slots,id'],
             'changes.*.teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
@@ -103,7 +105,8 @@ class AssignMonthlyScheduleRequest extends FormRequest
                 return;
             }
 
-            $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $this->user());
+            $requestedDepartmentId = $this->integer('department_id') ?: null;
+            $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $this->user(), $requestedDepartmentId);
             if ($scope === null) {
                 $validator->errors()->add(
                     'changes',

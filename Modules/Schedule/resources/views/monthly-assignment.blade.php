@@ -122,13 +122,18 @@
                             @endif
 
                             @if ($batchCanSubmit)
-                                <form method="POST"
+                                <form method="POST" id="submitBatchForm"
                                     action="{{ route('department-monthly-assignment-batches.submit', $monthlySchedule->id) }}"
                                     class="mr-2 mb-2"
-                                    onsubmit="return confirm('Kiểm tra và gửi batch tổng hợp lên PDT duyệt?');">
+                                    onsubmit="return confirm({{ $adminBackfillMode ? "'Bo sung du lieu cu: gui batch va DUYET NGAY qua ca 2 vong (Lanh dao Khoa + PDT), khong can cho duyet thu cong?'" : "'Kiểm tra và gửi batch tổng hợp lên PDT duyệt?'" }});">
                                     @csrf
+                                    <input type="hidden" name="department_id" value="{{ $currentDepartmentId }}">
+                                    @if ($adminBackfillMode)
+                                        <input type="hidden" name="admin_backfill" value="1">
+                                        <input type="hidden" name="admin_backfill_reason" id="batchSubmitAdminBackfillReason" value="{{ old('admin_backfill_reason') }}">
+                                    @endif
                                     <button type="submit" class="btn btn-primary btn-sm">
-                                        <i class="fas fa-paper-plane mr-1"></i>Kiểm tra và gửi PDT duyệt
+                                        <i class="fas fa-paper-plane mr-1"></i>{{ $adminBackfillMode ? 'Gửi và duyệt nhanh (dữ liệu cũ)' : 'Kiểm tra và gửi PDT duyệt' }}
                                     </button>
                                 </form>
                             @else
@@ -475,8 +480,10 @@
                                     <a href="{{ request()->fullUrlWithQuery(['admin_backfill' => null]) }}" class="btn btn-sm btn-outline-secondary">Tắt</a>
                                 </div>
                                 <label class="form-label">Lý do bổ sung dữ liệu cũ <span class="text-danger">*</span></label>
-                                <textarea form="monthlyAssignmentForm" name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
-                                    rows="2" placeholder="Vi du: Nhap bu phan cong giang day truoc khi he thong van hanh...">{{ old('admin_backfill_reason') }}</textarea>
+                                <textarea id="adminBackfillReasonTextarea" form="monthlyAssignmentForm" name="admin_backfill_reason" class="form-control @error('admin_backfill_reason') is-invalid @enderror"
+                                    rows="2" placeholder="Vi du: Nhap bu phan cong giang day truoc khi he thong van hanh..."
+                                    oninput="var el = document.getElementById('batchSubmitAdminBackfillReason'); if (el) { el.value = this.value; }">{{ old('admin_backfill_reason') }}</textarea>
+                                <small class="form-text text-muted">Lý do này cũng sẽ được dùng khi gửi và duyệt nhanh batch tổng hợp.</small>
                                 @error('admin_backfill_reason')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
@@ -487,6 +494,7 @@
                     <form method="POST" action="{{ route('monthly-schedule.assignment.save', $monthlySchedule->id) }}"
                         id="monthlyAssignmentForm" novalidate>
                         @csrf
+                        <input type="hidden" name="department_id" value="{{ $currentDepartmentId }}">
                         @if ($adminBackfillMode)
                             <input type="hidden" name="admin_backfill" value="1">
                         @endif
@@ -1760,6 +1768,8 @@
             var splitMergeUrlTemplate = @json(route('monthly-schedule.assignment.split', ['id' => '__MONTHLY__', 'groupId' => '__GROUP__']));
             var supportRequestStoreUrl = @json($supportRequestStoreUrl);
             var currentDepartmentId = @json($currentDepartmentId);
+            var adminBackfillMode = @json($adminBackfillMode);
+            var adminBackfillReasonInput = document.getElementById('adminBackfillReasonTextarea');
             var supportRequestModalEl = document.getElementById('supportRequestModal');
             var supportRequestModalError = document.getElementById('supportRequestModalError');
             var supportRequestSelectionInfo = document.getElementById('supportRequestSelectionInfo');
@@ -2419,7 +2429,10 @@
                             'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: JSON.stringify({
-                            changes: changes
+                            changes: changes,
+                            department_id: currentDepartmentId,
+                            admin_backfill: adminBackfillMode ? 1 : 0,
+                            admin_backfill_reason: adminBackfillReasonInput ? adminBackfillReasonInput.value : ''
                         })
                     });
 
@@ -3605,6 +3618,7 @@
 
             async function loadMergeCandidates(slotId, monthlyScheduleId) {
                 var url = buildMergeUrl(mergeCandidatesUrlTemplate, monthlyScheduleId, slotId);
+                url += (url.indexOf('?') === -1 ? '?' : '&') + 'department_id=' + encodeURIComponent(currentDepartmentId);
                 var response = await fetch(url, {
                     headers: {
                         'Accept': 'application/json',
@@ -3653,6 +3667,7 @@
                         },
                         body: JSON.stringify({
                             candidate_slot_ids: checkedIds,
+                            department_id: currentDepartmentId,
                             teacher_id: basePayload.teacher_id,
                             assignment_type: basePayload.assignment_type,
                             room_id: basePayload.room_id,
@@ -3707,7 +3722,10 @@
                             'Content-Type': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
                             'X-CSRF-TOKEN': csrfToken
-                        }
+                        },
+                        body: JSON.stringify({
+                            department_id: currentDepartmentId
+                        })
                     });
                     var payload = await response.json().catch(function() {
                         return {};

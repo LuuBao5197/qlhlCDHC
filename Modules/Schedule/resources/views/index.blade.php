@@ -59,9 +59,9 @@
 
                 return [
                     'monthly_schedule_id' => $monthlySchedule->id,
+                    'department_id' => (int) $departmentId,
                     'year' => (int) $monthlySchedule->year,
                     'month' => (int) $monthlySchedule->month,
-                    'department_id' => (int) $departmentId,
                     'department_name' => $subjectSlots->first()?->subjectModel?->department?->name ?? '-',
                     'plan_count' => 1,
                     'slot_count' => $subjectSlots->count(),
@@ -76,6 +76,7 @@
 
                 return [
                     'monthly_schedule_id' => $first['monthly_schedule_id'],
+                    'department_id' => $first['department_id'],
                     'year' => $first['year'],
                     'month' => $first['month'],
                     'department_name' => $first['department_name'],
@@ -100,7 +101,7 @@
                     @if ($canDepartmentAssign)
                         <div class="d-flex flex-wrap">
                             @foreach ($aggregateAssignmentCards->take(3) as $aggregateCard)
-                                <a href="{{ route('monthly-schedule.assignment', $aggregateCard['monthly_schedule_id']) }}"
+                                <a href="{{ route('monthly-schedule.assignment', ['id' => $aggregateCard['monthly_schedule_id'], 'department_id' => $aggregateCard['department_id']]) }}"
                                     class="btn btn-outline-info btn-sm mr-2 mb-2">
                                     {{ str_pad((string) $aggregateCard['month'], 2, '0', STR_PAD_LEFT) }}/{{ $aggregateCard['year'] }}
                                     - {{ $aggregateCard['department_name'] }}

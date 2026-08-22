@@ -21,9 +21,9 @@ class BuildOrRefreshDraftBatch
      * Build or refresh the draft snapshot for a department-month batch.
      * Must be called inside an existing transaction when atomicity is required.
      */
-    public function handle(MonthlySchedule $anchorMonthlySchedule, User $actor): DepartmentMonthlyAssignmentBatch
+    public function handle(MonthlySchedule $anchorMonthlySchedule, User $actor, ?int $requestedDepartmentId = null): DepartmentMonthlyAssignmentBatch
     {
-        $scope = $this->scopeResolver->handle($anchorMonthlySchedule, $actor);
+        $scope = $this->scopeResolver->handle($anchorMonthlySchedule, $actor, $requestedDepartmentId);
         if ($scope === null) {
             throw ValidationException::withMessages([
                 'scope' => 'Khong xac dinh duoc khoa hien tai de tao batch tong hop.',

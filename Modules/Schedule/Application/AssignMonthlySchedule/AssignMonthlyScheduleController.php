@@ -37,7 +37,8 @@ class AssignMonthlyScheduleController extends Controller
             ])
             ->findOrFail($id);
 
-        $scope = $this->scopeResolver->resolve($monthlySchedule, $user);
+        $requestedDepartmentId = $request->integer('department_id') ?: null;
+        $scope = $this->scopeResolver->resolve($monthlySchedule, $user, $requestedDepartmentId);
         if ($scope === null) {
             abort(422, 'Khong xac dinh duoc khoa hien tai de tong hop phan cong.');
         }

@@ -4,13 +4,17 @@ namespace Modules\Schedule\Application\MonthlyAssignmentDossier;
 
 use App\Http\Controllers\Controller;
 use App\Services\ApprovalAuthorityService;
+use App\Support\AdminBackfillContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Schedule\Application\BuildOrRefreshMonthlyAssignmentDossier\BuildOrRefreshMonthlyAssignmentDossier;
 use Modules\Schedule\Application\BuildOrRefreshMonthlyAssignmentDossier\ResolveMonthlyAssignmentDossierReadiness;
 use Modules\Schedule\Models\MonthlyAssignmentDossier;
+use Modules\Training\Models\ApprovalAction;
+use Modules\Training\Models\ApprovalRequest;
 
 class MonthlyAssignmentDossierController extends Controller
 {
@@ -55,17 +59,73 @@ class MonthlyAssignmentDossierController extends Controller
         $validated = $request->validate([
             'month' => ['required', 'integer', 'min:1', 'max:12'],
             'year' => ['required', 'integer', 'min:2020', 'max:2100'],
-        ]);
+        ] + AdminBackfillContext::rules(), AdminBackfillContext::messages());
+
+        $isAdminBackfill = AdminBackfillContext::isActive($request);
 
         try {
-            $dossier = $this->buildOrRefreshDossier->handle((int) $validated['month'], (int) $validated['year'], $request->user());
+            $dossier = DB::transaction(function () use ($request, $validated, $isAdminBackfill): MonthlyAssignmentDossier {
+                $dossier = $this->buildOrRefreshDossier->handle((int) $validated['month'], (int) $validated['year'], $request->user());
+
+                // Admin bo sung du lieu cu: duyet nhanh ho so qua ca PDT va BGH ngay khi tao,
+                // khong can cho tung cap phe duyet thu cong.
+                if ($isAdminBackfill) {
+                    $dossier = $this->finalizeAdminBackfillDossier($dossier, $request);
+                }
+
+                return $dossier;
+            });
         } catch (ValidationException $exception) {
             return back()->withErrors($exception->errors())->withInput();
         }
 
+        AdminBackfillContext::log($request, 'monthly_assignment_dossier_build', $dossier);
+
         return redirect()
             ->route('monthly-assignment-dossiers.show', $dossier->id)
-            ->with('success', 'Da tao/lam moi ban nhap ho so phan cong thang tong hop.');
+            ->with('success', $isAdminBackfill
+                ? 'Da tao va duyet nhanh ho so phan cong thang tong hop (bo sung du lieu cu).'
+                : 'Da tao/lam moi ban nhap ho so phan cong thang tong hop.');
+    }
+
+    private function finalizeAdminBackfillDossier(MonthlyAssignmentDossier $dossier, Request $request): MonthlyAssignmentDossier
+    {
+        $now = now();
+        $actorId = $request->user()->id;
+
+        $dossier->update([
+            'submitted_by' => $actorId,
+            'submitted_at' => $now,
+            'reviewed_by' => $actorId,
+            'reviewed_at' => $now,
+            'status' => MonthlyAssignmentDossier::STATUS_APPROVED,
+            'current_step' => MonthlyAssignmentDossier::STEP_COMPLETED,
+            'completed_at' => $now,
+        ]);
+
+        $approvalRequest = ApprovalRequest::query()->firstOrNew([
+            'entity_type' => MonthlyAssignmentDossier::class,
+            'entity_id' => $dossier->id,
+        ]);
+        $approvalRequest->fill([
+            'submitted_by' => $actorId,
+            'current_step' => MonthlyAssignmentDossier::STEP_LEADERSHIP_REVIEW,
+            'status' => 'approved',
+            'submitted_at' => $now,
+            'completed_at' => $now,
+        ]);
+        $approvalRequest->save();
+
+        ApprovalAction::query()->create([
+            'approval_request_id' => $approvalRequest->id,
+            'step_code' => 'admin_backfill',
+            'action' => 'approve',
+            'acted_by' => $actorId,
+            'acted_at' => $now,
+            'comment' => $request->input('admin_backfill_reason'),
+        ]);
+
+        return $dossier->fresh(['createdBy', 'submittedBy', 'reviewedBy', 'batches.department']);
     }
 
     public function show(Request $request, int $id): Response

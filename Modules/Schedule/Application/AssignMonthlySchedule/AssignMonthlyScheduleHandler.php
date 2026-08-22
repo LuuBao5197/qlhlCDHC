@@ -26,7 +26,8 @@ class AssignMonthlyScheduleHandler
     {
         $monthlySchedule = MonthlySchedule::query()->findOrFail($id);
         $validated = $request->validated();
-        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user());
+        $requestedDepartmentId = $request->integer('department_id') ?: null;
+        $scope = app(MonthlyAssignmentScopeResolver::class)->resolve($monthlySchedule, $request->user(), $requestedDepartmentId);
 
         if ($scope === null) {
             return $this->respondFailure(

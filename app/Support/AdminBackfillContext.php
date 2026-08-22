@@ -4,7 +4,7 @@ namespace App\Support;
 
 use App\Models\AdminBackfillLog;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Request;
 
 class AdminBackfillContext
 {
@@ -31,7 +31,7 @@ class AdminBackfillContext
         ];
     }
 
-    public static function isActive(FormRequest $request): bool
+    public static function isActive(Request $request): bool
     {
         return $request->user()?->isAdmin() === true && $request->boolean('admin_backfill');
     }
@@ -39,7 +39,7 @@ class AdminBackfillContext
     /**
      * @param array<string, mixed> $meta
      */
-    public static function log(FormRequest $request, string $feature, ?Model $loggable = null, array $meta = []): ?AdminBackfillLog
+    public static function log(Request $request, string $feature, ?Model $loggable = null, array $meta = []): ?AdminBackfillLog
     {
         if (! self::isActive($request)) {
             return null;

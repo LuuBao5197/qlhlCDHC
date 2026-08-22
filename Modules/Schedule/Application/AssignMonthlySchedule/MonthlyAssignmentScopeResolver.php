@@ -22,11 +22,11 @@ class MonthlyAssignmentScopeResolver
      *     monthly_schedules:Collection<int, MonthlySchedule>
      * }|null
      */
-    public function resolve(MonthlySchedule $anchorMonthlySchedule, ?User $user = null): ?array
+    public function resolve(MonthlySchedule $anchorMonthlySchedule, ?User $user = null, ?int $requestedDepartmentId = null): ?array
     {
         $anchorMonthlySchedule->loadMissing('scheduleSlots.subjectModel.department');
 
-        $departmentId = $this->resolveDepartmentId($anchorMonthlySchedule, $user);
+        $departmentId = $this->resolveDepartmentId($anchorMonthlySchedule, $user, $requestedDepartmentId);
         if ($departmentId === null) {
             return null;
         }
@@ -72,10 +72,22 @@ class MonthlyAssignmentScopeResolver
         ];
     }
 
-    private function resolveDepartmentId(MonthlySchedule $anchorMonthlySchedule, ?User $user = null): ?int
+    private function resolveDepartmentId(MonthlySchedule $anchorMonthlySchedule, ?User $user = null, ?int $requestedDepartmentId = null): ?int
     {
         if ($user?->isDepartmentStaff() && $user->department_id !== null) {
             return (int) $user->department_id;
+        }
+
+        // Mot MonthlySchedule (1 lop, 1 thang) co the co tiet thuoc nhieu Khoa khac nhau
+        // (moi mon hoc thuoc 1 Khoa). Neu nguoi goi (vd man dieu huong/dossier) da biet ro
+        // dang can Khoa nao, uu tien dung gia tri do thay vi doan dai "khoa cua tiet dau tien".
+        if ($requestedDepartmentId !== null) {
+            $requestedDepartmentExists = $anchorMonthlySchedule->scheduleSlots
+                ->contains(fn ($slot) => (int) ($slot->subjectModel?->department_id ?? 0) === $requestedDepartmentId);
+
+            if ($requestedDepartmentExists) {
+                return $requestedDepartmentId;
+            }
         }
 
         $departmentId = $anchorMonthlySchedule->scheduleSlots

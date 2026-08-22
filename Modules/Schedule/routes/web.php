@@ -9,6 +9,7 @@ use Modules\Schedule\Application\UpdateSchedule\UpdateScheduleController;
 use Modules\Schedule\Application\DeleteSchedule\DeleteScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleMergeController;
+use Modules\Schedule\Application\AssignMonthlySchedule\MonthlyAssignmentDirectoryController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchReviewController;
 use Modules\Schedule\Application\TrainingOfficeReviewDepartmentMonthlyAssignmentBatch\TrainingOfficeReviewDepartmentMonthlyAssignmentBatchController;
@@ -73,6 +74,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('schedule.leadership-review');
 
     // Training office review flow
+    Route::get('/monthly-schedules', [MonthlyAssignmentDirectoryController::class, 'index'])
+        ->name('monthly-schedule.directory');
     Route::get('/monthly-schedules/{id}/assignment', [AssignMonthlyScheduleController::class, 'showForm'])
         ->name('monthly-schedule.assignment');
     Route::post('/monthly-schedules/{id}/assignment', AssignMonthlyScheduleController::class)

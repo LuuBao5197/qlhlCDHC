@@ -52,6 +52,12 @@
 
     @if(auth()->check() && auth()->user()->isDepartmentStaff())
       <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('monthly-schedule.directory') }}">
+          <span class="menu-icon"><i class="mdi mdi-chalkboard-teacher"></i></span>
+          <span class="menu-title">Phân công giảng dạy theo tháng</span>
+        </a>
+      </li>
+      <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('teaching-support-requests.inbox') }}">
           <span class="menu-icon"><i class="mdi mdi-inbox"></i></span>
           <span class="menu-title">Inbox hỗ trợ liên khoa</span>
@@ -74,6 +80,12 @@
         <a class="nav-link" href="{{ route('monthly-schedule.initialize.form') }}">
           <span class="menu-icon"><i class="mdi mdi-calendar-plus"></i></span>
           <span class="menu-title">Khởi tạo lịch tháng</span>
+        </a>
+      </li>
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('monthly-schedule.directory') }}">
+          <span class="menu-icon"><i class="mdi mdi-chalkboard-teacher"></i></span>
+          <span class="menu-title">Phân công giảng dạy theo tháng</span>
         </a>
       </li>
       <li class="nav-item menu-items">

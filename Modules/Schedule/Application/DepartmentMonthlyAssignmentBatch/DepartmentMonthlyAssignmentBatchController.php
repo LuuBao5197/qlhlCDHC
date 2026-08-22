@@ -4,6 +4,7 @@ namespace Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AdminBackfillContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -90,8 +91,12 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
 
         $this->authorizeDepartmentScope($request->user(), $anchorMonthlySchedule);
 
+        $request->validate(AdminBackfillContext::rules(), AdminBackfillContext::messages());
+        $isAdminBackfill = AdminBackfillContext::isActive($request);
+        $requestedDepartmentId = $request->integer('department_id') ?: null;
+
         try {
-            $batch = $this->submitBatch->handle($anchorMonthlySchedule, $request->user());
+            $batch = $this->submitBatch->handle($anchorMonthlySchedule, $request->user(), $isAdminBackfill, $requestedDepartmentId);
         } catch (ValidationException $exception) {
             if (! $request->expectsJson()) {
                 return back()
@@ -106,15 +111,21 @@ class DepartmentMonthlyAssignmentBatchController extends Controller
             ], 422);
         }
 
+        AdminBackfillContext::log($request, 'department_monthly_assignment_batch_submit', $batch);
+
+        $successMessage = $isAdminBackfill
+            ? 'Da tao va duyet nhanh batch phan cong (bo sung du lieu cu).'
+            : 'Da gui batch len Lanh dao Khoa de duyet.';
+
         if (! $request->expectsJson()) {
             return redirect()
                 ->route('monthly-schedule.assignment', $id)
-                ->with('success', 'Da gui batch len Lanh dao Khoa de duyet.');
+                ->with('success', $successMessage);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Da gui batch len Lanh dao Khoa de duyet.',
+            'message' => $successMessage,
             'batch_id' => $batch->id,
             'batch' => $this->formatBatch($batch),
         ]);
