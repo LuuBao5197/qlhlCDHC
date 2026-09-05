@@ -25,12 +25,18 @@ class ScheduleImportFileReader
 
     private function readCsvRows(string $path, string $errorKey): array
     {
-        $handle = fopen($path, 'r');
-        if ($handle === false) {
+        $content = @file_get_contents($path);
+        if ($content === false) {
             throw ValidationException::withMessages([
                 $errorKey => 'Khong the doc file import.',
             ]);
         }
+
+        $content = $this->toUtf8($content);
+
+        $handle = fopen('php://memory', 'r+');
+        fwrite($handle, $content);
+        rewind($handle);
 
         $rows = [];
         while (($row = fgetcsv($handle)) !== false) {
@@ -40,6 +46,23 @@ class ScheduleImportFileReader
         fclose($handle);
 
         return $rows;
+    }
+
+    /**
+     * Excel commonly saves Vietnamese CSV/TXT exports as ANSI
+     * (Windows-1258/1252) rather than UTF-8. Those raw bytes are invalid
+     * UTF-8 and later break json_encode() when the parsed values are
+     * returned in an API response, so normalize to UTF-8 up front.
+     */
+    private function toUtf8(string $content): string
+    {
+        if ($content === '' || mb_check_encoding($content, 'UTF-8')) {
+            return $content;
+        }
+
+        $encoding = mb_detect_encoding($content, ['Windows-1258', 'Windows-1252', 'ISO-8859-1'], true) ?: 'Windows-1252';
+
+        return mb_convert_encoding($content, 'UTF-8', $encoding);
     }
 
     private function readXlsxRows(string $path, string $errorKey): array
