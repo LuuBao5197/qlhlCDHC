@@ -39,8 +39,8 @@ class PreviewScheduleSemesterHandler
                 $planEnd
             );
 
-            $rules = array_merge($rules, $imported['rules']);
-            $events = array_merge($events, $imported['events']);
+            $rules = array_merge($rules, $this->normalizeRules($imported['rules']));
+            $events = array_merge($events, $this->normalizeEvents($imported['events']));
             $warnings = $imported['warnings'];
         }
 
