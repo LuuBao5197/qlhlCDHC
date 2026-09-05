@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Modules\Schedule\Application\Shared\ScheduleImportFileReader;
 use Modules\Schedule\Application\Shared\ScheduleSlotConflictChecker;
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\PlanTemplates;
@@ -55,13 +56,14 @@ class UpdateScheduleSemesterHandler
 
         $allowedSubjectIds = $this->resolveAllowedSubjectIds($plan->training_batch_id);
 
+        $importedData = $this->parseImportFiles($request, $classMap, $allowedSubjectIds);
         $templateEntries = array_merge(
             $this->parseClassTabRules(
                 $validated['class_tab_rules'] ?? [],
                 $classMap,
                 $allowedSubjectIds
             ),
-            $this->parseImportFiles($request, $classMap, $allowedSubjectIds)
+            $importedData['templates']
         );
 
         if ($templateEntries === []) {
@@ -72,7 +74,8 @@ class UpdateScheduleSemesterHandler
 
         $semesterEvents = array_merge(
             $this->parseGlobalSemesterEvents($validated['global_semester_events'] ?? [], $planStart, $planEnd),
-            $this->parseClassSemesterEvents($validated['class_semester_events'] ?? [], $classMap, $planStart, $planEnd)
+            $this->parseClassSemesterEvents($validated['class_semester_events'] ?? [], $classMap, $planStart, $planEnd),
+            $importedData['events']
         );
 
         $this->validateSemesterEventsWithinPlan($semesterEvents, $planStart, $planEnd);
@@ -505,16 +508,22 @@ class UpdateScheduleSemesterHandler
         return $rows;
     }
 
+    /**
+     * @return array{templates: array<int, array>, events: array<int, array>}
+     */
     private function parseImportFiles(
         UpdateScheduleSemesterRequest $request,
         array $classMap,
         ?array $allowedSubjectIds = null
     ): array {
-        $rows = [];
+        $parsed = [
+            'templates' => [],
+            'events' => [],
+        ];
         $rawImports = $request->file('import_file', []);
 
         if ($rawImports === null) {
-            return [];
+            return $parsed;
         }
 
         if ($rawImports instanceof UploadedFile) {
@@ -544,41 +553,30 @@ class UpdateScheduleSemesterHandler
                 ]);
             }
 
-            $handle = fopen($importFile->getRealPath(), 'r');
-            if ($handle === false) {
-                throw ValidationException::withMessages([
-                    'import_file' => "Khong the doc file import cho lop '{$classKey}'.",
-                ]);
+            $sheetRows = $this->importFileReader()->readRows($importFile);
+            if ($sheetRows === []) {
+                continue;
             }
 
-            $headers = fgetcsv($handle);
-            if ($headers === false) {
-                fclose($handle);
+            $headers = array_shift($sheetRows);
+            if (!is_array($headers) || $headers === []) {
                 continue;
             }
 
             $headerMap = array_flip(array_map(
-                fn($header) => trim(strtolower((string) $header)),
+                fn ($header) => $this->importFileReader()->normalizeHeader($header),
                 $headers
             ));
 
-            // Required columns
-            $requiredColumns = ['class_code', 'period_from', 'period_to', 'subject'];
-            foreach ($requiredColumns as $column) {
+            foreach (['class_code', 'period_from', 'period_to'] as $column) {
                 if (!array_key_exists($column, $headerMap)) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
                         'import_file' => "File import cho lop '{$classKey}' thieu cot bat buoc '{$column}'.",
                     ]);
                 }
             }
 
-            // Optional columns (at least date or start_date must exist)
-            $hasDateColumn = array_key_exists('date', $headerMap);
-            $hasStartDateColumn = array_key_exists('start_date', $headerMap);
-
-            if (!$hasDateColumn && !$hasStartDateColumn) {
-                fclose($handle);
+            if (!array_key_exists('date', $headerMap) && !array_key_exists('start_date', $headerMap)) {
                 throw ValidationException::withMessages([
                     'import_file' => "File import cho lop '{$classKey}' phai co cot 'date' hoac 'start_date'.",
                 ]);
@@ -586,8 +584,8 @@ class UpdateScheduleSemesterHandler
 
             $class = $classMap[(string) $classKey];
 
-            while (($row = fgetcsv($handle)) !== false) {
-                if (count(array_filter($row, fn($value) => trim((string) $value) !== '')) === 0) {
+            foreach ($sheetRows as $rowIndex => $row) {
+                if (!is_array($row) || count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
                     continue;
                 }
 
@@ -596,145 +594,230 @@ class UpdateScheduleSemesterHandler
                     $rowData[$column] = isset($row[$index]) ? trim((string) $row[$index]) : null;
                 }
 
-                // Validate class code
-                if (Str::upper((string) $rowData['class_code']) !== Str::upper($class->code)) {
-                    fclose($handle);
+                if (Str::upper((string) ($rowData['class_code'] ?? '')) !== Str::upper($class->code)) {
                     throw ValidationException::withMessages([
                         'import_file' => "Ma lop trong file ('{$rowData['class_code']}') khong khop voi lop '{$class->code}'.",
                     ]);
                 }
 
-                // Determine start date
+                $rowType = strtolower(trim((string) ($rowData['row_type'] ?? 'rule')));
+                if (!in_array($rowType, ['rule', 'event'], true)) {
+                    throw ValidationException::withMessages([
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co row_type khong hop le.",
+                    ]);
+                }
+
                 $startDateStr = $rowData['start_date'] ?? $rowData['date'] ?? null;
                 if (empty($startDateStr) || !strtotime((string) $startDateStr)) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua ngay bat dau hop le.",
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua ngay bat dau hop le.",
                     ]);
                 }
+
                 $startDate = Carbon::parse((string) $startDateStr)->startOfDay();
-
-                // Determine end date (default to start date if not provided)
                 $endDateStr = $rowData['end_date'] ?? $rowData['start_date'] ?? $rowData['date'] ?? null;
-                if (empty($endDateStr) || !strtotime((string) $endDateStr)) {
-                    $endDate = $startDate->copy();
-                } else {
-                    $endDate = Carbon::parse((string) $endDateStr)->startOfDay();
-                }
+                $endDate = empty($endDateStr) || !strtotime((string) $endDateStr)
+                    ? $startDate->copy()
+                    : Carbon::parse((string) $endDateStr)->startOfDay();
 
-                // Validate date range
                 if ($endDate->lt($startDate)) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' co ngay ket thuc nho hon ngay bat dau.",
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co ngay ket thuc nho hon ngay bat dau.",
                     ]);
                 }
 
-                // Validate periods
-                $periodFrom = is_numeric($rowData['period_from']) ? (int) $rowData['period_from'] : null;
-                $periodTo = is_numeric($rowData['period_to']) ? (int) $rowData['period_to'] : null;
-                if ($periodFrom === null || $periodTo === null || $periodFrom < 1 || $periodFrom > 9 || $periodTo < 1 || $periodTo > 9 || $periodTo < $periodFrom) {
-                    fclose($handle);
+                $periodFrom = $this->parseOptionalPeriodValue($rowData['period_from'] ?? null);
+                $periodTo = $this->parseOptionalPeriodValue($rowData['period_to'] ?? null);
+                if ($periodFrom === null || $periodTo === null || $periodTo < $periodFrom) {
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua tiet khong hop le.",
+                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua tiet khong hop le.",
                     ]);
                 }
 
-                // Parse weekdays (nếu có cột weekdays)
+                if ($rowType === 'event') {
+                    $eventType = strtolower(trim((string) ($rowData['event_type'] ?? '')));
+                    $title = trim((string) ($rowData['title'] ?? ''));
+
+                    if (!in_array($eventType, ['review', 'exam', 'other'], true)) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co event_type khong hop le.",
+                        ]);
+                    }
+
+                    if ($title === '') {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' phai nhap title.",
+                        ]);
+                    }
+
+                    $note = trim((string) ($rowData['note'] ?? $rowData['content'] ?? '')) ?: null;
+                    $recurrence = strtolower(trim((string) ($rowData['recurrence'] ?? '')));
+
+                    if ($recurrence === '' || $recurrence === 'none') {
+                        $parsed['events'][] = [
+                            'class_id' => $class->id,
+                            'event_type' => $eventType,
+                            'title' => $title,
+                            'start_date' => $startDate->toDateString(),
+                            'end_date' => $endDate->toDateString(),
+                            'period_from' => $periodFrom,
+                            'period_to' => $periodTo,
+                            'color' => $this->semesterEventColor($eventType),
+                            'note' => $note,
+                            'sort_order' => $rowIndex,
+                        ];
+
+                        continue;
+                    }
+
+                    if ($recurrence !== 'monthly_weekday') {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co recurrence khong hop le.",
+                        ]);
+                    }
+
+                    $recurrenceWeekdayStr = (string) ($rowData['weekdays'] ?? $rowData['days_of_week'] ?? '');
+                    $recurrenceWeekdays = $recurrenceWeekdayStr !== ''
+                        ? $this->importFileReader()->parseWeekdaysFromString($recurrenceWeekdayStr)
+                        : [];
+
+                    if ($recurrenceWeekdays === []) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' can cot weekdays (mot thu) khi dung recurrence monthly_weekday.",
+                        ]);
+                    }
+
+                    $occurrence = $this->parseOccurrenceValue($rowData['occurrence'] ?? null);
+                    if ($occurrence === null) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co cot occurrence khong hop le (1-4 hoac last).",
+                        ]);
+                    }
+
+                    $occurrenceDates = $this->expandMonthlyWeekdayDates($startDate, $endDate, $recurrenceWeekdays[0], $occurrence);
+                    if ($occurrenceDates === []) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' khong co ngay nao khop voi recurrence trong khoang da chon.",
+                        ]);
+                    }
+
+                    foreach ($occurrenceDates as $occurrenceDate) {
+                        $parsed['events'][] = [
+                            'class_id' => $class->id,
+                            'event_type' => $eventType,
+                            'title' => $title,
+                            'start_date' => $occurrenceDate->toDateString(),
+                            'end_date' => $occurrenceDate->toDateString(),
+                            'period_from' => $periodFrom,
+                            'period_to' => $periodTo,
+                            'color' => $this->semesterEventColor($eventType),
+                            'note' => $note,
+                            'sort_order' => $rowIndex,
+                        ];
+                    }
+
+                    continue;
+                }
+
                 $weekdaysStr = $rowData['weekdays'] ?? $rowData['days_of_week'] ?? null;
-                if (!empty($weekdaysStr)) {
-                    // Format: "2,3,4,5,6" hoặc "2;3;4;5;6" hoặc "Monday,Tuesday,..."
-                    $daysOfWeek = $this->parseWeekdaysFromString($weekdaysStr);
-                } else {
-                    // Nếu không có, dùng weekday của ngày start_date
-                    $daysOfWeek = [$startDate->dayOfWeekIso + 1];
-                }
+                $daysOfWeek = !empty($weekdaysStr)
+                    ? $this->importFileReader()->parseWeekdaysFromString((string) $weekdaysStr)
+                    : [$startDate->dayOfWeekIso + 1];
 
                 if ($daysOfWeek === []) {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua ngay trong tuan hop le.",
+                        'import_file' => "Dong rule #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua ngay trong tuan hop le.",
                     ]);
                 }
 
                 $subjectText = trim((string) ($rowData['subject'] ?? ''));
-                $content = trim((string) ($rowData['content'] ?? '')) ?: null;
-
                 if ($subjectText === '') {
-                    fclose($handle);
                     throw ValidationException::withMessages([
-                        'import_file' => "File import cua lop '{$class->code}' chua mon hoc.",
+                        'import_file' => "Dong rule #" . ($rowIndex + 2) . " cua lop '{$class->code}' phai nhap subject.",
                     ]);
                 }
 
-                $rows[] = [
+                $parsed['templates'][] = [
                     'class_id' => $class->id,
                     'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
                     'period_range' => sprintf('%d-%d', $periodFrom, $periodTo),
-                    'description' => $content,
+                    'description' => trim((string) ($rowData['content'] ?? '')) ?: null,
                     'start_date' => $startDate->toDateString(),
                     'end_date' => $endDate->toDateString(),
                 ];
             }
-
-            fclose($handle);
         }
 
-        return $rows;
+        return $parsed;
     }
 
-    private function parseWeekdaysFromString(string $input): array
+    private function importFileReader(): ScheduleImportFileReader
     {
-        if (empty($input)) {
-            return [];
+        return new ScheduleImportFileReader();
+    }
+
+    /**
+     * Accepts 1-4 (1st..4th occurrence) or "last"/"cuoi"/"cuoi cung"/-1 for the
+     * last occurrence of the weekday in the month. Returns null when invalid.
+     */
+    private function parseOccurrenceValue(mixed $value): ?int
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        if (in_array($normalized, ['last', 'cuoi', 'cuoi cung', '-1'], true)) {
+            return -1;
         }
 
-        // Split by comma or semicolon
-        $parts = preg_split('/[,;]+/', trim($input), -1, PREG_SPLIT_NO_EMPTY);
-        $weekdays = [];
+        if (is_numeric($normalized)) {
+            $occurrence = (int) $normalized;
+            return $occurrence >= 1 && $occurrence <= 4 ? $occurrence : null;
+        }
 
-        $dayNameMap = [
-            'monday' => 2, 'mon' => 2,
-            'tuesday' => 3, 'tue' => 3,
-            'wednesday' => 4, 'wed' => 4,
-            'thursday' => 5, 'thu' => 5,
-            'friday' => 6, 'fri' => 6,
-            'saturday' => 7, 'sat' => 7,
-            'sunday' => 8, 'sun' => 8,
-            'chu nhat' => 8,
-            'thu hai' => 2,
-            'thu ba' => 3,
-            'thu tu' => 4,
-            'thu nam' => 5,
-            'thu sau' => 6,
-            'thu bay' => 7,
-        ];
+        return null;
+    }
 
-        foreach ($parts as $part) {
-            $part = trim(strtolower($part));
+    /**
+     * The Nth (or last, when $occurrence is -1) occurrence of the given ISO
+     * weekday (2 = Monday .. 8 = Sunday, matching normalizeWeekdays) within a
+     * calendar month. Returns null when the month has no such occurrence.
+     */
+    private function nthWeekdayOfMonth(int $year, int $month, int $isoWeekday, int $occurrence): ?Carbon
+    {
+        $carbonDayOfWeek = $isoWeekday === 8 ? 0 : $isoWeekday - 1;
+        $base = Carbon::create($year, $month, 1)->startOfDay();
 
-            // Try number first (2-8)
-            if (is_numeric($part)) {
-                $dayNum = (int) $part;
-                if ($dayNum >= 2 && $dayNum <= 8) {
-                    $weekdays[] = $dayNum;
-                }
-            } else {
-                // Try day name
-                if (isset($dayNameMap[$part])) {
-                    $weekdays[] = $dayNameMap[$part];
-                }
+        $result = $occurrence === -1
+            ? $base->copy()->lastOfMonth($carbonDayOfWeek)
+            : $base->copy()->nthOfMonth($occurrence, $carbonDayOfWeek);
+
+        return $result instanceof Carbon ? $result->startOfDay() : null;
+    }
+
+    /**
+     * Expands a "same weekday, same occurrence-in-month" recurrence (e.g.
+     * "2nd Monday of every month") into concrete dates covering every month
+     * touched by [$start, $end], clamped to that range.
+     *
+     * @return array<int, Carbon>
+     */
+    private function expandMonthlyWeekdayDates(Carbon $start, Carbon $end, int $isoWeekday, int $occurrence): array
+    {
+        $dates = [];
+        $cursor = $start->copy()->startOfMonth();
+        $lastMonth = $end->copy()->startOfMonth();
+
+        while ($cursor->lte($lastMonth)) {
+            $occurrenceDate = $this->nthWeekdayOfMonth((int) $cursor->year, (int) $cursor->month, $isoWeekday, $occurrence);
+            if ($occurrenceDate !== null && $occurrenceDate->gte($start) && $occurrenceDate->lte($end)) {
+                $dates[] = $occurrenceDate;
             }
+            $cursor->addMonth();
         }
 
-        return collect($weekdays)
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
+        return $dates;
     }
 
     private function normalizeWeekdays(mixed $value): array

@@ -368,14 +368,170 @@
             color: #6b7785;
             text-align: center;
         }
+
+        .import-guide-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, .45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1300;
+            padding: 16px;
+        }
+
+        .import-guide-dialog {
+            background: #fff;
+            border-radius: 12px;
+            width: 720px;
+            max-width: 100%;
+            max-height: 86vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+        }
+
+        .import-guide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid #e5e9f0;
+        }
+
+        .import-guide-header strong {
+            color: #0f4c81;
+            font-size: 1.05rem;
+        }
+
+        .import-guide-close {
+            border: none;
+            background: transparent;
+            font-size: 1.4rem;
+            line-height: 1;
+            color: #6b7785;
+            cursor: pointer;
+        }
+
+        .import-guide-body {
+            padding: 18px 20px;
+            overflow-y: auto;
+        }
+
+        .import-guide-body h6 {
+            color: #0f4c81;
+            margin-top: 18px;
+            margin-bottom: 8px;
+        }
+
+        .import-guide-body h6:first-child {
+            margin-top: 0;
+        }
+
+        .import-guide-body table {
+            width: 100%;
+            font-size: .85rem;
+            margin-bottom: 8px;
+        }
+
+        .import-guide-body table th,
+        .import-guide-body table td {
+            border: 1px solid #e5e9f0;
+            padding: 6px 8px;
+            vertical-align: top;
+        }
+
+        .import-guide-body pre {
+            background: #f4f6f3;
+            border: 1px solid #e5e9f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: .8rem;
+            overflow-x: auto;
+        }
+
+        .import-guide-body .text-muted {
+            font-size: .85rem;
+        }
+
+        .monthly-event-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, .45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1300;
+            padding: 16px;
+        }
+
+        .monthly-event-dialog {
+            background: #fff;
+            border-radius: 12px;
+            width: 520px;
+            max-width: 100%;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+        }
+
+        .monthly-event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid #e5e9f0;
+        }
+
+        .monthly-event-header strong {
+            color: #0f4c81;
+        }
+
+        .monthly-event-close {
+            border: none;
+            background: transparent;
+            font-size: 1.4rem;
+            line-height: 1;
+            color: #6b7785;
+            cursor: pointer;
+        }
+
+        .monthly-event-body {
+            padding: 16px 20px;
+            overflow-y: auto;
+        }
+
+        .monthly-event-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #e5e9f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .monthly-event-preview {
+            font-size: .82rem;
+            color: #6b7785;
+            margin-top: 4px;
+        }
     </style>
 
     <div class="row">
         <div class="col-12">
             <div class="box shadow-sm">
                 <div class="box-head">
-                    <h4 class="mb-2">Tạo kế hoạch và lịch tổng quát học kỳ</h4>
-                    <div>Mỗi lớp cần có ít nhất một rule hợp lệ hoặc một file import Excel/CSV.</div>
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div>
+                            <h4 class="mb-2">Tạo kế hoạch và lịch tổng quát học kỳ</h4>
+                            <div>Mỗi lớp cần có ít nhất một rule hợp lệ hoặc một file import Excel/CSV.</div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-light open-import-guide" title="Xem hướng dẫn tạo kế hoạch bằng file import CSV/Excel">
+                            <span aria-hidden="true">&#9432;</span> Hướng dẫn import CSV/Excel
+                        </button>
+                    </div>
                 </div>
 
                 <div class="box-body">
@@ -624,6 +780,142 @@
         </div>
     </div>
 
+    <div id="importGuideModal" class="import-guide-overlay" style="display:none;">
+        <div class="import-guide-dialog">
+            <div class="import-guide-header">
+                <strong>Hướng dẫn tạo kế hoạch bằng file import CSV/Excel</strong>
+                <button type="button" class="import-guide-close" id="importGuideClose" aria-label="Đóng">&times;</button>
+            </div>
+            <div class="import-guide-body">
+                <h6>Bước 1 — Chọn khóa đào tạo và lớp</h6>
+                <div class="text-muted">Chọn Khóa đào tạo, Học kỳ, Năm học, ngày bắt đầu/kết thúc học kỳ, rồi chọn các lớp cần tạo lịch.</div>
+
+                <h6>Bước 2 — Tải file mẫu</h6>
+                <div class="text-muted">Ở khu vực "Import Excel/CSV" của mỗi lớp, bấm "Tải template" để tải file mẫu (.xlsx/.csv/.txt). Mỗi lớp import file riêng.</div>
+
+                <h6>Bước 3 — Điền dữ liệu</h6>
+                <div class="text-muted">Mỗi dòng là một <strong>rule</strong> (lịch lặp lại theo tuần) hoặc một <strong>event</strong> (ôn thi/thi/khác), phân biệt bằng cột <code>row_type</code>.</div>
+                <table>
+                    <tr><th>Cột chung</th><th>Ý nghĩa</th></tr>
+                    <tr><td><code>row_type</code></td><td>rule (mặc định) hoặc event</td></tr>
+                    <tr><td><code>class_code</code></td><td>Mã lớp, phải khớp lớp đang import</td></tr>
+                    <tr><td><code>date</code> / <code>start_date</code></td><td>Ngày bắt đầu áp dụng</td></tr>
+                    <tr><td><code>end_date</code></td><td>Ngày kết thúc (mặc định = start_date)</td></tr>
+                    <tr><td><code>period_from</code>, <code>period_to</code></td><td>Tiết bắt đầu – kết thúc (1-9)</td></tr>
+                </table>
+                <table>
+                    <tr><th>Cột riêng cho rule</th><th>Ý nghĩa</th></tr>
+                    <tr><td><code>subject</code></td><td>Mã/tên môn học đã có trong hệ thống, thuộc chương trình đào tạo của khóa</td></tr>
+                    <tr><td><code>weekdays</code></td><td>Các thứ áp dụng, vd 2,4,6 hoặc Mon,Wed,Fri. Bỏ trống = lấy thứ của start_date</td></tr>
+                    <tr><td><code>content</code></td><td>Ghi chú (tùy chọn)</td></tr>
+                </table>
+                <table>
+                    <tr><th>Cột riêng cho event</th><th>Ý nghĩa</th></tr>
+                    <tr><td><code>event_type</code></td><td>review, exam hoặc other</td></tr>
+                    <tr><td><code>title</code></td><td>Tên sự kiện (bắt buộc)</td></tr>
+                    <tr><td><code>note</code> / <code>content</code></td><td>Ghi chú (tùy chọn)</td></tr>
+                    <tr><td><code>recurrence</code></td><td>Bỏ trống = sự kiện 1 lần (theo start_date/end_date). Đặt <code>monthly_weekday</code> để lặp lại mỗi tháng theo đúng thứ, trong suốt khoảng start_date–end_date</td></tr>
+                    <tr><td><code>weekdays</code></td><td>Bắt buộc khi dùng recurrence — chỉ nhập đúng 1 thứ, vd 2 (Thứ Hai)</td></tr>
+                    <tr><td><code>occurrence</code></td><td>Bắt buộc khi dùng recurrence — tuần thứ 1-4 trong tháng, hoặc <code>last</code> cho tuần cuối cùng</td></tr>
+                </table>
+                <div class="text-muted mb-2">
+                    Sự kiện nghỉ lễ toàn trường không khai qua file import theo lớp — khai ở mục "Sự kiện chung" bên dưới form.
+                    Nếu một rule trùng ngày với ngày nghỉ lễ, hệ thống sẽ tự động bỏ qua ngày đó thay vì báo lỗi, nên không cần tách rule để né ngày nghỉ.
+                </div>
+
+                <h6>Ví dụ 1 dòng rule</h6>
+                <pre>row_type,class_code,subject,weekdays,period_from,period_to,start_date,end_date,content
+rule,CDHC01,TIN101,"2,4",1,3,2026-09-07,2026-12-20,Học lý thuyết</pre>
+
+                <h6>Ví dụ 1 dòng event (một lần)</h6>
+                <pre>row_type,class_code,event_type,title,start_date,end_date,period_from,period_to,note
+event,CDHC01,exam,Thi giữa kỳ,2026-10-20,2026-10-20,1,5,Phòng A101</pre>
+
+                <h6>Ví dụ 1 dòng event lặp mỗi tháng (Sinh hoạt lớp)</h6>
+                <pre>row_type,class_code,event_type,title,start_date,end_date,weekdays,period_from,period_to,recurrence,occurrence
+event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday,2</pre>
+                <div class="text-muted">Dòng trên tạo "Sinh hoạt lớp" vào Thứ Hai tuần thứ 2 của mỗi tháng, từ 07/09 đến 20/12/2026 — hệ thống tự tính ra ngày cụ thể cho từng tháng.</div>
+
+                <h6>Bước 4 — Xem trước (Preview)</h6>
+                <div class="text-muted">Upload file rồi bấm "Xem trước" để kiểm tra lịch dự kiến trước khi lưu thật.</div>
+
+                <h6>Bước 5 — Tạo kế hoạch</h6>
+                <div class="text-muted">Bấm "Tạo kế hoạch" để lưu. Hệ thống báo lỗi nếu ngày ngoài học kỳ, môn học không hợp lệ, thiếu cột bắt buộc, trùng lớp/ngày/tiết, hoặc có tháng nào trong học kỳ chưa được rule/event nào phủ tới.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="monthlyEventModal" class="monthly-event-overlay" style="display:none;">
+        <div class="monthly-event-dialog">
+            <div class="monthly-event-header">
+                <strong>Tạo sự kiện lặp lại hàng tháng</strong>
+                <button type="button" class="monthly-event-close" id="monthlyEventClose" aria-label="Đóng">&times;</button>
+            </div>
+            <div class="monthly-event-body">
+                <div class="text-muted small mb-3">
+                    Dùng cho sự kiện lặp lại theo đúng thứ mỗi tháng, ví dụ "Sinh hoạt lớp vào thứ Hai tuần thứ 2 mỗi tháng".
+                    Hệ thống sẽ tự tính ngày cụ thể cho từng tháng trong khoảng đã chọn và thêm mỗi ngày như một sự kiện riêng —
+                    bạn có thể xem lại và xóa từng sự kiện sau khi tạo.
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Tên sự kiện</label>
+                        <input type="text" id="monthlyEventTitle" class="form-control form-control-sm" value="Sinh hoạt lớp">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Loại sự kiện</label>
+                        <select id="monthlyEventType" class="form-control form-control-sm"></select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Vào thứ</label>
+                        <select id="monthlyEventWeekday" class="form-control form-control-sm"></select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Tuần thứ mấy trong tháng</label>
+                        <select id="monthlyEventOccurrence" class="form-control form-control-sm">
+                            <option value="1">Tuần thứ 1</option>
+                            <option value="2" selected>Tuần thứ 2</option>
+                            <option value="3">Tuần thứ 3</option>
+                            <option value="4">Tuần thứ 4</option>
+                            <option value="-1">Tuần cuối cùng</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label">Tiết bắt đầu</label>
+                        <input type="number" min="1" max="9" id="monthlyEventPeriodFrom" class="form-control form-control-sm" value="1">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label">Tiết kết thúc</label>
+                        <input type="number" min="1" max="9" id="monthlyEventPeriodTo" class="form-control form-control-sm" value="2">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" id="monthlyEventNote" class="form-control form-control-sm">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Áp dụng từ ngày</label>
+                        <input type="date" id="monthlyEventFrom" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Đến ngày</label>
+                        <input type="date" id="monthlyEventTo" class="form-control form-control-sm">
+                    </div>
+                </div>
+                <div id="monthlyEventPreview" class="monthly-event-preview"></div>
+            </div>
+            <div class="monthly-event-footer">
+                <button type="button" class="btn btn-sm btn-secondary" id="monthlyEventCancel">Hủy</button>
+                <button type="button" class="btn btn-sm btn-primary" id="monthlyEventConfirm">Thêm vào lớp</button>
+            </div>
+        </div>
+    </div>
+
     @include('schedule::ScheduleSemester.partials.preview-modal')
 
     <script>
@@ -644,6 +936,8 @@
             const programSubjectCodes = @json($programSubjectCodes);
             const subjectSuggestionsList = document.getElementById('subject-suggestions');
             let currentSubjectList = allSubjectSuggestions;
+            const importGuideModal = document.getElementById('importGuideModal');
+            const importGuideClose = document.getElementById('importGuideClose');
             const subjectPickerModal = document.getElementById('subjectPickerModal');
             const subjectPickerSearch = document.getElementById('subjectPickerSearch');
             const subjectPickerList = document.getElementById('subjectPickerList');
@@ -1254,7 +1548,7 @@
                 if (firstInput) firstInput.focus({ preventScroll: true });
             };
 
-            const addClassEvent = (classKey, data = {}) => {
+            const addClassEvent = (classKey, data = {}, options = {}) => {
                 const listEl = document.getElementById(classEventsId(classKey));
                 if (!listEl) return;
                 const index = eventCounters.classes[classKey] ?? 0;
@@ -1271,10 +1565,156 @@
                 listEl.appendChild(card);
                 window.ScheduleDatePicker?.init(card);
                 updateEventEmpty(listEl, 'Chưa có sự kiện nào trong lớp này.');
+                if (options.silent) return;
                 scrollToEl(card);
                 const firstInput = card.querySelector('input, select, textarea');
                 if (firstInput) firstInput.focus({ preventScroll: true });
             };
+
+            // "Monthly recurrence" helper: given a date range and a weekday +
+            // week-of-month rule (e.g. "2nd Monday" or "last Friday"), computes
+            // the concrete dates matching that pattern in every month covered
+            // by the range. Weekday values follow the same 2 (Monday) .. 8
+            // (Sunday) convention used elsewhere (normalizeWeekdays, dayOfWeekIso + 1).
+            const isoWeekdayToJsDay = (isoWeekday) => (isoWeekday === 8 ? 0 : isoWeekday - 1);
+
+            const nthWeekdayOfMonth = (year, month, jsDay, occurrence) => {
+                if (occurrence === -1) {
+                    const lastDay = new Date(year, month + 1, 0);
+                    const diff = (lastDay.getDay() - jsDay + 7) % 7;
+                    lastDay.setDate(lastDay.getDate() - diff);
+                    return lastDay;
+                }
+
+                const firstDay = new Date(year, month, 1);
+                const diff = (jsDay - firstDay.getDay() + 7) % 7;
+                const day = 1 + diff + (occurrence - 1) * 7;
+                const date = new Date(year, month, day);
+                return date.getMonth() === month ? date : null;
+            };
+
+            const computeMonthlyOccurrences = (rangeStart, rangeEnd, isoWeekday, occurrence) => {
+                const dates = [];
+                if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return dates;
+
+                const jsDay = isoWeekdayToJsDay(isoWeekday);
+                const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+                const lastMonth = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+
+                while (cursor <= lastMonth) {
+                    const occurrenceDate = nthWeekdayOfMonth(cursor.getFullYear(), cursor.getMonth(), jsDay, occurrence);
+                    if (occurrenceDate && occurrenceDate >= rangeStart && occurrenceDate <= rangeEnd) {
+                        dates.push(occurrenceDate);
+                    }
+                    cursor.setMonth(cursor.getMonth() + 1);
+                }
+
+                return dates;
+            };
+
+            const monthlyEventModal = document.getElementById('monthlyEventModal');
+            const monthlyEventTitle = document.getElementById('monthlyEventTitle');
+            const monthlyEventType = document.getElementById('monthlyEventType');
+            const monthlyEventWeekday = document.getElementById('monthlyEventWeekday');
+            const monthlyEventOccurrence = document.getElementById('monthlyEventOccurrence');
+            const monthlyEventPeriodFrom = document.getElementById('monthlyEventPeriodFrom');
+            const monthlyEventPeriodTo = document.getElementById('monthlyEventPeriodTo');
+            const monthlyEventNote = document.getElementById('monthlyEventNote');
+            const monthlyEventFrom = document.getElementById('monthlyEventFrom');
+            const monthlyEventTo = document.getElementById('monthlyEventTo');
+            const monthlyEventPreview = document.getElementById('monthlyEventPreview');
+            const monthlyEventClose = document.getElementById('monthlyEventClose');
+            const monthlyEventCancel = document.getElementById('monthlyEventCancel');
+            const monthlyEventConfirm = document.getElementById('monthlyEventConfirm');
+            let monthlyEventTargetKey = null;
+
+            if (monthlyEventType) {
+                monthlyEventType.innerHTML = classEventTypes.map((type) =>
+                    `<option value="${esc(type.value)}" ${type.value === 'other' ? 'selected' : ''}>${esc(type.label)}</option>`
+                ).join('');
+            }
+
+            if (monthlyEventWeekday) {
+                monthlyEventWeekday.innerHTML = weekdayOptions.map((d) =>
+                    `<option value="${esc(d.value)}" ${d.value === 2 ? 'selected' : ''}>${esc(d.label)}</option>`
+                ).join('');
+            }
+
+            const refreshMonthlyEventPreview = () => {
+                if (!monthlyEventPreview) return;
+                const start = monthlyEventFrom?.value ? new Date(`${monthlyEventFrom.value}T00:00:00`) : null;
+                const end = monthlyEventTo?.value ? new Date(`${monthlyEventTo.value}T00:00:00`) : null;
+                const isoWeekday = Number(monthlyEventWeekday?.value);
+                const occurrence = Number(monthlyEventOccurrence?.value);
+                const dates = computeMonthlyOccurrences(start, end, isoWeekday, occurrence);
+
+                if (dates.length === 0) {
+                    monthlyEventPreview.textContent = 'Không có ngày nào phù hợp trong khoảng đã chọn.';
+                    return;
+                }
+
+                monthlyEventPreview.textContent = `Sẽ tạo ${dates.length} sự kiện: ${dates.map(formatDateKey).join(', ')}`;
+            };
+
+            [monthlyEventWeekday, monthlyEventOccurrence, monthlyEventFrom, monthlyEventTo].forEach((el) => {
+                el?.addEventListener('change', refreshMonthlyEventPreview);
+            });
+
+            const openMonthlyEventModal = (classKey) => {
+                if (!monthlyEventModal) return;
+                monthlyEventTargetKey = classKey;
+                if (monthlyEventFrom) monthlyEventFrom.value = planStartInput?.value || '';
+                if (monthlyEventTo) monthlyEventTo.value = planEndInput?.value || '';
+                refreshMonthlyEventPreview();
+                monthlyEventModal.style.display = 'flex';
+            };
+
+            const closeMonthlyEventModal = () => {
+                if (monthlyEventModal) monthlyEventModal.style.display = 'none';
+                monthlyEventTargetKey = null;
+            };
+
+            monthlyEventClose?.addEventListener('click', closeMonthlyEventModal);
+            monthlyEventCancel?.addEventListener('click', closeMonthlyEventModal);
+            monthlyEventModal?.addEventListener('click', (event) => {
+                if (event.target === monthlyEventModal) closeMonthlyEventModal();
+            });
+
+            monthlyEventConfirm?.addEventListener('click', () => {
+                if (!monthlyEventTargetKey) return;
+
+                const start = monthlyEventFrom?.value ? new Date(`${monthlyEventFrom.value}T00:00:00`) : null;
+                const end = monthlyEventTo?.value ? new Date(`${monthlyEventTo.value}T00:00:00`) : null;
+                const isoWeekday = Number(monthlyEventWeekday?.value);
+                const occurrence = Number(monthlyEventOccurrence?.value);
+                const periodFrom = Number(monthlyEventPeriodFrom?.value) || 1;
+                const periodTo = Number(monthlyEventPeriodTo?.value) || periodFrom;
+                const title = (monthlyEventTitle?.value || '').trim() || 'Sinh hoạt lớp';
+                const eventType = monthlyEventType?.value || 'other';
+                const note = monthlyEventNote?.value || '';
+
+                const dates = computeMonthlyOccurrences(start, end, isoWeekday, occurrence);
+                if (dates.length === 0) {
+                    monthlyEventPreview.textContent = 'Không có ngày nào phù hợp trong khoảng đã chọn.';
+                    return;
+                }
+
+                dates.forEach((date) => {
+                    const dateKey = formatDateKey(date);
+                    addClassEvent(monthlyEventTargetKey, {
+                        event_type: eventType,
+                        title,
+                        start_date: dateKey,
+                        end_date: dateKey,
+                        period_from: periodFrom,
+                        period_to: periodTo,
+                        note,
+                    }, { silent: true });
+                });
+
+                validateAllSemesterEvents();
+                closeMonthlyEventModal();
+            });
 
             const validateEventsInList = (listEl) => {
                 clearEventErrors(listEl);
@@ -1401,6 +1841,7 @@
                                 <div class="pane-actions">
                                     <button type="button" class="btn btn-sm btn-primary add-rule" data-key="${esc(k)}">Thêm rule</button>
                                     <button type="button" class="btn btn-sm btn-outline-primary add-class-event" data-key="${esc(k)}">Thêm sự kiện</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary add-monthly-event" data-key="${esc(k)}" title="Tạo nhanh sự kiện lặp lại mỗi tháng, ví dụ Sinh hoạt lớp">Lặp hàng tháng</button>
                                     <button type="button" class="btn btn-sm btn-outline-info preview-schedule" data-key="${esc(k)}">Xem trước</button>
                                 </div>
                             </div>
@@ -1414,11 +1855,14 @@
                         </div>
                         <div class="border rounded p-3 mb-3 bg-light">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <strong>Import Excel/CSV</strong>
-                                <a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tải template</a>
+                                <strong title="Import lịch học/sự kiện cho lớp này bằng file Excel/CSV thay vì nhập tay từng rule">Import Excel/CSV</strong>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-info open-import-guide">Hướng dẫn</button>
+                                    <a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tải template</a>
+                                </div>
                             </div>
                             <input type="file" name="import_file[${esc(k)}]" class="form-control form-control-sm" accept=".xlsx,.csv,.txt">
-                            <small class="text-muted">Cột chính: row_type, class_code, start_date, end_date, period_from, period_to. Dòng rule dùng thêm subject/content/weekdays; dòng event dùng event_type/title/note.</small>
+                            <small class="text-muted">Cột chính: row_type, class_code, start_date, end_date, period_from, period_to. Dòng rule dùng thêm subject/content/weekdays; dòng event dùng event_type/title/note. Sự kiện lặp mỗi tháng (vd Sinh hoạt lớp): đặt recurrence=monthly_weekday, weekdays=1 thứ duy nhất, occurrence=1-4 hoặc last.</small>
                         </div>
                         <div id="${rulesId(k)}"></div>
                     `;
@@ -1644,9 +2088,40 @@
                 });
             }
 
+            const openImportGuide = () => {
+                if (importGuideModal) importGuideModal.style.display = 'flex';
+            };
+
+            const closeImportGuide = () => {
+                if (importGuideModal) importGuideModal.style.display = 'none';
+            };
+
+            document.addEventListener('click', (event) => {
+                if (event.target.closest('.open-import-guide')) {
+                    event.preventDefault();
+                    openImportGuide();
+                }
+            });
+
+            if (importGuideClose) {
+                importGuideClose.addEventListener('click', closeImportGuide);
+            }
+
+            if (importGuideModal) {
+                importGuideModal.addEventListener('click', (event) => {
+                    if (event.target === importGuideModal) closeImportGuide();
+                });
+            }
+
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape' && subjectPickerModal && subjectPickerModal.style.display !== 'none') {
                     closeSubjectPicker();
+                }
+                if (event.key === 'Escape' && importGuideModal && importGuideModal.style.display !== 'none') {
+                    closeImportGuide();
+                }
+                if (event.key === 'Escape' && monthlyEventModal && monthlyEventModal.style.display !== 'none') {
+                    closeMonthlyEventModal();
                 }
             });
 
@@ -1687,6 +2162,8 @@
                 if (add) return addRule(add.dataset.key);
                 const addClassEventBtn = e.target.closest('.add-class-event');
                 if (addClassEventBtn) return addClassEvent(addClassEventBtn.dataset.key);
+                const addMonthlyEventBtn = e.target.closest('.add-monthly-event');
+                if (addMonthlyEventBtn) return openMonthlyEventModal(addMonthlyEventBtn.dataset.key);
                 const removeEvent = e.target.closest('.remove-event');
                 if (removeEvent) {
                     const card = removeEvent.closest('.event-card');

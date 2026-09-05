@@ -111,6 +111,14 @@ class ScheduleSlotConflictChecker
      * Finds plan_template rows and semester_event rows that would collide on the
      * same class/date/period once schedule_slot rows are generated for them.
      *
+     * 'holiday' events are excluded from this check: they represent a global or
+     * class-wide suspension of teaching that overrides any template occurrence
+     * landing on the same dates (the slot-generation step cancels those slots),
+     * so they are not a genuine authoring conflict and should not force a rule
+     * to be split around the holiday. 'review'/'exam'/'other' events remain a
+     * hard conflict since they occupy a specific period for a specific
+     * activity and overlapping a subject rule there would be ambiguous.
+     *
      * @param array<int, array{class_id:int, start_date:string, end_date:string, days_of_week:array<int,int>, period_range:string}> $templates
      * @param array<int, array{class_id:?int, start_date:string, end_date:string, period_from:int, period_to:int, title?:?string, event_type?:?string}> $events
      * @param array<int, int> $classIds used to expand events with class_id = null (applies to every class)
@@ -122,6 +130,10 @@ class ScheduleSlotConflictChecker
         $conflicts = [];
 
         foreach ($events as $event) {
+            if (($event['event_type'] ?? null) === 'holiday') {
+                continue;
+            }
+
             $eventClassIds = $event['class_id'] !== null ? [(int) $event['class_id']] : array_map('intval', $classIds);
             $eventStart = Carbon::parse($event['start_date'])->startOfDay();
             $eventEnd = Carbon::parse($event['end_date'])->endOfDay();

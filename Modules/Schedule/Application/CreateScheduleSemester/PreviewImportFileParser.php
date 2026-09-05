@@ -149,13 +149,56 @@ class PreviewImportFileParser
                     continue;
                 }
 
-                $result['events'][] = [
-                    'title' => $title,
-                    'start_date' => $startDate->toDateString(),
-                    'end_date' => $endDate->toDateString(),
-                    'period_from' => $periodFrom,
-                    'period_to' => $periodTo,
-                ];
+                $recurrence = strtolower(trim((string) ($rowData['recurrence'] ?? '')));
+
+                if ($recurrence === '' || $recurrence === 'none') {
+                    $result['events'][] = [
+                        'title' => $title,
+                        'start_date' => $startDate->toDateString(),
+                        'end_date' => $endDate->toDateString(),
+                        'period_from' => $periodFrom,
+                        'period_to' => $periodTo,
+                    ];
+
+                    continue;
+                }
+
+                if ($recurrence !== 'monthly_weekday') {
+                    $result['warnings'][] = "{$lineLabel}: recurrence khong hop le.";
+                    continue;
+                }
+
+                $recurrenceWeekdayStr = (string) ($rowData['weekdays'] ?? $rowData['days_of_week'] ?? '');
+                $recurrenceWeekdays = $recurrenceWeekdayStr !== ''
+                    ? $this->reader->parseWeekdaysFromString($recurrenceWeekdayStr)
+                    : [];
+
+                if ($recurrenceWeekdays === []) {
+                    $result['warnings'][] = "{$lineLabel}: can cot weekdays (mot thu) khi dung recurrence monthly_weekday.";
+                    continue;
+                }
+
+                $occurrence = $this->parseOccurrenceValue($rowData['occurrence'] ?? null);
+                if ($occurrence === null) {
+                    $result['warnings'][] = "{$lineLabel}: cot occurrence khong hop le (1-4 hoac last).";
+                    continue;
+                }
+
+                $occurrenceDates = $this->expandMonthlyWeekdayDates($startDate, $endDate, $recurrenceWeekdays[0], $occurrence);
+                if ($occurrenceDates === []) {
+                    $result['warnings'][] = "{$lineLabel}: khong co ngay nao khop voi recurrence trong khoang da chon.";
+                    continue;
+                }
+
+                foreach ($occurrenceDates as $occurrenceDate) {
+                    $result['events'][] = [
+                        'title' => $title,
+                        'start_date' => $occurrenceDate->toDateString(),
+                        'end_date' => $occurrenceDate->toDateString(),
+                        'period_from' => $periodFrom,
+                        'period_to' => $periodTo,
+                    ];
+                }
 
                 continue;
             }
@@ -198,6 +241,54 @@ class PreviewImportFileParser
         $period = (int) $value;
 
         return $period >= 1 && $period <= 9 ? $period : null;
+    }
+
+    private function parseOccurrenceValue(mixed $value): ?int
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        if (in_array($normalized, ['last', 'cuoi', 'cuoi cung', '-1'], true)) {
+            return -1;
+        }
+
+        if (is_numeric($normalized)) {
+            $occurrence = (int) $normalized;
+            return $occurrence >= 1 && $occurrence <= 4 ? $occurrence : null;
+        }
+
+        return null;
+    }
+
+    private function nthWeekdayOfMonth(int $year, int $month, int $isoWeekday, int $occurrence): ?Carbon
+    {
+        $carbonDayOfWeek = $isoWeekday === 8 ? 0 : $isoWeekday - 1;
+        $base = Carbon::create($year, $month, 1)->startOfDay();
+
+        $result = $occurrence === -1
+            ? $base->copy()->lastOfMonth($carbonDayOfWeek)
+            : $base->copy()->nthOfMonth($occurrence, $carbonDayOfWeek);
+
+        return $result instanceof Carbon ? $result->startOfDay() : null;
+    }
+
+    /**
+     * @return array<int, Carbon>
+     */
+    private function expandMonthlyWeekdayDates(Carbon $start, Carbon $end, int $isoWeekday, int $occurrence): array
+    {
+        $dates = [];
+        $cursor = $start->copy()->startOfMonth();
+        $lastMonth = $end->copy()->startOfMonth();
+
+        while ($cursor->lte($lastMonth)) {
+            $occurrenceDate = $this->nthWeekdayOfMonth((int) $cursor->year, (int) $cursor->month, $isoWeekday, $occurrence);
+            if ($occurrenceDate !== null && $occurrenceDate->gte($start) && $occurrenceDate->lte($end)) {
+                $dates[] = $occurrenceDate;
+            }
+            $cursor->addMonth();
+        }
+
+        return $dates;
     }
 
     private function firstMessage(ValidationException $e): string

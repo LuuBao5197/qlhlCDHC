@@ -418,18 +418,70 @@ class CreateScheduleSemesterHandler
                         ]);
                     }
 
-                    $parsed['events'][] = [
-                        'class_id' => $class->id,
-                        'event_type' => $eventType,
-                        'title' => $title,
-                        'start_date' => $startDate->toDateString(),
-                        'end_date' => $endDate->toDateString(),
-                        'period_from' => $periodFrom,
-                        'period_to' => $periodTo,
-                        'color' => $this->semesterEventColor($eventType),
-                        'note' => trim((string) ($rowData['note'] ?? $rowData['content'] ?? '')) ?: null,
-                        'sort_order' => $rowIndex,
-                    ];
+                    $note = trim((string) ($rowData['note'] ?? $rowData['content'] ?? '')) ?: null;
+                    $recurrence = strtolower(trim((string) ($rowData['recurrence'] ?? '')));
+
+                    if ($recurrence === '' || $recurrence === 'none') {
+                        $parsed['events'][] = [
+                            'class_id' => $class->id,
+                            'event_type' => $eventType,
+                            'title' => $title,
+                            'start_date' => $startDate->toDateString(),
+                            'end_date' => $endDate->toDateString(),
+                            'period_from' => $periodFrom,
+                            'period_to' => $periodTo,
+                            'color' => $this->semesterEventColor($eventType),
+                            'note' => $note,
+                            'sort_order' => $rowIndex,
+                        ];
+
+                        continue;
+                    }
+
+                    if ($recurrence !== 'monthly_weekday') {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co recurrence khong hop le.",
+                        ]);
+                    }
+
+                    $recurrenceWeekdayStr = (string) ($rowData['weekdays'] ?? $rowData['days_of_week'] ?? '');
+                    $recurrenceWeekdays = $recurrenceWeekdayStr !== ''
+                        ? $this->importFileReader()->parseWeekdaysFromString($recurrenceWeekdayStr)
+                        : [];
+                    if ($recurrenceWeekdays === []) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' can cot weekdays (mot thu) khi dung recurrence monthly_weekday.",
+                        ]);
+                    }
+
+                    $occurrence = $this->parseOccurrenceValue($rowData['occurrence'] ?? null);
+                    if ($occurrence === null) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co cot occurrence khong hop le (1-4 hoac last).",
+                        ]);
+                    }
+
+                    $occurrenceDates = $this->expandMonthlyWeekdayDates($startDate, $endDate, $recurrenceWeekdays[0], $occurrence);
+                    if ($occurrenceDates === []) {
+                        throw ValidationException::withMessages([
+                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' khong co ngay nao khop voi recurrence trong khoang da chon.",
+                        ]);
+                    }
+
+                    foreach ($occurrenceDates as $occurrenceDate) {
+                        $parsed['events'][] = [
+                            'class_id' => $class->id,
+                            'event_type' => $eventType,
+                            'title' => $title,
+                            'start_date' => $occurrenceDate->toDateString(),
+                            'end_date' => $occurrenceDate->toDateString(),
+                            'period_from' => $periodFrom,
+                            'period_to' => $periodTo,
+                            'color' => $this->semesterEventColor($eventType),
+                            'note' => $note,
+                            'sort_order' => $rowIndex,
+                        ];
+                    }
 
                     continue;
                 }
@@ -497,6 +549,68 @@ class CreateScheduleSemesterHandler
             ->sort()
             ->values()
             ->all();
+    }
+
+    /**
+     * Accepts 1-4 (1st..4th occurrence) or "last"/"cuoi"/"cuoi cung"/-1 for the
+     * last occurrence of the weekday in the month. Returns null when invalid.
+     */
+    private function parseOccurrenceValue(mixed $value): ?int
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        if (in_array($normalized, ['last', 'cuoi', 'cuoi cung', '-1'], true)) {
+            return -1;
+        }
+
+        if (is_numeric($normalized)) {
+            $occurrence = (int) $normalized;
+            return $occurrence >= 1 && $occurrence <= 4 ? $occurrence : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * The Nth (or last, when $occurrence is -1) occurrence of the given ISO
+     * weekday (2 = Monday .. 8 = Sunday, matching normalizeWeekdays) within a
+     * calendar month. Returns null when the month has no such occurrence
+     * (e.g. a "5th Monday" that doesn't exist).
+     */
+    private function nthWeekdayOfMonth(int $year, int $month, int $isoWeekday, int $occurrence): ?Carbon
+    {
+        $carbonDayOfWeek = $isoWeekday === 8 ? 0 : $isoWeekday - 1;
+        $base = Carbon::create($year, $month, 1)->startOfDay();
+
+        $result = $occurrence === -1
+            ? $base->copy()->lastOfMonth($carbonDayOfWeek)
+            : $base->copy()->nthOfMonth($occurrence, $carbonDayOfWeek);
+
+        return $result instanceof Carbon ? $result->startOfDay() : null;
+    }
+
+    /**
+     * Expands a "same weekday, same occurrence-in-month" recurrence (e.g.
+     * "2nd Monday of every month") into concrete dates covering every month
+     * touched by [$start, $end], clamped to that range.
+     *
+     * @return array<int, Carbon>
+     */
+    private function expandMonthlyWeekdayDates(Carbon $start, Carbon $end, int $isoWeekday, int $occurrence): array
+    {
+        $dates = [];
+        $cursor = $start->copy()->startOfMonth();
+        $lastMonth = $end->copy()->startOfMonth();
+
+        while ($cursor->lte($lastMonth)) {
+            $occurrenceDate = $this->nthWeekdayOfMonth((int) $cursor->year, (int) $cursor->month, $isoWeekday, $occurrence);
+            if ($occurrenceDate !== null && $occurrenceDate->gte($start) && $occurrenceDate->lte($end)) {
+                $dates[] = $occurrenceDate;
+            }
+            $cursor->addMonth();
+        }
+
+        return $dates;
     }
 
     private function resolveSubjectId(string $subjectText, ?array $allowedSubjectIds = null): int
