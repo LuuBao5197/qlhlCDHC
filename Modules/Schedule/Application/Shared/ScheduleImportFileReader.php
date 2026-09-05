@@ -53,6 +53,10 @@ class ScheduleImportFileReader
      * (Windows-1258/1252) rather than UTF-8. Those raw bytes are invalid
      * UTF-8 and later break json_encode() when the parsed values are
      * returned in an API response, so normalize to UTF-8 up front.
+     *
+     * mbstring's encoding list has no Vietnamese CP1258, so mb_detect_encoding()
+     * would throw on it — iconv supports more codepages and simply fails
+     * (returns false) on ones it doesn't recognize instead of throwing.
      */
     private function toUtf8(string $content): string
     {
@@ -60,9 +64,14 @@ class ScheduleImportFileReader
             return $content;
         }
 
-        $encoding = mb_detect_encoding($content, ['Windows-1258', 'Windows-1252', 'ISO-8859-1'], true) ?: 'Windows-1252';
+        foreach (['CP1258', 'Windows-1252', 'ISO-8859-1'] as $encoding) {
+            $converted = @iconv($encoding, 'UTF-8//TRANSLIT//IGNORE', $content);
+            if ($converted !== false && $converted !== '' && mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
 
-        return mb_convert_encoding($content, 'UTF-8', $encoding);
+        return mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
     }
 
     private function readXlsxRows(string $path, string $errorKey): array
