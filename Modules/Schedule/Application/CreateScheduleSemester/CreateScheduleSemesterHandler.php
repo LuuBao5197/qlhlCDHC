@@ -82,7 +82,9 @@ class CreateScheduleSemesterHandler
         $this->validateSemesterEventsWithinPlan($semesterEvents, $planStart, $planEnd);
         $this->validateSemesterEventConflicts($semesterEvents);
 
-        $this->validateTemplateEntries($templateEntries, $planStart, $planEnd);
+        $classCodes = collect($classMap)->mapWithKeys(fn (TrainingClass $class): array => [(int) $class->id => $class->code])->all();
+
+        $this->validateTemplateEntries($templateEntries, $planStart, $planEnd, $classCodes);
 
         $classIds = collect($classMap)->map(fn (TrainingClass $class): int => (int) $class->id)->unique()->values()->all();
         $conflictChecker = new ScheduleSlotConflictChecker();
@@ -94,7 +96,7 @@ class CreateScheduleSemesterHandler
             ]);
         }
 
-        $slotConflicts = $conflictChecker->findTemplateEventConflicts($templateEntries, $semesterEvents, $classIds);
+        $slotConflicts = $conflictChecker->findTemplateEventConflicts($templateEntries, $semesterEvents, $classIds, $classCodes);
         if ($slotConflicts !== []) {
             throw ValidationException::withMessages([
                 'class_semester_events' => $slotConflicts,
@@ -254,6 +256,8 @@ class CreateScheduleSemesterHandler
                 $rows[] = [
                     'class_id' => $classMap[(string) $classKey]->id,
                     'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
+                    'subject_label' => $subjectText,
+                    'source' => "Quy tac lich tong quat - lop '{$classMap[(string) $classKey]->code}'",
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
@@ -268,12 +272,23 @@ class CreateScheduleSemesterHandler
         return $rows;
     }
 
+    /**
+     * Parses every uploaded import file and returns the resulting rule/event
+     * rows. Row-level problems never abort the whole import: each bad row is
+     * skipped and its message (with an exact line number and class) is
+     * collected into $errors, so the user gets a full list of everything
+     * wrong across every file in one submission instead of having to fix and
+     * resubmit one error at a time. Only structural issues that make a file
+     * impossible to interpret (unreadable file, missing header row/columns)
+     * stop that file early - remaining files are still processed.
+     */
     private function parseImportFiles(CreateScheduleSemesterRequest $request, array $classMap, Carbon $planStart, Carbon $planEnd, ?array $allowedSubjectIds = null): array
     {
         $parsed = [
             'templates' => [],
             'events' => [],
         ];
+        $errors = [];
         $rawImports = $request->file('import_file', []);
 
         if ($rawImports === null) {
@@ -302,18 +317,26 @@ class CreateScheduleSemesterHandler
             }
 
             if (!array_key_exists((string) $classKey, $classMap)) {
-                throw ValidationException::withMessages([
-                    'import_file' => "File import khong hop le cho lop '{$classKey}'.",
-                ]);
+                $errors[] = "File import khong hop le cho lop '{$classKey}'.";
+                continue;
             }
 
-            $sheetRows = $this->readImportRows($importFile);
+            $class = $classMap[(string) $classKey];
+
+            try {
+                $sheetRows = $this->readImportRows($importFile);
+            } catch (ValidationException $e) {
+                $errors[] = "File import cua lop '{$class->code}': " . $this->firstValidationMessage($e);
+                continue;
+            }
+
             if ($sheetRows === []) {
                 continue;
             }
 
             $headers = array_shift($sheetRows);
             if (!is_array($headers) || $headers === []) {
+                $errors[] = "File import cua lop '{$class->code}' khong co dong tieu de hop le.";
                 continue;
             }
 
@@ -322,26 +345,26 @@ class CreateScheduleSemesterHandler
                 $headers
             ));
 
-            foreach (['class_code', 'period_from', 'period_to'] as $column) {
-                if (!array_key_exists($column, $headerMap)) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "File import cho lop '{$classKey}' thieu cot bat buoc '{$column}'.",
-                    ]);
-                }
+            $missingColumns = array_values(array_filter(
+                ['class_code', 'period_from', 'period_to'],
+                fn (string $column) => !array_key_exists($column, $headerMap)
+            ));
+            if ($missingColumns !== []) {
+                $errors[] = "File import cua lop '{$class->code}' thieu cot bat buoc: " . implode(', ', $missingColumns) . '.';
+                continue;
             }
 
             if (!array_key_exists('date', $headerMap) && !array_key_exists('start_date', $headerMap)) {
-                throw ValidationException::withMessages([
-                    'import_file' => "File import cho lop '{$classKey}' phai co cot 'date' hoac 'start_date'.",
-                ]);
+                $errors[] = "File import cua lop '{$class->code}' phai co cot 'date' hoac 'start_date'.";
+                continue;
             }
-
-            $class = $classMap[(string) $classKey];
 
             foreach ($sheetRows as $rowIndex => $row) {
                 if (!is_array($row) || count(array_filter($row, fn ($value) => trim((string) $value) !== '')) === 0) {
                     continue;
                 }
+
+                $lineLabel = "Dong #" . ($rowIndex + 2) . " (file lop '{$class->code}')";
 
                 $rowData = [];
                 foreach ($headerMap as $column => $index) {
@@ -349,23 +372,20 @@ class CreateScheduleSemesterHandler
                 }
 
                 if (Str::upper((string) ($rowData['class_code'] ?? '')) !== Str::upper($class->code)) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Ma lop trong file ('{$rowData['class_code']}') khong khop voi lop '{$class->code}'.",
-                    ]);
+                    $errors[] = "{$lineLabel}: ma lop trong file ('{$rowData['class_code']}') khong khop voi lop dang import ('{$class->code}').";
+                    continue;
                 }
 
                 $rowType = strtolower(trim((string) ($rowData['row_type'] ?? 'rule')));
                 if (!in_array($rowType, ['rule', 'event'], true)) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co row_type khong hop le.",
-                    ]);
+                    $errors[] = "{$lineLabel}: row_type '{$rowData['row_type']}' khong hop le (chi nhan 'rule' hoac 'event').";
+                    continue;
                 }
 
                 $startDateStr = $rowData['start_date'] ?? $rowData['date'] ?? null;
                 if (empty($startDateStr) || !strtotime((string) $startDateStr)) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua ngay bat dau hop le.",
-                    ]);
+                    $errors[] = "{$lineLabel}: ngay bat dau ('{$startDateStr}') khong hop le.";
+                    continue;
                 }
 
                 $startDate = Carbon::parse((string) $startDateStr)->startOfDay();
@@ -375,31 +395,27 @@ class CreateScheduleSemesterHandler
                     : Carbon::parse((string) $endDateStr)->startOfDay();
 
                 if ($endDate->lt($startDate)) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' co ngay ket thuc nho hon ngay bat dau.",
-                    ]);
+                    $errors[] = "{$lineLabel}: ngay ket thuc ({$endDate->toDateString()}) nho hon ngay bat dau ({$startDate->toDateString()}).";
+                    continue;
                 }
 
                 if ($startDate->lt($planStart) || $endDate->gt($planEnd)) {
-                    throw ValidationException::withMessages([
-                        'import_file' => sprintf(
-                            "Dong #%d cua lop '%s' co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
-                            $rowIndex + 2,
-                            $class->code,
-                            $startDate->toDateString(),
-                            $endDate->toDateString(),
-                            $planStart->toDateString(),
-                            $planEnd->toDateString()
-                        ),
-                    ]);
+                    $errors[] = sprintf(
+                        "%s: ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                        $lineLabel,
+                        $startDate->toDateString(),
+                        $endDate->toDateString(),
+                        $planStart->toDateString(),
+                        $planEnd->toDateString()
+                    );
+                    continue;
                 }
 
                 $periodFrom = $this->parseOptionalPeriodValue($rowData['period_from'] ?? null);
                 $periodTo = $this->parseOptionalPeriodValue($rowData['period_to'] ?? null);
                 if ($periodFrom === null || $periodTo === null || $periodTo < $periodFrom) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Dong #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua tiet khong hop le.",
-                    ]);
+                    $errors[] = "{$lineLabel}: tiet khong hop le (period_from='{$rowData['period_from']}', period_to='{$rowData['period_to']}').";
+                    continue;
                 }
 
                 if ($rowType === 'event') {
@@ -407,15 +423,13 @@ class CreateScheduleSemesterHandler
                     $title = trim((string) ($rowData['title'] ?? ''));
 
                     if (!in_array($eventType, ['review', 'exam', 'other'], true)) {
-                        throw ValidationException::withMessages([
-                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co event_type khong hop le.",
-                        ]);
+                        $errors[] = "{$lineLabel}: event_type '{$eventType}' khong hop le (chi nhan review/exam/other).";
+                        continue;
                     }
 
                     if ($title === '') {
-                        throw ValidationException::withMessages([
-                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' phai nhap title.",
-                        ]);
+                        $errors[] = "{$lineLabel}: su kien phai nhap title.";
+                        continue;
                     }
 
                     $note = trim((string) ($rowData['note'] ?? $rowData['content'] ?? '')) ?: null;
@@ -439,9 +453,8 @@ class CreateScheduleSemesterHandler
                     }
 
                     if ($recurrence !== 'monthly_weekday') {
-                        throw ValidationException::withMessages([
-                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co recurrence khong hop le.",
-                        ]);
+                        $errors[] = "{$lineLabel}: recurrence '{$recurrence}' khong hop le.";
+                        continue;
                     }
 
                     $recurrenceWeekdayStr = (string) ($rowData['weekdays'] ?? $rowData['days_of_week'] ?? '');
@@ -449,23 +462,20 @@ class CreateScheduleSemesterHandler
                         ? $this->importFileReader()->parseWeekdaysFromString($recurrenceWeekdayStr)
                         : [];
                     if ($recurrenceWeekdays === []) {
-                        throw ValidationException::withMessages([
-                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' can cot weekdays (mot thu) khi dung recurrence monthly_weekday.",
-                        ]);
+                        $errors[] = "{$lineLabel}: can cot weekdays (mot thu) khi dung recurrence monthly_weekday.";
+                        continue;
                     }
 
                     $occurrence = $this->parseOccurrenceValue($rowData['occurrence'] ?? null);
                     if ($occurrence === null) {
-                        throw ValidationException::withMessages([
-                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' co cot occurrence khong hop le (1-4 hoac last).",
-                        ]);
+                        $errors[] = "{$lineLabel}: cot occurrence ('{$rowData['occurrence']}') khong hop le (1-4 hoac last).";
+                        continue;
                     }
 
                     $occurrenceDates = $this->expandMonthlyWeekdayDates($startDate, $endDate, $recurrenceWeekdays[0], $occurrence);
                     if ($occurrenceDates === []) {
-                        throw ValidationException::withMessages([
-                            'import_file' => "Dong event #" . ($rowIndex + 2) . " cua lop '{$class->code}' khong co ngay nao khop voi recurrence trong khoang da chon.",
-                        ]);
+                        $errors[] = "{$lineLabel}: khong co ngay nao khop voi recurrence trong khoang da chon.";
+                        continue;
                     }
 
                     foreach ($occurrenceDates as $occurrenceDate) {
@@ -492,21 +502,28 @@ class CreateScheduleSemesterHandler
                     : [$startDate->dayOfWeekIso + 1];
 
                 if ($daysOfWeek === []) {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Dong rule #" . ($rowIndex + 2) . " cua lop '{$class->code}' chua ngay trong tuan hop le.",
-                    ]);
+                    $errors[] = "{$lineLabel}: chua ngay trong tuan hop le.";
+                    continue;
                 }
 
                 $subjectText = trim((string) ($rowData['subject'] ?? ''));
                 if ($subjectText === '') {
-                    throw ValidationException::withMessages([
-                        'import_file' => "Dong rule #" . ($rowIndex + 2) . " cua lop '{$class->code}' phai nhap subject.",
-                    ]);
+                    $errors[] = "{$lineLabel}: quy tac phai nhap subject.";
+                    continue;
+                }
+
+                try {
+                    $subjectId = $this->resolveSubjectId($subjectText, $allowedSubjectIds);
+                } catch (ValidationException $e) {
+                    $errors[] = "{$lineLabel}: " . $this->firstValidationMessage($e);
+                    continue;
                 }
 
                 $parsed['templates'][] = [
                     'class_id' => $class->id,
-                    'subject_id' => $this->resolveSubjectId($subjectText, $allowedSubjectIds),
+                    'subject_id' => $subjectId,
+                    'subject_label' => $subjectText,
+                    'source' => $lineLabel,
                     'day_of_week' => $daysOfWeek[0],
                     'days_of_week' => $daysOfWeek,
                     'session' => $periodTo <= 5 ? 'Sang' : 'Chieu',
@@ -518,7 +535,24 @@ class CreateScheduleSemesterHandler
             }
         }
 
+        if ($errors !== []) {
+            throw ValidationException::withMessages([
+                'import_file' => $errors,
+            ]);
+        }
+
         return $parsed;
+    }
+
+    private function firstValidationMessage(ValidationException $e): string
+    {
+        foreach ($e->errors() as $messages) {
+            if (is_array($messages) && $messages !== []) {
+                return (string) reset($messages);
+            }
+        }
+
+        return 'Khong the doc file import.';
     }
 
     private function readImportRows(UploadedFile $file): array
@@ -637,22 +671,26 @@ class CreateScheduleSemesterHandler
         return $subject->id;
     }
 
-    private function validateTemplateEntries(array $entries, Carbon $planStart, Carbon $planEnd): void
+    /**
+     * @param array<int, string> $classCodes class_id => class code, for readable messages
+     */
+    private function validateTemplateEntries(array $entries, Carbon $planStart, Carbon $planEnd, array $classCodes = []): void
     {
         $seenSlots = [];
-        $classCodes = TrainingClass::query()
-            ->whereIn('id', collect($entries)->pluck('class_id')->unique()->all())
-            ->pluck('code', 'id');
 
         foreach ($entries as $entry) {
             $startDate = Carbon::parse($entry['start_date'])->startOfDay();
             $endDate = Carbon::parse($entry['end_date'])->endOfDay();
+            $classCode = $classCodes[(int) $entry['class_id']] ?? (string) $entry['class_id'];
+            $subjectLabel = $entry['subject_label'] ?? ('mon #' . $entry['subject_id']);
+            $source = $entry['source'] ?? "quy tac cua lop '{$classCode}'";
 
             if ($startDate->lt($planStart) || $endDate->gt($planEnd)) {
                 throw ValidationException::withMessages([
                     'class_tab_rules' => sprintf(
-                        "Quy tac cua lop '%s' co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
-                        $classCodes->get($entry['class_id'], (string) $entry['class_id']),
+                        "%s (mon %s): co ngay %s - %s nam ngoai khoang thoi gian hoc ky (%s - %s).",
+                        $source,
+                        $subjectLabel,
                         $startDate->toDateString(),
                         $endDate->toDateString(),
                         $planStart->toDateString(),
@@ -663,25 +701,23 @@ class CreateScheduleSemesterHandler
 
             if ($endDate->lt($startDate)) {
                 throw ValidationException::withMessages([
-                    'class_tab_rules' => 'Co quy tac co ngay ket thuc nho hon ngay bat dau.',
-                ]);
-            }
-
-            if ($this->normalizeWeekdays($entry['days_of_week'] ?? []) === []) {
-                throw ValidationException::withMessages([
-                    'class_tab_rules' => 'Moi quy tac phai co it nhat mot thu hoc.',
-                ]);
-            }
-
-            if ($this->parsePeriodRange((string) $entry['period_range']) === []) {
-                throw ValidationException::withMessages([
-                    'class_tab_rules' => 'Khoang tiet trong quy tac khong hop le.',
+                    'class_tab_rules' => "{$source} (mon {$subjectLabel}): ngay ket thuc ({$endDate->toDateString()}) nho hon ngay bat dau ({$startDate->toDateString()}).",
                 ]);
             }
 
             $daysOfWeek = $this->normalizeWeekdays($entry['days_of_week'] ?? []);
+            if ($daysOfWeek === []) {
+                throw ValidationException::withMessages([
+                    'class_tab_rules' => "{$source} (mon {$subjectLabel}): phai co it nhat mot thu hoc.",
+                ]);
+            }
+
             $periods = $this->parsePeriodRange((string) $entry['period_range']);
-            $classCode = $classCodes->get($entry['class_id'], (string) $entry['class_id']);
+            if ($periods === []) {
+                throw ValidationException::withMessages([
+                    'class_tab_rules' => "{$source} (mon {$subjectLabel}): khoang tiet '{$entry['period_range']}' khong hop le.",
+                ]);
+            }
 
             for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
                 $dayOfWeek = $date->dayOfWeekIso + 1;
@@ -697,12 +733,25 @@ class CreateScheduleSemesterHandler
                     ]);
 
                     if (isset($seenSlots[$slotKey])) {
+                        $previous = $seenSlots[$slotKey];
                         throw ValidationException::withMessages([
-                            'class_tab_rules' => 'Lop ' . $classCode . ' bi trung mon trong cung ngay va cung tiet.',
+                            'class_tab_rules' => sprintf(
+                                "Lop '%s' bi trung tiet %d ngay %s: %s (mon %s) trung voi %s (mon %s).",
+                                $classCode,
+                                $period,
+                                $date->toDateString(),
+                                $source,
+                                $subjectLabel,
+                                $previous['source'],
+                                $previous['subject_label']
+                            ),
                         ]);
                     }
 
-                    $seenSlots[$slotKey] = true;
+                    $seenSlots[$slotKey] = [
+                        'source' => $source,
+                        'subject_label' => $subjectLabel,
+                    ];
                 }
             }
         }

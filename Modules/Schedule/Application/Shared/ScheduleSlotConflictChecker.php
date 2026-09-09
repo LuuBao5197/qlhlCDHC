@@ -119,12 +119,13 @@ class ScheduleSlotConflictChecker
      * hard conflict since they occupy a specific period for a specific
      * activity and overlapping a subject rule there would be ambiguous.
      *
-     * @param array<int, array{class_id:int, start_date:string, end_date:string, days_of_week:array<int,int>, period_range:string}> $templates
+     * @param array<int, array{class_id:int, start_date:string, end_date:string, days_of_week:array<int,int>, period_range:string, subject_label?:string}> $templates
      * @param array<int, array{class_id:?int, start_date:string, end_date:string, period_from:int, period_to:int, title?:?string, event_type?:?string}> $events
      * @param array<int, int> $classIds used to expand events with class_id = null (applies to every class)
+     * @param array<int, string> $classCodes class_id => class code, for readable messages
      * @return array<int, string>
      */
-    public function findTemplateEventConflicts(array $templates, array $events, array $classIds): array
+    public function findTemplateEventConflicts(array $templates, array $events, array $classIds, array $classCodes = []): array
     {
         $templatesByClass = collect($templates)->groupBy(fn (array $template) => (int) $template['class_id']);
         $conflicts = [];
@@ -160,11 +161,12 @@ class ScheduleSlotConflictChecker
                     for ($date = $overlapStart->copy(); $date->lte($overlapEnd); $date->addDay()) {
                         if (in_array($date->dayOfWeekIso + 1, $daysOfWeek, true)) {
                             $conflicts[] = sprintf(
-                                "Lop #%d bi trung lich giua su kien '%s' va mon hoc vao ngay %s (tiet %s).",
-                                $classId,
-                                $event['title'] ?? ($event['event_type'] ?? 'su kien'),
+                                "Lop '%s' bi trung lich ngay %s (tiet %s): su kien '%s' trung voi mon '%s'.",
+                                $classCodes[$classId] ?? ('#' . $classId),
                                 $date->toDateString(),
-                                (string) $template['period_range']
+                                (string) $template['period_range'],
+                                $event['title'] ?? ($event['event_type'] ?? 'su kien'),
+                                $template['subject_label'] ?? ($template['source'] ?? 'mon hoc')
                             );
 
                             break;
