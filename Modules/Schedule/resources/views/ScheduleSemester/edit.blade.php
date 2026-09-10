@@ -1005,6 +1005,11 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                 return cb ? cb.dataset.label : String(k);
             };
 
+            const scrollToEl = (el) => {
+                if (!el) return;
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+
             const activate = (k) => {
                 activeClassKey = String(k);
                 tabs.querySelectorAll('[data-key]').forEach((btn) => {
@@ -1948,6 +1953,7 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     <div class="mt-3"><label class="form-label d-block">Thứ học</label><div class="weekday-list">${weekdayHtml(k, i, data.weekdays || [])}</div></div>
                 `;
                 box.appendChild(div);
+                window.ScheduleDatePicker?.init(div);
                 updateRuleEmpty(k);
                 validateRuleConflicts();
                 if (!options.silent) {
