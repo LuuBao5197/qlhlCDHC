@@ -3,14 +3,12 @@
 namespace Modules\Training\Application\Management\Teachers;
 
 use App\Models\User;
-use App\Services\AccountInvitationService;
 use App\Services\InternalNotificationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Modules\Training\Application\Management\Shared\CrudHandler;
@@ -47,7 +45,7 @@ class ManageTeachersHandler extends CrudHandler
             'department_id' => ['required', 'integer', 'exists:departments,id'],
         ];
 
-        // Email chỉ bắt buộc khi tạo mới: đây là địa chỉ dùng để gửi mail kích hoạt tài khoản.
+        // Email chỉ bắt buộc khi tạo mới: đây là email đăng nhập của tài khoản giáo viên.
         // Không cho sửa qua đây khi update để tránh việc email của User bị đổi ngầm ngoài ý muốn.
         if ($id === null) {
             $rules['email'] = ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')];
@@ -57,8 +55,9 @@ class ManageTeachersHandler extends CrudHandler
     }
 
     /**
-     * Tạo đồng thời User (tài khoản đăng nhập) + Teacher (hồ sơ giảng viên) liên kết qua employee_code/teacher_code,
-     * sau đó gửi email mời kích hoạt tài khoản (đặt mật khẩu lần đầu) qua token password_reset_tokens chuẩn của Laravel.
+     * Tạo đồng thời User (tài khoản đăng nhập) + Teacher (hồ sơ giảng viên) liên kết qua employee_code/teacher_code.
+     * Tài khoản được cấp mật khẩu mặc định của hệ thống (không gửi email — mạng nội bộ) và bắt buộc đổi
+     * mật khẩu ngay lần đăng nhập đầu tiên.
      */
     public function store(Request $request): JsonResponse
     {
@@ -70,9 +69,11 @@ class ManageTeachersHandler extends CrudHandler
                 $user = User::create([
                     'name' => $validated['name'],
                     'email' => $validated['email'],
-                    'password' => Hash::make(Str::random(40)),
+                    'password' => Hash::make((string) config('accounts.default_password')),
+                    'must_change_password' => true,
                     'role' => User::ROLE_TEACHER,
                     'status' => User::STATUS_APPROVED,
+                    'email_verified_at' => now(),
                     'employee_code' => $validated['teacher_code'],
                     'department_id' => $validated['department_id'] ?? null,
                 ]);
@@ -92,10 +93,6 @@ class ManageTeachersHandler extends CrudHandler
                 'teacher_code' => ['Không thể tạo tài khoản giáo viên do dữ liệu bị trùng (email hoặc mã giáo viên). Vui lòng thử lại.'],
             ]);
         }
-
-        // Tài khoản đã tạo thành công dù email mời có gửi được hay không: service tự
-        // ghi log khi gửi lỗi (SMTP timeout, sai cấu hình...) và Admin có thể gửi lại sau.
-        app(AccountInvitationService::class)->invite($teacher->user);
 
         if ($actor !== null) {
             app(InternalNotificationService::class)->notifyAccountCreated($teacher->user, $actor);

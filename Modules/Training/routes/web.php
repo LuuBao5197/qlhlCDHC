@@ -1,7 +1,5 @@
 <?php
 
-use App\Application\Auth\ActivateAccount\ActivateAccountController;
-use App\Application\Auth\ActivateAccount\ShowActivateAccountController;
 use Illuminate\Support\Facades\Route;
 use Modules\Training\Application\Management\Departments\ManageDepartmentsController;
 use Modules\Training\Application\Management\Rooms\ManageRoomsController;
@@ -17,13 +15,6 @@ use Modules\Training\Application\TeacherEvaluation\GetTeacherDailyLog\GetTeacher
 use Modules\Training\Application\TeacherEvaluation\GetTeacherSlotEvaluation\GetTeacherSlotEvaluationController;
 use Modules\Training\Application\TeacherEvaluation\SubmitDailyLog\SubmitDailyLogController;
 use Modules\Training\Application\TeacherEvaluation\SubmitTeacherSlotEvaluation\SubmitTeacherSlotEvaluationController;
-
-// Alias tương thích ngược: link kích hoạt trong các email đã gửi trước đây trỏ về
-// /teacher-accounts/activate — luồng kích hoạt chính hiện ở /account/activate (routes/web.php).
-Route::prefix('teacher-accounts/activate')->name('teacher-accounts.activate.')->group(function () {
-    Route::get('/', ShowActivateAccountController::class)->name('show');
-    Route::post('/', ActivateAccountController::class)->name('submit');
-});
 
 Route::middleware(['auth', 'management.access'])->prefix('management')->name('management.')->group(function () {
     Route::get('training-programs/import-template', [ManageTrainingProgramsController::class, 'downloadImportTemplate'])

@@ -8,6 +8,8 @@ enum InternalNotificationType: string
     case USER_REGISTRATION_APPROVED = 'user_registration_approved';
     case USER_REGISTRATION_REJECTED = 'user_registration_rejected';
 
+    case PASSWORD_RESET_REQUESTED = 'password_reset_requested';
+
     case SEMESTER_PLAN_SUBMITTED = 'semester_plan_submitted';
     case SEMESTER_PLAN_APPROVED = 'semester_plan_approved';
     case SEMESTER_PLAN_REJECTED = 'semester_plan_rejected';
@@ -42,6 +44,7 @@ enum InternalNotificationType: string
             self::USER_REGISTRATION_PENDING => 'Dang ky moi',
             self::USER_REGISTRATION_APPROVED => 'Dang ky da duyet',
             self::USER_REGISTRATION_REJECTED => 'Dang ky bi tu choi',
+            self::PASSWORD_RESET_REQUESTED => 'Yeu cau dat lai mat khau',
             self::SEMESTER_PLAN_SUBMITTED => 'Ke hoach hoc ky',
             self::SEMESTER_PLAN_APPROVED => 'Ke hoach hoc ky da duyet',
             self::SEMESTER_PLAN_REJECTED => 'Ke hoach hoc ky bi tu choi',
@@ -73,6 +76,7 @@ enum InternalNotificationType: string
             self::USER_REGISTRATION_PENDING => 'mdi-account-clock',
             self::USER_REGISTRATION_APPROVED => 'mdi-account-check',
             self::USER_REGISTRATION_REJECTED => 'mdi-account-cancel',
+            self::PASSWORD_RESET_REQUESTED => 'mdi-lock-reset',
             self::SEMESTER_PLAN_SUBMITTED => 'mdi-book-open-page-variant',
             self::SEMESTER_PLAN_APPROVED => 'mdi-book-check',
             self::SEMESTER_PLAN_REJECTED => 'mdi-book-remove',
@@ -121,6 +125,7 @@ enum InternalNotificationType: string
             self::ASSIGNMENT_BATCH_TRAINING_OFFICE_RETURNED,
             self::TEACHING_SUPPORT_REQUEST_WITHDRAWN,
             self::USER_REGISTRATION_PENDING,
+            self::PASSWORD_RESET_REQUESTED,
             self::SCHEDULE_CHANGE_REQUEST_SUBMITTED,
             self::TEACHING_SUPPORT_REQUEST_SUBMITTED,
             self::TEACHING_SUPPORT_CHANGE_REQUEST_SUBMITTED,
@@ -153,6 +158,7 @@ enum InternalNotificationType: string
             self::ASSIGNMENT_BATCH_TRAINING_OFFICE_RETURNED,
             self::TEACHING_SUPPORT_REQUEST_WITHDRAWN,
             self::USER_REGISTRATION_PENDING,
+            self::PASSWORD_RESET_REQUESTED,
             self::SCHEDULE_CHANGE_REQUEST_SUBMITTED,
             self::TEACHING_SUPPORT_REQUEST_SUBMITTED,
             self::TEACHING_SUPPORT_CHANGE_REQUEST_SUBMITTED,

@@ -66,7 +66,31 @@
         </a>
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown preview-list" aria-labelledby="profileDropdown">
           <h6 class="p-3 mb-0">Tài khoản</h6>
+          @if (($activeRole ?? null) !== null)
+            <p class="px-3 mb-0 text-muted small">Đang xem với vai trò: <strong>{{ $activeRole->name }}</strong></p>
+          @endif
           <div class="dropdown-divider"></div>
+          @php($otherRoles = auth()->user()?->roles->reject(fn ($role) => ($activeRole ?? null) !== null && $role->id === $activeRole->id) ?? collect())
+          @if ($otherRoles->isNotEmpty())
+            <p class="px-3 mb-1 text-muted small">Chuyển sang vai trò khác:</p>
+            @foreach ($otherRoles as $role)
+              <form method="POST" action="{{ route('account.active-role.update') }}" class="m-0">
+                @csrf
+                <input type="hidden" name="role" value="{{ $role->slug }}">
+                <button type="submit" class="dropdown-item preview-item btn btn-link p-0 text-left">
+                  <div class="preview-thumbnail">
+                    <div class="preview-icon bg-dark rounded-circle">
+                      <i class="mdi mdi-account-switch text-info"></i>
+                    </div>
+                  </div>
+                  <div class="preview-item-content">
+                    <p class="preview-subject mb-1">{{ $role->name }}</p>
+                  </div>
+                </button>
+              </form>
+            @endforeach
+            <div class="dropdown-divider"></div>
+          @endif
           <a class="dropdown-item preview-item" href="{{ route('settings') }}">
             <div class="preview-thumbnail">
               <div class="preview-icon bg-dark rounded-circle">
@@ -78,7 +102,7 @@
             </div>
           </a>
           <div class="dropdown-divider"></div>
-          @if(auth()?->user()?->isAdmin())
+          @if(($activeRole ?? null)?->slug === 'admin')
             <a class="dropdown-item preview-item" href="{{ route('admin.index') }}">
               <div class="preview-thumbnail">
                 <div class="preview-icon bg-dark rounded-circle">

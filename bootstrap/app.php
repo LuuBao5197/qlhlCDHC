@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'management.access' => \App\Http\Middleware\EnsureManagementAccess::class,
         ]);
         $middleware->appendToGroup('web', \App\Http\Middleware\EnsureAccountActive::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureMustChangePassword::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\SetActiveRole::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

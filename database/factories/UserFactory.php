@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\Position;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -21,21 +22,32 @@ class UserFactory extends Factory
     /**
      * Gán Position mặc định theo role cuối cùng (sau khi test override ->create(['role' => ...])),
      * ở tier cao nhất để giữ nguyên hành vi phê duyệt hiện có của các test không set position.
+     *
+     * Đồng thời gán role mới (bảng roles/role_user) suy ra từ role+position, để các test/seeder
+     * hiện có (vẫn set 'role'/'position' kiểu cũ) tự động có role_user tương ứng mà không cần sửa.
      */
     public function configure(): static
     {
-        return $this->afterMaking(function (User $user): void {
-            if ($user->position !== null) {
-                return;
-            }
+        return $this
+            ->afterMaking(function (User $user): void {
+                if ($user->position === null) {
+                    $user->position = match ($user->role) {
+                        User::ROLE_DEPARTMENT_STAFF => Position::DEPARTMENT_HEAD,
+                        User::ROLE_TRAINING_OFFICE => Position::TRAINING_HEAD,
+                        User::ROLE_LEADERSHIP => Position::PRINCIPAL,
+                        default => null,
+                    };
+                }
 
-            $user->position = match ($user->role) {
-                User::ROLE_DEPARTMENT_STAFF => Position::DEPARTMENT_HEAD,
-                User::ROLE_TRAINING_OFFICE => Position::TRAINING_HEAD,
-                User::ROLE_LEADERSHIP => Position::PRINCIPAL,
-                default => null,
-            };
-        });
+                $slugs = Role::slugsForLegacy($user->role, $user->position);
+                $user->setRelation('roles', collect($slugs)->map(fn (string $slug) => new Role(['slug' => $slug])));
+            })
+            ->afterCreating(function (User $user): void {
+                $slugs = Role::slugsForLegacy($user->role, $user->position);
+                $roleIds = Role::query()->whereIn('slug', $slugs)->pluck('id');
+                $user->roles()->sync($roleIds);
+                $user->unsetRelation('roles');
+            });
     }
 
     /**

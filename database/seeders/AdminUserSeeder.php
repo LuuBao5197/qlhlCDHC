@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -28,6 +29,11 @@ class AdminUserSeeder extends Seeder
 
         if ($user->email_verified_at === null) {
             $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        $adminRole = Role::query()->where('slug', Role::ADMIN)->first();
+        if ($adminRole !== null && ! $user->roles()->where('roles.id', $adminRole->id)->exists()) {
+            $user->roles()->attach($adminRole);
         }
     }
 }

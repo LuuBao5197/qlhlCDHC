@@ -3,24 +3,17 @@
 @section('title', 'Admin Panel - User Management')
 
 @section('content')
-    @php
-        $roleLabels = [
-            \App\Models\User::ROLE_TEACHER => 'Giáo viên',
-            \App\Models\User::ROLE_DEPARTMENT_STAFF => 'Nhân viên khoa',
-            \App\Models\User::ROLE_TRAINING_OFFICE => 'Nhân viên phòng đào tạo',
-            \App\Models\User::ROLE_LEADERSHIP => 'Ban giám hiệu',
-            \App\Models\User::ROLE_STUDENT => 'Học viên',
-            \App\Models\User::ROLE_ADMIN => 'Quản trị viên',
-        ];
-    @endphp
     <div class="row">
         <div class="col-md-12">
             <div class="card mb-4">
                 <div class="card-body">
                     <h4 class="card-title">Tạo tài khoản mới</h4>
                     <p class="text-muted">
-                        Người được tạo sẽ nhận email mời để tự đặt mật khẩu lần đầu — hệ thống không lưu hay hiển thị mật khẩu cho Admin.
+                        Hệ thống chạy nội bộ, không gửi email — tài khoản được cấp sẵn mật khẩu mặc định
+                        <strong>{{ $defaultPassword }}</strong>. Vui lòng cung cấp mật khẩu này cho người dùng;
+                        hệ thống sẽ bắt buộc họ đổi mật khẩu ngay lần đăng nhập đầu tiên.
                         Tài khoản giáo viên được tạo từ màn hình <a href="{{ route('management.index') }}">Quản lý giáo viên</a>.
+                        Một tài khoản có thể giữ đồng thời nhiều vai trò.
                     </p>
 
                     @if ($errors->any())
@@ -36,24 +29,15 @@
                     <form method="POST" action="{{ route('admin.users.store') }}">
                         @csrf
                         <div class="row">
-                            <div class="col-md-3 form-group">
+                            <div class="col-md-4 form-group">
                                 <label for="create-user-name">Họ tên</label>
                                 <input type="text" id="create-user-name" name="name" class="form-control" value="{{ old('name') }}" maxlength="255" required>
                             </div>
-                            <div class="col-md-3 form-group">
+                            <div class="col-md-4 form-group">
                                 <label for="create-user-email">Email</label>
                                 <input type="email" id="create-user-email" name="email" class="form-control" value="{{ old('email') }}" maxlength="255" required>
                             </div>
-                            <div class="col-md-3 form-group">
-                                <label for="create-user-role">Vai trò</label>
-                                <select id="create-user-role" name="role" class="form-control" required>
-                                    <option value="">-- Chọn vai trò --</option>
-                                    @foreach ($creatableRoles as $role)
-                                        <option value="{{ $role }}" @selected(old('role') === $role)>{{ $roleLabels[$role] ?? $role }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3 form-group" id="create-user-department-group" style="display: none;">
+                            <div class="col-md-4 form-group" id="create-user-department-group" style="display: none;">
                                 <label for="create-user-department">Khoa</label>
                                 <select id="create-user-department" name="department_id" class="form-control">
                                     <option value="">-- Chọn khoa --</option>
@@ -62,15 +46,73 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-3 form-group" id="create-user-position-group" style="display: none;">
-                                <label for="create-user-position">Chức vụ</label>
-                                <select id="create-user-position" name="position" class="form-control">
-                                    <option value="">-- Chọn chức vụ --</option>
-                                </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Vai trò</label>
+                            <div class="create-user-roles" style="display: flex; flex-wrap: wrap; gap: 12px;">
+                                @foreach ($assignableRoles as $role)
+                                    <div class="form-check">
+                                        <input
+                                            type="checkbox"
+                                            class="form-check-input create-user-role-checkbox"
+                                            id="create-user-role-{{ $role->slug }}"
+                                            name="roles[]"
+                                            value="{{ $role->slug }}"
+                                            data-department-scoped="{{ in_array($role->slug, $departmentScopedRoles, true) ? '1' : '0' }}"
+                                            @checked(in_array($role->slug, (array) old('roles', []), true))
+                                        >
+                                        <label class="form-check-label" for="create-user-role-{{ $role->slug }}">{{ $role->name }}</label>
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Tạo tài khoản &amp; gửi email mời</button>
+                        <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
                     </form>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4 class="card-title">Yêu cầu đặt lại mật khẩu</h4>
+                    <p class="text-muted">
+                        Người dùng gửi yêu cầu khi quên mật khẩu. Duyệt để cho phép họ truy cập link đặt mật khẩu mới đã được cấp sẵn cho họ.
+                    </p>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Người dùng</th>
+                                    <th>Email</th>
+                                    <th>Thời gian gửi</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($passwordResetRequests as $resetRequest)
+                                    <tr>
+                                        <td>{{ $resetRequest->user->name }}</td>
+                                        <td>{{ $resetRequest->user->email }}</td>
+                                        <td>{{ $resetRequest->requested_at->format('d/m/Y H:i') }}</td>
+                                        <td>
+                                            <form method="POST" action="{{ route('admin.password-reset-requests.approve', $resetRequest) }}" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-success">Duyệt</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('admin.password-reset-requests.reject', $resetRequest) }}" class="d-inline" onsubmit="return confirm('Từ chối yêu cầu của {{ $resetRequest->user->email }}?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Từ chối</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center">Không có yêu cầu nào đang chờ duyệt.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -126,42 +168,64 @@
                     <h4 class="card-title">Danh sách người dùng</h4>
 
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped admin-users-table">
+                            <colgroup>
+                                <col style="width: 13%;">
+                                <col style="width: 16%;">
+                                <col style="width: 10%;">
+                                <col style="width: 33%;">
+                                <col style="width: 8%;">
+                                <col style="width: 8%;">
+                                <col style="width: 12%;">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Department</th>
-                                    <th>Role</th>
-                                    <th>Chức vụ</th>
+                                    <th>Vai trò</th>
                                     <th>Status</th>
-                                    <th>Kích hoạt</th>
+                                    <th>Mật khẩu</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($users as $user)
                                     @php
-                                        $userPositionOptions = $positionOptionsByRole[$user->role] ?? [];
+                                        $userRoleSlugs = $user->roles->pluck('slug')->all();
                                     @endphp
                                     <tr>
                                         <td>{{ $user->name }}</td>
                                         <td>{{ $user->email }}</td>
                                         <td>{{ $user->department?->name ?? '-' }}</td>
-                                        <td>{{ $roleLabels[$user->role] ?? ($user->role ?? '-') }}</td>
                                         <td>
-                                            @if ($userPositionOptions !== [])
-                                                <form method="POST" action="{{ route('admin.users.update-position', $user) }}" class="d-flex align-items-center" style="gap: 4px;">
-                                                    @csrf
-                                                    <select name="position" class="form-control form-control-sm">
-                                                        @foreach ($userPositionOptions as $value => $label)
-                                                            <option value="{{ $value }}" @selected($user->position?->value === $value)>{{ $label }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Cập nhật</button>
-                                                </form>
-                                            @else
-                                                -
+                                            <form method="POST" action="{{ route('admin.users.update-roles', $user) }}" class="user-roles-form">
+                                                @csrf
+                                                <div class="user-roles-grid">
+                                                    @foreach ($assignableRoles as $role)
+                                                        <div class="form-check">
+                                                            <input
+                                                                type="checkbox"
+                                                                class="form-check-input user-role-checkbox"
+                                                                id="user-{{ $user->id }}-role-{{ $role->slug }}"
+                                                                name="roles[]"
+                                                                value="{{ $role->slug }}"
+                                                                data-department-scoped="{{ in_array($role->slug, $departmentScopedRoles, true) ? '1' : '0' }}"
+                                                                @checked(in_array($role->slug, $userRoleSlugs, true))
+                                                                @disabled(in_array($role->slug, $departmentScopedRoles, true) && $user->department_id === null)
+                                                            >
+                                                            <label class="form-check-label small" for="user-{{ $user->id }}-role-{{ $role->slug }}">{{ $role->name }}</label>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                                @if ($user->department_id === null)
+                                                    <p class="text-muted small mb-1">Chưa thuộc khoa nào — không thể gán vai trò Giáo vụ/Chủ nhiệm khoa.</p>
+                                                @endif
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">Cập nhật vai trò</button>
+                                            </form>
+                                            @php $otherRoles = $user->roles->pluck('name')->diff($assignableRoles->pluck('name')); @endphp
+                                            @if ($otherRoles->isNotEmpty())
+                                                <p class="text-muted small mb-0">Vai trò khác: {{ $otherRoles->implode(', ') }}</p>
                                             @endif
                                         </td>
                                         <td>
@@ -170,20 +234,13 @@
                                             </span>
                                         </td>
                                         <td>
-                                            @if ($user->email_verified_at !== null)
-                                                <span class="badge badge-success">Đã kích hoạt</span>
+                                            @if ($user->mustChangePassword())
+                                                <span class="badge badge-warning">Chưa đổi (mặc định)</span>
                                             @else
-                                                <span class="badge badge-warning">Chưa kích hoạt</span>
+                                                <span class="badge badge-success">Đã đổi</span>
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($user->email_verified_at === null)
-                                                <form method="POST" action="{{ route('admin.users.resend-invitation', $user) }}" class="d-inline">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-sm btn-outline-primary">Gửi lại email</button>
-                                                </form>
-                                            @endif
-
                                             @if ($user->id !== auth()->id())
                                                 @if ($user->isLocked())
                                                     <form method="POST" action="{{ route('admin.users.unlock', $user) }}" class="d-inline">
@@ -201,7 +258,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="text-center">Chưa có người dùng nào.</td>
+                                        <td colspan="7" class="text-center">Chưa có người dùng nào.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -213,50 +270,64 @@
         </div>
     </div>
 
+    <style>
+        /* Bảng danh sách người dùng: cột co giãn cố định + nội dung chia hàng thay vì tràn ngang */
+        .admin-users-table {
+            table-layout: fixed;
+        }
+
+        .admin-users-table td,
+        .admin-users-table th {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .admin-users-table .user-roles-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px 10px;
+            margin-bottom: 6px;
+        }
+
+        .admin-users-table .user-roles-grid .form-check {
+            min-width: 0;
+        }
+
+        .admin-users-table .user-roles-grid .form-check-label {
+            white-space: normal;
+        }
+
+        /* Bảng gốc dùng màu stripe đen (#000) từ vendor CSS — ghi đè lại tông sáng cho khớp theme */
+        .admin-users-table.table-striped tbody tr:nth-of-type(odd) {
+            background-color: #FAFBF9;
+        }
+    </style>
+
     <script>
         (function () {
-            var roleSelect = document.getElementById('create-user-role');
             var departmentGroup = document.getElementById('create-user-department-group');
             var departmentSelect = document.getElementById('create-user-department');
-            var positionGroup = document.getElementById('create-user-position-group');
-            var positionSelect = document.getElementById('create-user-position');
-            var positionOptionsByRole = @json($positionOptionsByRole);
-            var oldPosition = @json(old('position'));
+            var createRoleCheckboxes = document.querySelectorAll('.create-user-role-checkbox');
 
-            function toggleDepartment() {
-                var isDepartmentStaff = roleSelect.value === @json(\App\Models\User::ROLE_DEPARTMENT_STAFF);
-                departmentGroup.style.display = isDepartmentStaff ? '' : 'none';
-                departmentSelect.required = isDepartmentStaff;
-                if (!isDepartmentStaff) {
+            function anyDepartmentScopedChecked(checkboxes) {
+                return Array.prototype.some.call(checkboxes, function (checkbox) {
+                    return checkbox.checked && checkbox.getAttribute('data-department-scoped') === '1';
+                });
+            }
+
+            function toggleCreateDepartment() {
+                var needsDepartment = anyDepartmentScopedChecked(createRoleCheckboxes);
+                departmentGroup.style.display = needsDepartment ? '' : 'none';
+                departmentSelect.required = needsDepartment;
+                if (!needsDepartment) {
                     departmentSelect.value = '';
                 }
             }
 
-            function togglePosition() {
-                var options = positionOptionsByRole[roleSelect.value] || {};
-                var hasOptions = Object.keys(options).length > 0;
-
-                positionSelect.innerHTML = '<option value="">-- Chọn chức vụ --</option>';
-                Object.keys(options).forEach(function (value) {
-                    var option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = options[value];
-                    if (value === oldPosition) {
-                        option.selected = true;
-                    }
-                    positionSelect.appendChild(option);
-                });
-
-                positionGroup.style.display = hasOptions ? '' : 'none';
-                positionSelect.required = hasOptions;
-            }
-
-            roleSelect.addEventListener('change', function () {
-                toggleDepartment();
-                togglePosition();
+            Array.prototype.forEach.call(createRoleCheckboxes, function (checkbox) {
+                checkbox.addEventListener('change', toggleCreateDepartment);
             });
-            toggleDepartment();
-            togglePosition();
+            toggleCreateDepartment();
         })();
     </script>
 @endsection

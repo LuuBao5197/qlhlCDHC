@@ -2,19 +2,47 @@
 
 namespace App\Application\Auth\ForgotPassword;
 
-use Illuminate\Support\Facades\Password;
+use App\Models\PasswordResetRequest;
+use App\Models\User;
+use App\Services\InternalNotificationService;
+use Illuminate\Support\Str;
 
 class ForgotPasswordHandler
 {
     /**
-     * Gửi email đặt lại mật khẩu nếu email tồn tại. Trả về false chỉ khi bị throttle,
-     * mọi trường hợp khác (kể cả email không tồn tại) đều coi là "thành công" ở tầng
-     * response để tránh lộ thông tin email nào đã đăng ký trong hệ thống (user enumeration).
+     * Hệ thống chạy nội bộ, không gửi email — tạo yêu cầu đặt lại mật khẩu và báo
+     * cho Admin duyệt qua thông báo trong hệ thống. Trả về token của yêu cầu (dùng
+     * để chuyển hướng người dùng tới trang trạng thái), hoặc null nếu email không
+     * tồn tại (tránh lộ thông tin email nào đã đăng ký — user enumeration).
      */
-    public function handle(ForgotPasswordRequest $request): bool
+    public function handle(ForgotPasswordRequest $request): ?string
     {
-        $status = Password::sendResetLink($request->only('email'));
+        $user = User::query()->where('email', $request->validated('email'))->first();
 
-        return $status !== Password::RESET_THROTTLED;
+        if ($user === null) {
+            return null;
+        }
+
+        // Đã có yêu cầu đang chờ/đã duyệt còn hiệu lực — trả lại token cũ thay vì
+        // tạo mới, tránh spam thông báo cho Admin mỗi lần người dùng bấm lại nút gửi.
+        $existing = $user->passwordResetRequests()
+            ->whereIn('status', [PasswordResetRequest::STATUS_PENDING, PasswordResetRequest::STATUS_APPROVED])
+            ->whereNull('used_at')
+            ->latest('id')
+            ->first();
+
+        if ($existing !== null) {
+            return $existing->token;
+        }
+
+        $resetRequest = $user->passwordResetRequests()->create([
+            'token' => Str::random(64),
+            'status' => PasswordResetRequest::STATUS_PENDING,
+            'requested_at' => now(),
+        ]);
+
+        app(InternalNotificationService::class)->notifyPasswordResetRequested($resetRequest);
+
+        return $resetRequest->token;
     }
 }

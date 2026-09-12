@@ -2,30 +2,44 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\Position;
 use App\Http\Controllers\Controller;
+use App\Models\PasswordResetRequest;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
-use App\Services\AccountInvitationService;
 use App\Services\InternalNotificationService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Modules\Training\Models\Department;
 
 class AdminController extends Controller
 {
     /**
-     * Role được phép tạo từ màn Admin. Teacher không nằm trong danh sách vì cần tạo kèm
+     * Role được phép gán từ màn Admin. Teacher không nằm trong danh sách vì cần tạo kèm
      * hồ sơ giảng viên từ màn Quản lý giáo viên; admin/student không thuộc nghiệp vụ cấp phát.
+     * `department_head`/`training_office_head` là role "tier cao" — khi chọn sẽ tự kèm role
+     * nền tương ứng (`department_staff`/`training_office`) để không mất quyền thao tác cơ bản.
      */
-    private const CREATABLE_ROLES = [
-        User::ROLE_LEADERSHIP,
-        User::ROLE_TRAINING_OFFICE,
-        User::ROLE_DEPARTMENT_STAFF,
+    private const ASSIGNABLE_ROLES = [
+        Role::LEADERSHIP,
+        Role::TRAINING_OFFICE,
+        Role::TRAINING_OFFICE_HEAD,
+        Role::DEPARTMENT_STAFF,
+        Role::DEPARTMENT_HEAD,
+    ];
+
+    private const IMPLIED_ROLES = [
+        Role::DEPARTMENT_HEAD => Role::DEPARTMENT_STAFF,
+        Role::TRAINING_OFFICE_HEAD => Role::TRAINING_OFFICE,
+    ];
+
+    private const DEPARTMENT_SCOPED_ROLES = [
+        Role::DEPARTMENT_STAFF,
+        Role::DEPARTMENT_HEAD,
     ];
 
     public function __construct()
@@ -43,7 +57,7 @@ class AdminController extends Controller
     public function index()
     {
         $users = User::query()
-            ->with('department')
+            ->with(['department', 'roles'])
             ->orderBy('name')
             ->paginate(20);
 
@@ -51,79 +65,72 @@ class AdminController extends Controller
 
         $loginBackgroundPath = Setting::get(Setting::KEY_LOGIN_BACKGROUND_PATH);
 
+        $roleOrder = array_flip(self::ASSIGNABLE_ROLES);
+        $assignableRoles = Role::query()
+            ->whereIn('slug', self::ASSIGNABLE_ROLES)
+            ->get(['id', 'slug', 'name'])
+            ->sortBy(fn (Role $role): int => $roleOrder[$role->slug] ?? PHP_INT_MAX)
+            ->values();
+
+        $passwordResetRequests = PasswordResetRequest::query()
+            ->with('user')
+            ->where('status', PasswordResetRequest::STATUS_PENDING)
+            ->orderBy('requested_at')
+            ->get();
+
         return view('admin.index', [
             'users' => $users,
             'departments' => $departments,
-            'creatableRoles' => self::CREATABLE_ROLES,
-            'positionOptionsByRole' => $this->positionOptionsByRole(),
+            'assignableRoles' => $assignableRoles,
+            'impliedRoles' => self::IMPLIED_ROLES,
+            'departmentScopedRoles' => self::DEPARTMENT_SCOPED_ROLES,
             'loginBackgroundUrl' => $loginBackgroundPath ? Storage::disk('public')->url($loginBackgroundPath) : null,
+            'passwordResetRequests' => $passwordResetRequests,
+            'defaultPassword' => config('accounts.default_password'),
         ]);
     }
 
     /**
-     * @return array<string, array<string, string>>
-     */
-    private function positionOptionsByRole(): array
-    {
-        return collect(User::getAvailableRoles())
-            ->mapWithKeys(function (string $role): array {
-                $options = collect(Position::forRole($role))
-                    ->mapWithKeys(fn (Position $position): array => [$position->value => $position->label()])
-                    ->all();
-
-                return [$role => $options];
-            })
-            ->all();
-    }
-
-    /**
-     * Tạo tài khoản với mật khẩu ngẫu nhiên rồi gửi email mời kích hoạt —
-     * người dùng tự đặt mật khẩu lần đầu, Admin không bao giờ biết mật khẩu.
+     * Tạo tài khoản với mật khẩu mặc định của hệ thống (không gửi email — mạng nội
+     * bộ) — Admin cấp trực tiếp mật khẩu này cho người dùng, tài khoản bắt buộc
+     * đổi mật khẩu ngay lần đăng nhập đầu tiên.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'role' => ['required', 'string', Rule::in(self::CREATABLE_ROLES)],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => [Rule::in(self::ASSIGNABLE_ROLES)],
             'department_id' => [
-                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_DEPARTMENT_STAFF),
+                Rule::requiredIf(fn () => $this->rolesNeedDepartment((array) $request->input('roles', []))),
                 'nullable',
                 'integer',
                 'exists:departments,id',
-            ],
-            'position' => [
-                Rule::requiredIf(fn () => Position::forRole((string) $request->input('role')) !== []),
-                'nullable',
-                'string',
-                Rule::in(array_map(
-                    fn (Position $position): string => $position->value,
-                    Position::forRole((string) $request->input('role'))
-                )),
             ],
         ], [
             'name.required' => 'Vui lòng nhập họ tên.',
             'email.required' => 'Vui lòng nhập email.',
             'email.unique' => 'Email này đã được sử dụng.',
-            'role.required' => 'Vui lòng chọn vai trò.',
-            'role.in' => 'Vai trò không hợp lệ.',
-            'department_id.required' => 'Vui lòng chọn khoa cho nhân viên khoa.',
+            'roles.required' => 'Vui lòng chọn ít nhất một vai trò.',
+            'roles.*.in' => 'Vai trò không hợp lệ.',
+            'department_id.required' => 'Vui lòng chọn khoa cho vai trò Giáo vụ/Chủ nhiệm khoa.',
             'department_id.exists' => 'Khoa không hợp lệ.',
-            'position.required' => 'Vui lòng chọn chức vụ.',
-            'position.in' => 'Chức vụ không hợp lệ với vai trò đã chọn.',
         ]);
+
+        $slugs = $this->withImpliedRoles($validated['roles']);
 
         try {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => Hash::make(Str::random(40)),
-                'role' => $validated['role'],
-                'position' => $validated['position'] ?? null,
+                'password' => Hash::make((string) config('accounts.default_password')),
+                'must_change_password' => true,
+                'role' => null,
+                'position' => null,
                 'status' => User::STATUS_APPROVED,
-                'department_id' => $validated['role'] === User::ROLE_DEPARTMENT_STAFF
-                    ? $validated['department_id']
-                    : null,
+                'email_verified_at' => now(),
+                'department_id' => $this->rolesNeedDepartment($slugs) ? $validated['department_id'] : null,
             ]);
         } catch (QueryException $e) {
             // Race condition hiếm gặp: 2 request cùng tạo trùng email vượt qua validate,
@@ -133,54 +140,102 @@ class AdminController extends Controller
             ]);
         }
 
-        $sent = app(AccountInvitationService::class)->invite($user);
+        $roleIds = Role::query()->whereIn('slug', $slugs)->pluck('id');
+        $user->roles()->attach($roleIds);
+
         app(InternalNotificationService::class)->notifyAccountCreated($user, $request->user());
 
         return redirect()->route('admin.index')->with(
-            $sent ? 'success' : 'error',
-            $sent
-                ? 'Đã tạo tài khoản và gửi email mời kích hoạt tới ' . $user->email . '.'
-                : 'Đã tạo tài khoản nhưng chưa gửi được email mời. Vui lòng dùng nút "Gửi lại email" để thử lại.'
+            'success',
+            'Đã tạo tài khoản ' . $user->email . ' với mật khẩu mặc định "' . config('accounts.default_password') . '". '
+                . 'Vui lòng cung cấp mật khẩu này cho người dùng — hệ thống sẽ bắt buộc đổi mật khẩu ngay lần đăng nhập đầu tiên.'
         );
     }
 
-    public function resendInvitation(Request $request, User $user)
+    /**
+     * @param array<int, string> $slugs
+     * @return list<string>
+     */
+    private function withImpliedRoles(array $slugs): array
     {
-        if ($user->email_verified_at !== null) {
-            return back()->with('error', 'Tài khoản này đã kích hoạt, không cần gửi lại email mời.');
+        foreach ($slugs as $slug) {
+            if (isset(self::IMPLIED_ROLES[$slug])) {
+                $slugs[] = self::IMPLIED_ROLES[$slug];
+            }
         }
 
-        $sent = app(AccountInvitationService::class)->resend($user);
-
-        return back()->with(
-            $sent ? 'success' : 'error',
-            $sent
-                ? 'Đã gửi lại email mời kích hoạt tới ' . $user->email . '.'
-                : 'Không gửi được email mời. Vui lòng kiểm tra cấu hình mail và thử lại.'
-        );
+        return array_values(array_unique($slugs));
     }
 
-    public function updatePosition(Request $request, User $user)
+    /**
+     * @param array<int, string> $slugs
+     */
+    private function rolesNeedDepartment(array $slugs): bool
     {
-        $allowedPositions = Position::forRole($user->role);
-        if ($allowedPositions === []) {
-            return back()->with('error', 'Vai trò của tài khoản này không có chức vụ để gán.');
+        return array_intersect($slugs, self::DEPARTMENT_SCOPED_ROLES) !== [];
+    }
+
+    /**
+     * Duyệt yêu cầu quên mật khẩu — chỉ từ lúc này token của yêu cầu mới cho phép
+     * người dùng vào form đặt mật khẩu mới (xem ResetPasswordHandler).
+     */
+    public function approvePasswordResetRequest(Request $request, PasswordResetRequest $passwordResetRequest)
+    {
+        if (! $passwordResetRequest->isPending()) {
+            return back()->with('error', 'Yêu cầu này đã được xử lý trước đó.');
         }
 
+        $passwordResetRequest->forceFill([
+            'status' => PasswordResetRequest::STATUS_APPROVED,
+            'decided_at' => now(),
+            'decided_by' => $request->user()->id,
+        ])->save();
+
+        return back()->with('success', 'Đã duyệt yêu cầu đặt lại mật khẩu cho ' . $passwordResetRequest->user->email . '.');
+    }
+
+    public function rejectPasswordResetRequest(Request $request, PasswordResetRequest $passwordResetRequest)
+    {
+        if (! $passwordResetRequest->isPending()) {
+            return back()->with('error', 'Yêu cầu này đã được xử lý trước đó.');
+        }
+
+        $passwordResetRequest->forceFill([
+            'status' => PasswordResetRequest::STATUS_REJECTED,
+            'decided_at' => now(),
+            'decided_by' => $request->user()->id,
+        ])->save();
+
+        return back()->with('success', 'Đã từ chối yêu cầu đặt lại mật khẩu của ' . $passwordResetRequest->user->email . '.');
+    }
+
+    public function updateRoles(Request $request, User $user)
+    {
         $validated = $request->validate([
-            'position' => [
-                'required',
-                'string',
-                Rule::in(array_map(fn (Position $position): string => $position->value, $allowedPositions)),
-            ],
+            'roles' => ['array'],
+            'roles.*' => [Rule::in(self::ASSIGNABLE_ROLES)],
         ], [
-            'position.required' => 'Vui lòng chọn chức vụ.',
-            'position.in' => 'Chức vụ không hợp lệ với vai trò của người dùng này.',
+            'roles.*.in' => 'Vai trò không hợp lệ.',
         ]);
 
-        $user->update(['position' => $validated['position']]);
+        $slugs = $this->withImpliedRoles($validated['roles'] ?? []);
 
-        return back()->with('success', 'Đã cập nhật chức vụ cho ' . $user->email . '.');
+        if ($this->rolesNeedDepartment($slugs) && $user->department_id === null) {
+            return back()->with('error', 'Tài khoản này chưa thuộc khoa nào — vui lòng gán khoa trước khi thêm vai trò Giáo vụ/Chủ nhiệm khoa.');
+        }
+
+        $roleIds = Role::query()->whereIn('slug', $slugs)->pluck('id');
+
+        DB::transaction(function () use ($user, $roleIds): void {
+            // Chỉ đồng bộ trong phạm vi các role mà Admin panel được phép gán — không đụng
+            // tới role ngoài phạm vi này (vd. teacher/student/admin) nếu user đang giữ.
+            $user->roles()->detach(
+                Role::query()->whereIn('slug', self::ASSIGNABLE_ROLES)->pluck('id')
+            );
+            $user->roles()->attach($roleIds);
+        });
+
+        return back()->with('success', 'Đã cập nhật vai trò cho ' . $user->email . '.');
     }
 
     public function lock(Request $request, User $user)

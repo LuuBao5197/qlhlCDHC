@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +15,7 @@ class EnsureManagementAccess
     {
         $user = $request->user();
 
-        if (! $user || ! in_array($user->role, [User::ROLE_ADMIN, User::ROLE_LEADERSHIP], true)) {
+        if (! $user || ! ($user->isAdmin() || $user->isLeadership())) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'You are not authorized to access this resource.',

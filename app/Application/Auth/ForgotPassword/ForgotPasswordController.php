@@ -13,17 +13,15 @@ class ForgotPasswordController extends Controller
 
     public function __invoke(ForgotPasswordRequest $request): RedirectResponse
     {
-        $notThrottled = $this->handler->handle($request);
+        $token = $this->handler->handle($request);
 
-        if (! $notThrottled) {
-            return back()
-                ->withInput($request->only('email'))
-                ->withErrors(['email' => 'Bạn vừa yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau ít phút.']);
+        if ($token === null) {
+            return back()->with(
+                'success',
+                'Nếu email này tồn tại trong hệ thống, yêu cầu đặt lại mật khẩu đã được gửi tới Admin để duyệt.'
+            );
         }
 
-        return back()->with(
-            'success',
-            'Nếu email này tồn tại trong hệ thống, chúng tôi đã gửi một liên kết đặt lại mật khẩu. Vui lòng kiểm tra hộp thư của bạn.'
-        );
+        return redirect()->route('password.reset.status', ['token' => $token]);
     }
 }

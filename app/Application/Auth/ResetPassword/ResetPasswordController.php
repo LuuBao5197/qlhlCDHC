@@ -18,7 +18,7 @@ class ResetPasswordController extends Controller
             $this->handler->handle($request);
         } catch (ValidationException $e) {
             return back()
-                ->withInput($request->only('email', 'token'))
+                ->withInput($request->only('token'))
                 ->withErrors($e->errors());
         }
 

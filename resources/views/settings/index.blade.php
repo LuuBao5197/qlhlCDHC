@@ -4,6 +4,18 @@
 
 @section('content')
     @php($user = auth()->user())
+
+    @if ($user->mustChangePassword())
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-warning">
+                    Tài khoản của bạn đang dùng mật khẩu mặc định do Admin cấp. Vui lòng đổi mật khẩu ngay bên dưới
+                    trước khi có thể sử dụng các chức năng khác của hệ thống.
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="row">
         <div class="col-md-12">
             <div class="card">
@@ -12,6 +24,10 @@
 
                     @if(session('success'))
                         <div class="alert alert-success">{{ session('success') }}</div>
+                    @endif
+
+                    @if(session('warning'))
+                        <div class="alert alert-warning">{{ session('warning') }}</div>
                     @endif
 
                     <div class="row">

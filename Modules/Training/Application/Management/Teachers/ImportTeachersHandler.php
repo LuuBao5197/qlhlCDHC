@@ -3,14 +3,12 @@
 namespace Modules\Training\Application\Management\Teachers;
 
 use App\Models\User;
-use App\Services\AccountInvitationService;
 use App\Services\InternalNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Modules\Training\Models\Department;
 use Modules\Training\Models\Teacher;
@@ -42,9 +40,11 @@ class ImportTeachersHandler
                 $user = User::create([
                     'name' => $row['name'],
                     'email' => $row['email'],
-                    'password' => Hash::make(Str::random(40)),
+                    'password' => Hash::make((string) config('accounts.default_password')),
+                    'must_change_password' => true,
                     'role' => User::ROLE_TEACHER,
                     'status' => User::STATUS_APPROVED,
+                    'email_verified_at' => now(),
                     'employee_code' => $row['teacher_code'],
                     'department_id' => $row['department_id'],
                 ]);
@@ -62,15 +62,14 @@ class ImportTeachersHandler
         });
 
         foreach ($teachers as $teacher) {
-            app(AccountInvitationService::class)->invite($teacher->user);
-
             if ($actor !== null) {
                 app(InternalNotificationService::class)->notifyAccountCreated($teacher->user, $actor);
             }
         }
 
         return response()->json([
-            'message' => 'Nhập danh sách giáo viên thành công.',
+            'message' => 'Nhập danh sách giáo viên thành công. Mật khẩu mặc định của các tài khoản mới: '
+                . config('accounts.default_password') . '.',
             'imported_count' => count($teachers),
         ]);
     }

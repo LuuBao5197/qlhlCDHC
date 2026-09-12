@@ -107,7 +107,7 @@
                     <button type="submit" class="btn btn-primary btn-block enter-btn">Đăng nhập</button>
                   </div>
                   <p class="sign-up text-center text-muted small mt-3">
-                    Tài khoản giáo viên được Admin tạo và gửi email kích hoạt. Liên hệ Admin nếu bạn chưa có tài khoản.
+                    Tài khoản do Admin tạo và cấp mật khẩu. Liên hệ Admin nếu bạn chưa có tài khoản.
                   </p>
                 </form>
               </div>

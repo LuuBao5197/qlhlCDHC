@@ -30,27 +30,40 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('password.update') }}">
-                  @csrf
-                  <input type="hidden" name="token" value="{{ old('token', $token) }}">
+                @if ($resetRequest === null)
+                    <div class="alert alert-danger">Liên kết đặt lại mật khẩu không hợp lệ.</div>
+                    <p class="text-center"><a href="{{ route('password.request') }}">Gửi yêu cầu mới</a></p>
+                @elseif ($resetRequest->isUsed())
+                    <div class="alert alert-secondary">Liên kết này đã được sử dụng.</div>
+                    <p class="text-center"><a href="{{ route('password.request') }}">Gửi yêu cầu mới</a></p>
+                @elseif ($resetRequest->isRejected())
+                    <div class="alert alert-danger">Yêu cầu đặt lại mật khẩu của bạn đã bị Admin từ chối.</div>
+                    <p class="text-center"><a href="{{ route('password.request') }}">Gửi yêu cầu mới</a></p>
+                @elseif ($resetRequest->isPending())
+                    <div class="alert alert-warning">
+                        Yêu cầu của bạn đang chờ Admin duyệt. Vui lòng lưu lại địa chỉ trang này và quay lại kiểm tra sau.
+                    </div>
+                    <p class="text-center"><a href="{{ url()->current() }}">Kiểm tra lại</a> · <a href="{{ route('login') }}">Quay lại đăng nhập</a></p>
+                @else
+                    <p class="text-muted">Yêu cầu của bạn đã được duyệt. Vui lòng đặt mật khẩu mới.</p>
+                    <form method="POST" action="{{ route('password.update') }}">
+                      @csrf
+                      <input type="hidden" name="token" value="{{ old('token', $token) }}">
 
-                  <div class="form-group">
-                    <label>Email *</label>
-                    <input type="email" name="email" value="{{ old('email', $email) }}" class="form-control p_input" required>
-                  </div>
-                  <div class="form-group">
-                    <label>Mật khẩu mới</label>
-                    <input type="password" name="password" class="form-control p_input" minlength="8" required autofocus>
-                    <small class="text-muted">Tối thiểu 8 ký tự.</small>
-                  </div>
-                  <div class="form-group">
-                    <label>Xác nhận mật khẩu</label>
-                    <input type="password" name="password_confirmation" class="form-control p_input" minlength="8" required>
-                  </div>
-                  <div class="text-center">
-                    <button type="submit" class="btn btn-primary btn-block enter-btn">Đặt lại mật khẩu</button>
-                  </div>
-                </form>
+                      <div class="form-group">
+                        <label>Mật khẩu mới</label>
+                        <input type="password" name="password" class="form-control p_input" minlength="8" required autofocus>
+                        <small class="text-muted">Tối thiểu 8 ký tự.</small>
+                      </div>
+                      <div class="form-group">
+                        <label>Xác nhận mật khẩu</label>
+                        <input type="password" name="password_confirmation" class="form-control p_input" minlength="8" required>
+                      </div>
+                      <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-block enter-btn">Đặt lại mật khẩu</button>
+                      </div>
+                    </form>
+                @endif
               </div>
             </div>
           </div>

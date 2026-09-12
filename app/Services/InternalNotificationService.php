@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Enums\InternalNotificationType;
-use App\Enums\Position;
+use App\Models\PasswordResetRequest;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\InternalNotification;
 use Illuminate\Support\Collection;
@@ -43,12 +44,33 @@ class InternalNotificationService
         $this->notifyUsers([$user], $this->makeNotification(
             InternalNotificationType::USER_REGISTRATION_APPROVED,
             'Tai khoan da duoc tao',
-            'Tai khoan ' . $user->name . ' da duoc Admin tao. Vui long kiem tra email de kich hoat.',
+            'Tai khoan ' . $user->name . ' da duoc Admin tao va cap mat khau mac dinh. Vui long doi mat khau ngay lan dang nhap dau tien.',
             route('settings'),
             'account-created:' . $user->id,
             [
                 'user_id' => $user->id,
                 'actor_id' => $actor->id,
+            ]
+        ));
+    }
+
+    /**
+     * Bao cho toan bo Admin khi co yeu cau quen mat khau moi can duyet — thay cho
+     * viec gui email vi he thong chay noi bo.
+     */
+    public function notifyPasswordResetRequested(PasswordResetRequest $resetRequest): void
+    {
+        $requester = $resetRequest->user;
+
+        $this->notifyUsers($this->roleRecipients([User::ROLE_ADMIN]), $this->makeNotification(
+            InternalNotificationType::PASSWORD_RESET_REQUESTED,
+            'Co yeu cau dat lai mat khau',
+            ($requester?->name ?? 'Mot nguoi dung') . ' (' . ($requester?->email ?? '') . ') vua gui yeu cau dat lai mat khau.',
+            route('admin.index'),
+            'password-reset-requested:' . $resetRequest->id,
+            [
+                'password_reset_request_id' => $resetRequest->id,
+                'user_id' => $resetRequest->user_id,
             ]
         ));
     }
@@ -488,14 +510,14 @@ class InternalNotificationService
     }
 
     /**
-     * @param array<int, string> $roles
+     * @param array<int, string> $roles slug trong bang `roles` (vd. Role::TRAINING_OFFICE, Role::ADMIN)
      * @return Collection<int, User>
      */
     private function roleRecipients(array $roles): Collection
     {
         return User::query()
             ->where('status', User::STATUS_APPROVED)
-            ->whereIn('role', $roles)
+            ->whereHas('roles', fn ($query) => $query->whereIn('slug', $roles))
             ->orderBy('id')
             ->get();
     }
@@ -512,7 +534,7 @@ class InternalNotificationService
         return User::query()
             ->where('status', User::STATUS_APPROVED)
             ->where('department_id', $departmentId)
-            ->where('role', User::ROLE_DEPARTMENT_STAFF)
+            ->whereHas('roles', fn ($query) => $query->where('slug', Role::DEPARTMENT_STAFF))
             ->orderBy('id')
             ->get();
     }
@@ -531,8 +553,7 @@ class InternalNotificationService
         return User::query()
             ->where('status', User::STATUS_APPROVED)
             ->where('department_id', $departmentId)
-            ->where('role', User::ROLE_DEPARTMENT_STAFF)
-            ->where('position', Position::DEPARTMENT_HEAD)
+            ->whereHas('roles', fn ($query) => $query->where('slug', Role::DEPARTMENT_HEAD))
             ->orderBy('id')
             ->get();
     }

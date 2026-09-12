@@ -12,6 +12,7 @@ class ChangePasswordHandler
 
         $user->forceFill([
             'password' => Hash::make((string) $request->validated('password')),
+            'must_change_password' => false,
         ])->save();
     }
 }

@@ -182,7 +182,8 @@
             background: #ffffff;
             border: 1px solid var(--qlhl-border, #D9E0D3);
             border-radius: var(--qlhl-radius, 0.5rem);
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
         }
 
         .table {

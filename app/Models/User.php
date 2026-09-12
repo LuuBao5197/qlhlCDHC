@@ -6,6 +6,8 @@ use App\Enums\Position;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -54,6 +56,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'must_change_password',
         'role',
         'requested_role',
         'position',
@@ -73,6 +76,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'must_change_password' => 'boolean',
         'position' => Position::class,
     ];
 
@@ -101,6 +105,40 @@ class User extends Authenticatable
         return $this->hasOne(Teacher::class);
     }
 
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+    public function passwordResetRequests(): HasMany
+    {
+        return $this->hasMany(PasswordResetRequest::class);
+    }
+
+    public function mustChangePassword(): bool
+    {
+        return (bool) $this->must_change_password;
+    }
+
+    /**
+     * Kiểm tra user có giữ role với slug này hay không (một user có thể giữ nhiều role).
+     */
+    public function hasRole(string $slug): bool
+    {
+        return $this->roles->contains('slug', $slug);
+    }
+
+    /**
+     * @param array<int, string> $slugs
+     */
+    public function hasAnyRole(array $slugs): bool
+    {
+        return $this->roles->pluck('slug')->intersect($slugs)->isNotEmpty();
+    }
+
+    /**
+     * @deprecated Chỉ còn dùng để đọc dữ liệu legacy (cột `role`); không dùng để phân quyền.
+     */
     public function isRole(string $role): bool
     {
         return $this->role === $role;
@@ -108,32 +146,42 @@ class User extends Authenticatable
 
     public function isLeadership(): bool
     {
-        return $this->isRole(self::ROLE_LEADERSHIP);
+        return $this->hasRole(Role::LEADERSHIP);
     }
 
     public function isTrainingOffice(): bool
     {
-        return $this->isRole(self::ROLE_TRAINING_OFFICE);
+        return $this->hasRole(Role::TRAINING_OFFICE);
+    }
+
+    public function isTrainingOfficeHead(): bool
+    {
+        return $this->hasRole(Role::TRAINING_OFFICE_HEAD);
     }
 
     public function isDepartmentStaff(): bool
     {
-        return $this->isRole(self::ROLE_DEPARTMENT_STAFF);
+        return $this->hasRole(Role::DEPARTMENT_STAFF);
+    }
+
+    public function isDepartmentHead(): bool
+    {
+        return $this->hasRole(Role::DEPARTMENT_HEAD);
     }
 
     public function isTeacher(): bool
     {
-        return $this->isRole(self::ROLE_TEACHER);
+        return $this->hasRole(Role::TEACHER);
     }
 
     public function isStudent(): bool
     {
-        return $this->isRole(self::ROLE_STUDENT);
+        return $this->hasRole(Role::STUDENT);
     }
 
     public function isAdmin(): bool
     {
-        return $this->isRole(self::ROLE_ADMIN);
+        return $this->hasRole(Role::ADMIN);
     }
 
     public function isStatus(string $status): bool
@@ -159,10 +207,5 @@ class User extends Authenticatable
     public function isLocked(): bool
     {
         return $this->isStatus(self::STATUS_LOCKED);
-    }
-
-    public function sendPasswordResetNotification($token): void
-    {
-        $this->notify(new \App\Notifications\PasswordResetNotification($token));
     }
 }

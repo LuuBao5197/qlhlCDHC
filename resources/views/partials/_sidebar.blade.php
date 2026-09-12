@@ -1,3 +1,8 @@
+@php
+  // Menu hiển thị theo ROLE ĐANG ACTIVE (chỉ ảnh hưởng giao diện) — không phải kiểm tra quyền
+  // thao tác thật sự (đã nằm trong Policy/FormRequest, dựa trên toàn bộ role user đang giữ).
+  $activeRoleSlug = ($activeRole ?? null)?->slug;
+@endphp
 <nav class="sidebar sidebar-offcanvas" id="sidebar">
   <div class="sidebar-brand-wrapper d-none d-lg-flex align-items-center justify-content-center fixed-top">
     <a class="sidebar-brand brand-logo" href="{{ url('/home') }}"><span class="text-white font-weight-bold">QLHL</span></a>
@@ -23,7 +28,7 @@
       </a>
     </li>
 
-    @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin() || auth()->user()->isDepartmentStaff() || auth()->user()->isLeadership()))
+    @if(in_array($activeRoleSlug, ['training_office', 'training_office_head', 'admin', 'department_staff', 'department_head', 'leadership'], true))
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('schedule.semester') }}">
           <span class="menu-icon"><i class="mdi mdi-calendar-month"></i></span>
@@ -32,7 +37,7 @@
       </li>
     @endif
 
-    @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin() || auth()->user()->isLeadership() || auth()->user()->isDepartmentStaff() || auth()->user()->isTeacher()))
+    @if(in_array($activeRoleSlug, ['training_office', 'training_office_head', 'admin', 'leadership', 'department_staff', 'department_head', 'teacher'], true))
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('reports.teaching.overview') }}">
           <span class="menu-icon"><i class="mdi mdi-chart-bar"></i></span>
@@ -41,7 +46,7 @@
       </li>
     @endif
 
-    @if(auth()->check() && auth()->user()->isTeacher())
+    @if($activeRoleSlug === 'teacher')
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('teacher-slot-evaluations.index') }}">
           <span class="menu-icon"><i class="mdi mdi-clipboard-check"></i></span>
@@ -50,7 +55,7 @@
       </li>
     @endif
 
-    @if(auth()->check() && auth()->user()->isDepartmentStaff())
+    @if(in_array($activeRoleSlug, ['department_staff', 'department_head'], true))
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('monthly-schedule.directory') }}">
           <span class="menu-icon"><i class="mdi mdi-chalkboard-teacher"></i></span>
@@ -65,7 +70,7 @@
       </li>
     @endif
 
-    @if(auth()->check() && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
+    @if(in_array($activeRoleSlug, ['training_office', 'training_office_head', 'admin'], true))
       <li class="nav-item nav-category">
         <span class="nav-link">Nghiệp vụ Phòng Đào tạo</span>
       </li>
@@ -102,7 +107,7 @@
       </li>
     @endif
 
-    @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isLeadership()))
+    @if(in_array($activeRoleSlug, ['admin', 'leadership'], true))
       <li class="nav-item nav-category">
         <span class="nav-link">Quản trị</span>
       </li>
@@ -115,7 +120,7 @@
       </li>
     @endif
 
-    @if(auth()->check() && auth()->user()->isAdmin())
+    @if($activeRoleSlug === 'admin')
       <li class="nav-item menu-items">
         <a class="nav-link" href="{{ route('admin.index') }}">
           <span class="menu-icon"><i class="mdi mdi-shield-account"></i></span>

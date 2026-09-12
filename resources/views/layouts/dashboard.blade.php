@@ -211,7 +211,8 @@
         .table-responsive {
             border: 1px solid var(--qlhl-border);
             border-radius: var(--qlhl-radius);
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
         }
 
         .table {

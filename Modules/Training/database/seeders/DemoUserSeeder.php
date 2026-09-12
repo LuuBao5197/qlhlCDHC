@@ -3,6 +3,7 @@
 namespace Modules\Training\Database\Seeders;
 
 use App\Enums\Position;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Modules\Training\Database\Seeders\Concerns\DemoSeedingGuard;
@@ -91,6 +92,8 @@ class DemoUserSeeder extends Seeder
                 'employee_code' => 'KD-0001',
                 'department_id' => $departmentDuoc?->id,
                 'phone' => '0901000006',
+                // Tài khoản mẫu minh hoạ đa role: vừa Chủ nhiệm khoa, vừa Giáo vụ khoa, vừa Giảng viên.
+                'extra_roles' => [Role::TEACHER],
             ],
             [
                 'email' => 'khoa-dieu-duong-1@demo.local',
@@ -167,6 +170,13 @@ class DemoUserSeeder extends Seeder
             if ($user->position === null && isset($userData['position'])) {
                 $user->update(['position' => $userData['position']]);
             }
+
+            $slugs = array_unique(array_merge(
+                Role::slugsForLegacy($userData['role'], $userData['position'] ?? null),
+                $userData['extra_roles'] ?? []
+            ));
+            $roleIds = Role::query()->whereIn('slug', $slugs)->pluck('id');
+            $user->roles()->syncWithoutDetaching($roleIds);
         }
     }
 }

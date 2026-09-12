@@ -2,40 +2,46 @@
 
 namespace App\Application\Auth\ResetPassword;
 
-use App\Models\User;
+use App\Models\PasswordResetRequest;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ResetPasswordHandler
 {
+    /**
+     * Đặt mật khẩu mới cho yêu cầu đã được Admin duyệt. Token chỉ dùng được một
+     * lần — đánh dấu `used_at` ngay sau khi đặt mật khẩu thành công. Người dùng
+     * tự chọn mật khẩu ở bước này nên không cần bắt đổi mật khẩu lại lần sau.
+     */
     public function handle(ResetPasswordRequest $request): void
     {
-        $credentials = $request->only('email', 'password', 'password_confirmation', 'token');
+        $resetRequest = PasswordResetRequest::query()
+            ->where('token', $request->validated('token'))
+            ->first();
 
-        $status = Password::reset($credentials, function (User $user, string $password): void {
-            $user->forceFill([
-                'password' => Hash::make($password),
-            ]);
-            $user->setRememberToken(Str::random(60));
-            $user->save();
-        });
-
-        if ($status !== Password::PASSWORD_RESET) {
+        if ($resetRequest === null) {
             throw ValidationException::withMessages([
-                'email' => [$this->friendlyMessage($status)],
+                'token' => ['Liên kết đặt lại mật khẩu không hợp lệ.'],
             ]);
         }
-    }
 
-    private function friendlyMessage(string $status): string
-    {
-        return match ($status) {
-            Password::INVALID_USER => 'Không tìm thấy tài khoản với email này.',
-            Password::INVALID_TOKEN => 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu gửi lại.',
-            Password::RESET_THROTTLED => 'Bạn vừa thực hiện thao tác này. Vui lòng thử lại sau ít phút.',
-            default => 'Không thể đặt lại mật khẩu. Vui lòng thử lại.',
-        };
+        if ($resetRequest->isUsed()) {
+            throw ValidationException::withMessages([
+                'token' => ['Liên kết này đã được sử dụng. Vui lòng gửi yêu cầu mới nếu cần đặt lại mật khẩu.'],
+            ]);
+        }
+
+        if (! $resetRequest->isApproved()) {
+            throw ValidationException::withMessages([
+                'token' => ['Yêu cầu đặt lại mật khẩu chưa được Admin duyệt.'],
+            ]);
+        }
+
+        $resetRequest->user->forceFill([
+            'password' => Hash::make((string) $request->validated('password')),
+            'must_change_password' => false,
+        ])->save();
+
+        $resetRequest->forceFill(['used_at' => now()])->save();
     }
 }
