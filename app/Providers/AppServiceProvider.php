@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Support\NotificationPresenter;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -33,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Paginator::useBootstrap();
+
         Gate::policy(TeachingSupportRequest::class, TeachingSupportRequestPolicy::class);
         Gate::policy(TeachingSupportChangeRequest::class, TeachingSupportChangeRequestPolicy::class);
         Gate::policy(DepartmentMonthlyAssignmentBatch::class, DepartmentMonthlyAssignmentBatchPolicy::class);

@@ -167,6 +167,48 @@
                 <div class="card-body">
                     <h4 class="card-title">Danh sách người dùng</h4>
 
+                    <form method="GET" action="{{ route('admin.index') }}" class="admin-users-filters row align-items-end mb-3">
+                        <div class="col-md-3 form-group mb-2">
+                            <label for="filter-q">Tìm kiếm</label>
+                            <input type="text" id="filter-q" name="q" class="form-control" placeholder="Tên hoặc email..." value="{{ $filters['q'] ?? '' }}">
+                        </div>
+                        <div class="col-md-3 form-group mb-2">
+                            <label for="filter-department">Khoa</label>
+                            <select id="filter-department" name="department_id" class="form-control">
+                                <option value="">-- Tất cả --</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}" @selected((string) ($filters['department_id'] ?? '') === (string) $department->id)>{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3 form-group mb-2">
+                            <label for="filter-role">Vai trò</label>
+                            <select id="filter-role" name="role" class="form-control">
+                                <option value="">-- Tất cả --</option>
+                                @foreach ($filterableRoles as $role)
+                                    <option value="{{ $role->slug }}" @selected(($filters['role'] ?? '') === $role->slug)>{{ $role->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 form-group mb-2">
+                            <label for="filter-status">Trạng thái</label>
+                            <select id="filter-status" name="status" class="form-control">
+                                <option value="">-- Tất cả --</option>
+                                @foreach ($userStatuses as $value => $label)
+                                    <option value="{{ $value }}" @selected(($filters['status'] ?? '') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-1 form-group mb-2 d-flex" style="gap: 6px;">
+                            <button type="submit" class="btn btn-primary w-100">Lọc</button>
+                        </div>
+                        @if (($filters['q'] ?? '') !== '' || ($filters['department_id'] ?? '') !== '' || ($filters['role'] ?? '') !== '' || ($filters['status'] ?? '') !== '')
+                            <div class="col-12">
+                                <a href="{{ route('admin.index') }}" class="small">Xoá bộ lọc</a>
+                            </div>
+                        @endif
+                    </form>
+
                     <div class="table-responsive">
                         <table class="table table-striped admin-users-table">
                             <colgroup>
@@ -258,7 +300,13 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center">Chưa có người dùng nào.</td>
+                                        <td colspan="7" class="text-center">
+                                            @if (($filters['q'] ?? '') !== '' || ($filters['department_id'] ?? '') !== '' || ($filters['role'] ?? '') !== '' || ($filters['status'] ?? '') !== '')
+                                                Không tìm thấy người dùng phù hợp với bộ lọc.
+                                            @else
+                                                Chưa có người dùng nào.
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>

@@ -54,12 +54,30 @@ class AdminController extends Controller
         });
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $filters = $request->only(['q', 'department_id', 'role', 'status']);
+
         $users = User::query()
             ->with(['department', 'roles'])
+            ->when($filters['q'] ?? null, function ($query, string $q): void {
+                $query->where(function ($query) use ($q): void {
+                    $query->where('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%");
+                });
+            })
+            ->when($filters['department_id'] ?? null, function ($query, string $departmentId): void {
+                $query->where('department_id', $departmentId);
+            })
+            ->when($filters['role'] ?? null, function ($query, string $role): void {
+                $query->whereHas('roles', fn ($query) => $query->where('slug', $role));
+            })
+            ->when($filters['status'] ?? null, function ($query, string $status): void {
+                $query->where('status', $status);
+            })
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
 
@@ -78,10 +96,20 @@ class AdminController extends Controller
             ->orderBy('requested_at')
             ->get();
 
+        $filterableRoles = Role::query()->orderBy('name')->get(['id', 'slug', 'name']);
+
         return view('admin.index', [
             'users' => $users,
+            'filters' => $filters,
             'departments' => $departments,
             'assignableRoles' => $assignableRoles,
+            'filterableRoles' => $filterableRoles,
+            'userStatuses' => [
+                User::STATUS_PENDING => 'Pending',
+                User::STATUS_APPROVED => 'Approved',
+                User::STATUS_REJECTED => 'Rejected',
+                User::STATUS_LOCKED => 'Đã khoá',
+            ],
             'impliedRoles' => self::IMPLIED_ROLES,
             'departmentScopedRoles' => self::DEPARTMENT_SCOPED_ROLES,
             'loginBackgroundUrl' => $loginBackgroundPath ? Storage::disk('public')->url($loginBackgroundPath) : null,
