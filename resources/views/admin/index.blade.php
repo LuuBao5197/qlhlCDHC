@@ -212,13 +212,13 @@
                     <div class="table-responsive">
                         <table class="table table-striped admin-users-table">
                             <colgroup>
+                                <col style="width: 11%;">
+                                <col style="width: 14%;">
+                                <col style="width: 9%;">
+                                <col style="width: 25%;">
                                 <col style="width: 13%;">
-                                <col style="width: 16%;">
-                                <col style="width: 10%;">
-                                <col style="width: 33%;">
-                                <col style="width: 8%;">
-                                <col style="width: 8%;">
-                                <col style="width: 12%;">
+                                <col style="width: 17%;">
+                                <col style="width: 11%;">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -322,12 +322,39 @@
         /* Bảng danh sách người dùng: cột co giãn cố định + nội dung chia hàng thay vì tràn ngang */
         .admin-users-table {
             table-layout: fixed;
+            border-collapse: collapse;
         }
 
         .admin-users-table td,
         .admin-users-table th {
+            white-space: normal !important;
             word-wrap: break-word;
+            overflow-wrap: anywhere !important;
+            border-right: 1px solid var(--qlhl-border, #dee2e6);
+        }
+
+        .admin-users-table td:last-child,
+        .admin-users-table th:last-child {
+            border-right: none;
+        }
+
+        /* .badge mặc định white-space: nowrap khiến badge tràn ra khỏi ô hẹp (Status, Mật khẩu)
+           và đè lên nút Khoá/Mở khoá bên cạnh — ép xuống dòng + giới hạn trong bề rộng cột.
+           Dùng !important vì style.css định nghĩa .badge nhiều nơi (kể cả nowrap) với
+           specificity ngang nhau, thứ tự nạp có thể thắng override thường. */
+        .admin-users-table td .badge {
+            display: inline-block;
+            max-width: 100%;
+            white-space: normal !important;
             overflow-wrap: break-word;
+            word-break: break-word;
+            text-align: left;
+            padding: 0.25em 0.45em;
+            line-height: 1.3;
+        }
+
+        .admin-users-table .btn {
+            white-space: normal;
         }
 
         .admin-users-table .user-roles-grid {
