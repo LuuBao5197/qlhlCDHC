@@ -871,6 +871,7 @@
                 q: '',
                 filters: {},
                 editingId: null,
+                multi: {},
                 lookups: {
                     departments: [],
                     trainingClasses: [],

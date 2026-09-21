@@ -319,6 +319,92 @@
                 }));
             }
 
+            const MS_PAGE_SIZE = 10;
+
+            function multiSelectOptions(field) {
+                return selectOptionsFor(field).sort((x, y) =>
+                    String(x.label).localeCompare(String(y.label), 'vi', { numeric: true, sensitivity: 'base' }));
+            }
+
+            function refreshMultiSummary(field) {
+                const selected = state.multi[field.key] || new Set();
+                const labels = multiSelectOptions(field).filter((o) => selected.has(String(o.value)));
+                const countEl = formFieldsEl.querySelector(`[data-ms-count="${field.key}"]`);
+                const sumEl = formFieldsEl.querySelector(`[data-ms-summary="${field.key}"]`);
+                if (countEl) countEl.textContent = `Đã chọn ${selected.size}`;
+                if (sumEl) sumEl.innerHTML = labels.map((o) =>
+                    `<span class="badge badge-info mr-1 mb-1">${escapeHtml(o.label)}</span>`).join('');
+            }
+
+            function openMultiSelectModal(field) {
+                const selected = state.multi[field.key];
+                const options = multiSelectOptions(field);
+                let keyword = '';
+                let page = 1;
+
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;';
+                overlay.innerHTML = `
+                    <div class="bg-white rounded shadow" style="width:min(640px,95vw);max-height:90vh;display:flex;flex-direction:column;">
+                        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <strong>${escapeHtml(field.label)}</strong>
+                            <button type="button" class="close" data-ms-close>&times;</button>
+                        </div>
+                        <div class="p-3 border-bottom">
+                            <input type="text" class="form-control" placeholder="Tìm theo mã hoặc tên môn học..." data-ms-search>
+                        </div>
+                        <div class="p-3" style="overflow-y:auto;flex:1;" data-ms-list></div>
+                        <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                            <div data-ms-pager></div>
+                            <div><span class="text-muted mr-2" data-ms-total></span><button type="button" class="btn btn-primary btn-sm" data-ms-close>Xong</button></div>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlay);
+
+                const listEl = overlay.querySelector('[data-ms-list]');
+                const pagerEl = overlay.querySelector('[data-ms-pager]');
+                const totalEl = overlay.querySelector('[data-ms-total]');
+
+                function render() {
+                    const kw = keyword.trim().toLowerCase();
+                    const filtered = options.filter((o) => !kw || String(o.label).toLowerCase().includes(kw));
+                    const pages = Math.max(1, Math.ceil(filtered.length / MS_PAGE_SIZE));
+                    page = Math.min(page, pages);
+                    const slice = filtered.slice((page - 1) * MS_PAGE_SIZE, page * MS_PAGE_SIZE);
+                    listEl.innerHTML = slice.length === 0 ? '<span class="text-muted">Không có dữ liệu</span>' : slice.map((o) => `
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="msm-${escapeHtml(o.value)}" value="${escapeHtml(o.value)}" ${selected.has(String(o.value)) ? 'checked' : ''}>
+                            <label class="form-check-label" for="msm-${escapeHtml(o.value)}">${escapeHtml(o.label)}</label>
+                        </div>`).join('');
+                    pagerEl.innerHTML = `
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-ms-prev ${page <= 1 ? 'disabled' : ''}>&laquo;</button>
+                        <span class="mx-2">Trang ${page}/${pages}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-ms-next ${page >= pages ? 'disabled' : ''}>&raquo;</button>`;
+                    totalEl.textContent = `Đã chọn ${selected.size}`;
+                    pagerEl.querySelector('[data-ms-prev]').onclick = () => { page--; render(); };
+                    pagerEl.querySelector('[data-ms-next]').onclick = () => { page++; render(); };
+                }
+
+                listEl.addEventListener('change', (e) => {
+                    const cb = e.target.closest('input[type="checkbox"]');
+                    if (!cb) return;
+                    cb.checked ? selected.add(cb.value) : selected.delete(cb.value);
+                    totalEl.textContent = `Đã chọn ${selected.size}`;
+                });
+                overlay.querySelector('[data-ms-search]').addEventListener('input', (e) => {
+                    keyword = e.target.value;
+                    page = 1;
+                    render();
+                });
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay || e.target.closest('[data-ms-close]')) {
+                        overlay.remove();
+                        refreshMultiSummary(field);
+                    }
+                });
+                render();
+            }
+
             function fieldHintHtml(field) {
                 return field.hint ? `<small class="form-text text-muted">${escapeHtml(field.hint)}</small>` : '';
             }
@@ -452,22 +538,16 @@
                         }
 
                         if (field.type === 'multiselect') {
-                            const options = selectOptionsFor(field);
                             const selectedIds = Array.isArray(value) ? value.map(String) : [];
+                            state.multi[field.key] = new Set(selectedIds);
                             return `
                                 <div class="col-12">
                                     <div class="form-group">
                                         <label>${escapeHtml(field.label)}${requiredBadge}</label>
-                                        <div class="border rounded p-2" style="max-height:220px; overflow-y:auto;" data-multiselect="${escapeHtml(field.key)}">
-                                            ${options.length === 0 ? '<span class="text-muted">Không có dữ liệu</span>' : options.map((option) => {
-                                                const checked = selectedIds.includes(String(option.value)) ? 'checked' : '';
-                                                return `
-                                                    <div class="form-check">
-                                                        <input type="checkbox" class="form-check-input" id="ms-${escapeHtml(field.key)}-${escapeHtml(option.value)}" value="${escapeHtml(option.value)}" ${checked}>
-                                                        <label class="form-check-label" for="ms-${escapeHtml(field.key)}-${escapeHtml(option.value)}">${escapeHtml(option.label)}</label>
-                                                    </div>
-                                                `;
-                                            }).join('')}
+                                        <div class="border rounded p-2" data-multiselect="${escapeHtml(field.key)}">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-ms-open="${escapeHtml(field.key)}">Chọn môn học</button>
+                                            <span class="ml-2 text-muted" data-ms-count="${escapeHtml(field.key)}"></span>
+                                            <div class="mt-2" data-ms-summary="${escapeHtml(field.key)}"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -515,6 +595,14 @@
                         `;
                     })
                     .join('');
+
+                resource.fields
+                    .filter((field) => field.type === 'multiselect')
+                    .forEach((field) => {
+                        refreshMultiSummary(field);
+                        formFieldsEl.querySelector(`[data-ms-open="${field.key}"]`)
+                            ?.addEventListener('click', () => openMultiSelectModal(field));
+                    });
 
                 editorSectionEl.style.display = 'block';
                 editorSectionEl.scrollIntoView({
@@ -590,8 +678,7 @@
 
                 for (const field of resource.fields) {
                     if (field.type === 'multiselect') {
-                        const checked = formFieldsEl.querySelectorAll(`[data-multiselect="${field.key}"] input[type="checkbox"]:checked`);
-                        formData[field.key] = Array.from(checked).map((el) => Number(el.value));
+                        formData[field.key] = Array.from(state.multi[field.key] || []).map(Number);
                         continue;
                     }
 
