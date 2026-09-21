@@ -9,6 +9,7 @@ use Modules\Schedule\Application\AssignMonthlySchedule\MonthlyAssignmentScopeRes
 use Modules\Schedule\Models\MonthlySchedule;
 use Modules\Schedule\Models\ScheduleSlot;
 use Modules\Schedule\Models\TeachingSupportRequest;
+use Modules\Training\Models\SubjectLesson;
 
 class CreateChangeRequestRequest extends FormRequest
 {
@@ -171,7 +172,7 @@ class CreateChangeRequestRequest extends FormRequest
                 ->values();
 
             $slotsQuery = ScheduleSlot::query()
-                ->with(['subjectModel.department', 'scheduleSlotGroup'])
+                ->with(['subjectModel.department', 'scheduleSlotGroup', 'trainingClass.trainingBatch'])
                 ->where('slot_type', 'subject')
                 ->where('assignment_source', 'internal')
                 ->whereDoesntHave('teachingSupportRequestItems', function ($query): void {
@@ -305,6 +306,21 @@ class CreateChangeRequestRequest extends FormRequest
                         $validator->errors()->add(
                             "selected_slots.{$index}.new_payload.subject_lesson_id",
                             'Tiet tu nghien cuu khong duoc chon bai hoc.'
+                        );
+                    }
+                }
+
+                $newLessonId = array_key_exists('subject_lesson_id', $payload)
+                    ? $normalizeNullableNumber($payload['subject_lesson_id'])
+                    : null;
+                if ($slot && $newLessonId !== null && $newLessonId !== (int) $slot->subject_lesson_id) {
+                    $classProgramId = $slot->trainingClass?->trainingBatch?->training_program_id;
+                    $lessonProgramId = SubjectLesson::query()->whereKey($newLessonId)->value('training_program_id');
+
+                    if ($classProgramId !== null && $lessonProgramId !== null && (int) $classProgramId !== (int) $lessonProgramId) {
+                        $validator->errors()->add(
+                            "selected_slots.{$index}.new_payload.subject_lesson_id",
+                            'Bai hoc khong thuoc chuong trinh hoc cua lop.'
                         );
                     }
                 }

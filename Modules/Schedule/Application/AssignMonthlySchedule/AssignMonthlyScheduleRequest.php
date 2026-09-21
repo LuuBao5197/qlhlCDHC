@@ -128,7 +128,7 @@ class AssignMonthlyScheduleRequest extends FormRequest
                     'monthlySchedule.plan',
                     'monthlySchedule.trainingClass.department',
                     'scheduleSlotGroup',
-                    'trainingClass',
+                    'trainingClass.trainingBatch',
                     'teacher',
                     'subjectModel.department',
                     'subjectLesson',
@@ -284,6 +284,22 @@ class AssignMonthlyScheduleRequest extends FormRequest
                         "changes.{$index}.subject_lesson_id",
                         'Tiet tu nghien cuu khong duoc chon bai hoc.'
                     );
+                }
+
+                if (
+                    ! $this->isSpecialAssignmentType($assignmentType)
+                    && $subjectLessonId !== null
+                    && (int) $subjectLessonId !== (int) $scheduleSlot->subject_lesson_id
+                ) {
+                    $classProgramId = $scheduleSlot->trainingClass?->trainingBatch?->training_program_id;
+                    $lessonProgramId = SubjectLesson::query()->whereKey($subjectLessonId)->value('training_program_id');
+
+                    if ($classProgramId !== null && $lessonProgramId !== null && (int) $classProgramId !== (int) $lessonProgramId) {
+                        $validator->errors()->add(
+                            "changes.{$index}.subject_lesson_id",
+                            'Bai hoc khong thuoc chuong trinh hoc cua lop.'
+                        );
+                    }
                 }
 
                 if ($this->isSpecialAssignmentType($assignmentType) && $lessonType !== null) {

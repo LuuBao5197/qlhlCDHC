@@ -805,10 +805,15 @@
                                                                             $selectedLesson =
                                                                                 $oldSlot['subject_lesson_id'] ??
                                                                                 $slot->subject_lesson_id;
-                                                                            $lessonOptions = $subjectLessons->where(
-                                                                                'subject_id',
-                                                                                $selectedSubjectId,
-                                                                            );
+                                                                            $slotProgramId = $slot->trainingClass?->trainingBatch?->training_program_id;
+                                                                            $lessonOptions = $subjectLessons
+                                                                                ->where('subject_id', $selectedSubjectId)
+                                                                                ->filter(
+                                                                                    fn($lesson) => $slotProgramId === null
+                                                                                        || $lesson->training_program_id === null
+                                                                                        || (int) $lesson->training_program_id === (int) $slotProgramId
+                                                                                        || (int) $lesson->id === (int) $selectedLesson,
+                                                                                );
                                                                         @endphp
                                                                         @if ($isEvent)
                                                                             <span class="text-muted small">-</span>

@@ -91,6 +91,7 @@
                     'teacher_label' => $teacherLabel,
                     'subject_lesson_id' => $slot->subject_lesson_id,
                     'subject_id' => $slot->subject_id,
+                    'training_program_id' => $slot->trainingClass?->trainingBatch?->training_program_id,
                     'subject' => $slot->subject ?? $slot->subjectModel?->name,
                     'content' => $slot->content,
                     'room_id' => $slot->room_id,
@@ -124,6 +125,7 @@
         return [
             'id' => $lesson->id,
             'subject_id' => $lesson->subject_id,
+            'training_program_id' => $lesson->training_program_id,
             'lesson_no' => $lesson->lesson_no,
             'title' => $lesson->title,
             'subject_code' => $lesson->subject?->code,
@@ -538,12 +540,20 @@
                 return `ID ${normalizedId}`;
             };
 
-            const buildLessonOptionsHtml = (currentLessonId, slotSubjectId) => {
+            const buildLessonOptionsHtml = (currentLessonId, slotSubjectId, slotProgramId) => {
                 const currentId = normalizeNullableNumber(currentLessonId);
                 const subjectId = normalizeNullableNumber(slotSubjectId);
-                const filtered = (subjectLessons || []).filter(
-                    (lesson) => !subjectId || Number(lesson.subject_id) === subjectId
-                );
+                const programId = normalizeNullableNumber(slotProgramId);
+                const filtered = (subjectLessons || []).filter((lesson) => {
+                    if (subjectId && Number(lesson.subject_id) !== subjectId) {
+                        return false;
+                    }
+                    const lessonProgramId = normalizeNullableNumber(lesson.training_program_id);
+                    return programId === null
+                        || lessonProgramId === null
+                        || lessonProgramId === programId
+                        || Number(lesson.id) === currentId;
+                });
                 return ['<option value="">-- Xoa bai hoc --</option>']
                     .concat(filtered.map((lesson) => {
                         const subjectLabel = [lesson.subject_code, lesson.subject_name]
@@ -1064,7 +1074,7 @@
                             </td>
                             <td>
                                 <select class="form-control form-control-sm edit-subject-lesson-id">
-                                    ${buildLessonOptionsHtml(slot.subject_lesson_id, slot.subject_id)}
+                                    ${buildLessonOptionsHtml(slot.subject_lesson_id, slot.subject_id, slot.training_program_id)}
                                 </select>
                             </td>
                             <td>

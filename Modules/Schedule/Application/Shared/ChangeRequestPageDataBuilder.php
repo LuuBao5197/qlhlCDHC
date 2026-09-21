@@ -30,7 +30,7 @@ class ChangeRequestPageDataBuilder
                 'createdBy',
                 'scheduleSlots' => static function ($query): void {
                     $query
-                        ->with(['trainingClass', 'room', 'subjectModel.department', 'teacher', 'subjectLesson', 'scheduleSlotGroup', 'teachingSupportRequestItems.request'])
+                        ->with(['trainingClass.trainingBatch', 'room', 'subjectModel.department', 'teacher', 'subjectLesson', 'scheduleSlotGroup', 'teachingSupportRequestItems.request'])
                         ->where('slot_type', 'subject')
                         ->orderBy('date')
                         ->orderBy('period_number');
@@ -69,7 +69,7 @@ class ChangeRequestPageDataBuilder
             ->with(['subject:id,code,name'])
             ->orderBy('subject_id')
             ->orderBy('lesson_no')
-            ->get(['id', 'subject_id', 'lesson_no', 'title']);
+            ->get(['id', 'subject_id', 'training_program_id', 'lesson_no', 'title']);
 
         $holidayCalendars = Schema::hasTable('holiday_calendars')
             ? HolidayCalendar::query()
