@@ -266,6 +266,25 @@
                 `;
             }
 
+            async function fetchAllPages(endpoint) {
+                const perPage = 100; // server-side hard cap, see CrudHandler::index()
+                let page = 1;
+                let lastPage = 1;
+                const items = [];
+
+                do {
+                    const payload = await request(buildUrl(endpoint, {
+                        per_page: perPage,
+                        page
+                    }));
+                    items.push(...(payload?.data || []));
+                    lastPage = payload?.last_page || payload?.meta?.last_page || 1;
+                    page++;
+                } while (page <= lastPage);
+
+                return items;
+            }
+
             async function loadLookups() {
                 const lookupEntries = [
                     ['trainingPrograms', resources.trainingPrograms.endpoint],
@@ -278,10 +297,7 @@
 
                 for (const [key, endpoint] of lookupEntries) {
                     try {
-                        const payload = await request(buildUrl(endpoint, {
-                            per_page: 200
-                        }));
-                        state.lookups[key] = payload?.data || [];
+                        state.lookups[key] = await fetchAllPages(endpoint);
                     } catch {
                         state.lookups[key] = [];
                     }
