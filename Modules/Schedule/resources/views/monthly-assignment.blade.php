@@ -1809,6 +1809,8 @@
             var supportTeacherSelects = Array.prototype.slice.call(document.querySelectorAll('.support-teacher-select'));
             var supportAssignmentRows = Array.prototype.slice.call(document.querySelectorAll('tr[data-support-item-id]'));
             var supportTeacherAvailabilityMap = @json($supportTeacherAvailabilityMap);
+            var subjectLessonExpectedPeriods = @json($subjectLessons->pluck('expected_periods', 'id'));
+            var lessonPeriodUsageByClass = @json($lessonPeriodUsageByClass);
             var specialTeacherOptionValues = {
                 '__assignment:self_study__': 'self_study'
             };
@@ -3013,6 +3015,93 @@
                 });
             }
 
+            // So tiet cua bai hoc (theo lop) da co san trong DB truoc khi mo trang nay
+            // (rieng cho cac dong DANG hien thi tren trang), dung de tach phan
+            // "da dung o noi khac ngoai trang nay" (vi du: thang khac) khoi tong
+            // so lieu server tra ve, tranh dem trung khi tinh live.
+            var lessonBaselineDom = (function() {
+                var baseline = {};
+                allRows.forEach(function(row) {
+                    var sel = getSubjectLessonSelect(row);
+                    if (!sel) {
+                        return;
+                    }
+
+                    var classId = row.getAttribute('data-class-id') || '';
+                    var initialValue = sel.getAttribute('data-initial-value') || '';
+                    if (!classId || !initialValue) {
+                        return;
+                    }
+
+                    baseline[classId] = baseline[classId] || {};
+                    baseline[classId][initialValue] = (baseline[classId][initialValue] || 0) + 1;
+                });
+                return baseline;
+            })();
+
+            function buildLiveLessonUsageMap() {
+                var map = {};
+                allRows.forEach(function(row) {
+                    var sel = getSubjectLessonSelect(row);
+                    if (!sel || !sel.value) {
+                        return;
+                    }
+
+                    var classId = row.getAttribute('data-class-id') || '';
+                    if (!classId) {
+                        return;
+                    }
+
+                    map[classId] = map[classId] || {};
+                    map[classId][sel.value] = (map[classId][sel.value] || 0) + 1;
+                });
+                return map;
+            }
+
+            // Cap nhat ngay tren giao dien (chua can luu) danh sach bai hoc con
+            // duoc phep chon: an di bai hoc da du so tiet (expected_periods) theo
+            // tung lop, tinh ca cac luot vua chon nhung chua bam Save.
+            function refreshSubjectLessonOptions() {
+                var liveUsage = buildLiveLessonUsageMap();
+
+                allRows.forEach(function(row) {
+                    var sel = getSubjectLessonSelect(row);
+                    if (!sel) {
+                        return;
+                    }
+
+                    var classId = row.getAttribute('data-class-id') || '';
+                    var currentValue = sel.value ? String(sel.value) : '';
+
+                    Array.prototype.slice.call(sel.options).forEach(function(opt) {
+                        if (!opt.value || String(opt.value) === currentValue) {
+                            opt.disabled = false;
+                            opt.hidden = false;
+                            return;
+                        }
+
+                        var expectedPeriods = subjectLessonExpectedPeriods[opt.value];
+                        if (!expectedPeriods || Number(expectedPeriods) <= 0) {
+                            opt.disabled = false;
+                            opt.hidden = false;
+                            return;
+                        }
+
+                        var savedUsed = (lessonPeriodUsageByClass[classId] &&
+                            lessonPeriodUsageByClass[classId][opt.value]) || 0;
+                        var baselineOnPage = (lessonBaselineDom[classId] &&
+                            lessonBaselineDom[classId][opt.value]) || 0;
+                        var usedOutsidePage = Math.max(0, savedUsed - baselineOnPage);
+                        var usedOnPage = (liveUsage[classId] && liveUsage[classId][opt.value]) || 0;
+                        var totalUsed = usedOutsidePage + usedOnPage;
+
+                        var full = totalUsed >= Number(expectedPeriods);
+                        opt.disabled = full;
+                        opt.hidden = full;
+                    });
+                });
+            }
+
             function syncFilterViewState() {
                 allRows.forEach(function(row) {
                     if (row.style.display !== 'none') {
@@ -3022,6 +3111,7 @@
 
                 refreshTeacherOptions();
                 refreshRoomOptions();
+                refreshSubjectLessonOptions();
             }
 
             function normalizeFilterValue(value) {
@@ -3165,6 +3255,7 @@
                         syncRowDirtyState(lessonRow);
                         syncRowsDirtyState(getActiveMergeGroupRows(lessonRow));
                     }
+                    refreshSubjectLessonOptions();
                 }
 
                 if (e.target.matches('[data-field="lesson_type"]')) {
