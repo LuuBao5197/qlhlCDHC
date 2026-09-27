@@ -806,6 +806,8 @@
                                                                                 $oldSlot['subject_lesson_id'] ??
                                                                                 $slot->subject_lesson_id;
                                                                             $slotProgramId = $slot->trainingClass?->trainingBatch?->training_program_id;
+                                                                            $slotClassId = $slot->class_id;
+                                                                            $lessonUsageForClass = $lessonPeriodUsageByClass[$slotClassId] ?? [];
                                                                             $lessonOptions = $subjectLessons
                                                                                 ->where('subject_id', $selectedSubjectId)
                                                                                 ->filter(
@@ -813,7 +815,24 @@
                                                                                         || $lesson->training_program_id === null
                                                                                         || (int) $lesson->training_program_id === (int) $slotProgramId
                                                                                         || (int) $lesson->id === (int) $selectedLesson,
-                                                                                );
+                                                                                )
+                                                                                ->filter(function ($lesson) use (
+                                                                                    $lessonUsageForClass,
+                                                                                    $selectedLesson,
+                                                                                ) {
+                                                                                    if ((int) $lesson->id === (int) $selectedLesson) {
+                                                                                        return true;
+                                                                                    }
+
+                                                                                    $expectedPeriods = $lesson->expected_periods;
+                                                                                    if ($expectedPeriods === null || (int) $expectedPeriods <= 0) {
+                                                                                        return true;
+                                                                                    }
+
+                                                                                    $usedPeriods = (int) ($lessonUsageForClass[$lesson->id] ?? 0);
+
+                                                                                    return $usedPeriods < (int) $expectedPeriods;
+                                                                                });
                                                                         @endphp
                                                                         @if ($isEvent)
                                                                             <span class="text-muted small">-</span>

@@ -123,6 +123,8 @@ class AssignMonthlyScheduleController extends Controller
             ->orderBy('lesson_no')
             ->get();
 
+        $lessonPeriodUsageByClass = $this->buildLessonPeriodUsageByClass($aggregateSubjectSlots, $subjectLessons);
+
         $rooms = Room::query()->orderBy('code')->get();
         $supportDepartments = Department::query()
             ->where('id', '!=', (int) $departmentId)
@@ -140,6 +142,7 @@ class AssignMonthlyScheduleController extends Controller
             'teachers' => $teachers,
             'subjects' => $subjects,
             'subjectLessons' => $subjectLessons,
+            'lessonPeriodUsageByClass' => $lessonPeriodUsageByClass,
             'rooms' => $rooms,
             'supportDepartments' => $supportDepartments,
             'supportSlotMeta' => $supportMeta['slot_meta'] ?? [],
@@ -161,5 +164,50 @@ class AssignMonthlyScheduleController extends Controller
     public function __invoke(AssignMonthlyScheduleRequest $request, int $id)
     {
         return $this->handler->handle($request, $id);
+    }
+
+    /**
+     * Dem so tiet da xep (khong tinh slot da huy) cho tung cap (class_id, subject_lesson_id),
+     * tinh tren toan bo lich su cua lop (khong gioi han theo thang/lich thang dang xem),
+     * de biet bai hoc nao da du so tiet (expected_periods) theo tung lop.
+     *
+     * @return array<int, array<int, int>> [class_id => [subject_lesson_id => used_periods]]
+     */
+    private function buildLessonPeriodUsageByClass($aggregateSubjectSlots, $subjectLessons): array
+    {
+        $classIds = $aggregateSubjectSlots
+            ->pluck('class_id')
+            ->filter(fn ($classId) => is_numeric($classId))
+            ->map(fn ($classId) => (int) $classId)
+            ->unique()
+            ->values();
+
+        $lessonIds = $subjectLessons
+            ->pluck('id')
+            ->map(fn ($lessonId) => (int) $lessonId)
+            ->unique()
+            ->values();
+
+        if ($classIds->isEmpty() || $lessonIds->isEmpty()) {
+            return [];
+        }
+
+        $usageRows = ScheduleSlot::query()
+            ->selectRaw('class_id, subject_lesson_id, COUNT(*) as used_periods')
+            ->where('slot_type', 'subject')
+            ->where('slot_status', '!=', 'cancelled')
+            ->whereIn('class_id', $classIds)
+            ->whereIn('subject_lesson_id', $lessonIds)
+            ->groupBy('class_id', 'subject_lesson_id')
+            ->get();
+
+        $usageByClass = [];
+        foreach ($usageRows as $row) {
+            $classId = (int) $row->class_id;
+            $lessonId = (int) $row->subject_lesson_id;
+            $usageByClass[$classId][$lessonId] = (int) $row->used_periods;
+        }
+
+        return $usageByClass;
     }
 }
