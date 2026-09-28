@@ -70,6 +70,16 @@ class ScheduleSlot extends Model
         return $this->belongsTo(ScheduleSlotGroup::class, 'schedule_slot_group_id');
     }
 
+    public function scheduleSlotSubgroups(): HasMany
+    {
+        return $this->hasMany(ScheduleSlotSubgroup::class, 'schedule_slot_id');
+    }
+
+    public function hasSubgroups(): bool
+    {
+        return $this->scheduleSlotSubgroups()->exists();
+    }
+
     public function trainingClass(): BelongsTo
     {
         return $this->belongsTo(TrainingClass::class, 'class_id');

@@ -289,11 +289,20 @@
                     @foreach ($slots as $slot)
                         @php
                             $log = $logs->get($slot->id);
-                            $slotEvaluation = $slotEvaluations->get($slot->id);
+                            $evaluationList = $slotEvaluations->get($slot->id) ?? collect();
+                            $slotEvaluation = $evaluationList->first();
                             $statusValue = $log?->result_status ?? 'completed';
                             $attendanceCount = $slotEvaluation?->attendance_count ?? $log?->attendance_count ?? 0;
                             $absentCount = $slotEvaluation?->absent_count ?? $log?->absent_count ?? 0;
-                            $remarks = $slotEvaluation?->comment ?? $log?->remarks;
+                            $remarks = $evaluationList->isNotEmpty()
+                                ? $evaluationList
+                                    ->map(fn($evaluation) => trim(
+                                        ($evaluation->scheduleSlotSubgroup?->group_label ? $evaluation->scheduleSlotSubgroup->group_label . ': ' : '')
+                                        . ($evaluation->comment ?? '')
+                                    ))
+                                    ->filter(fn($text) => $text !== '')
+                                    ->implode(' | ')
+                                : $log?->remarks;
                         @endphp
                         <tr>
                             <td class="center readonly-cell">{{ $slot->trainingClass?->code ?? '—' }}</td>
@@ -314,9 +323,18 @@
                                 @endif
                             </td>
                             <td class="readonly-cell">
-                                {{ $slot->teacher?->name ?? '—' }}
-                                @if ($slot->teacher?->employee_code)
-                                    <br><small style="color: #888;">{{ $slot->teacher->employee_code }}</small>
+                                @if ($slot->scheduleSlotSubgroups->isNotEmpty())
+                                    @foreach ($slot->scheduleSlotSubgroups as $subgroup)
+                                        <div>
+                                            <strong>{{ $subgroup->group_label }}:</strong>
+                                            {{ $subgroup->teacher?->name ?? '—' }}
+                                        </div>
+                                    @endforeach
+                                @else
+                                    {{ $slot->teacher?->name ?? '—' }}
+                                    @if ($slot->teacher?->employee_code)
+                                        <br><small style="color: #888;">{{ $slot->teacher->employee_code }}</small>
+                                    @endif
                                 @endif
                             </td>
                             <td>{{ $statusLabels[$statusValue] ?? 'Đã thực hiện' }}</td>

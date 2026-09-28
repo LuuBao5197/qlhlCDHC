@@ -32,7 +32,7 @@ class GetTeacherDailyLogHandler
 
         // Fetch ALL schedule slots happening on the given date (all classes, all teachers)
         // ordered by class then period for easy reading
-        $slots = ScheduleSlot::with(['trainingClass', 'room', 'subjectModel', 'subjectLesson', 'teacher'])
+        $slots = ScheduleSlot::with(['trainingClass', 'room', 'subjectModel', 'subjectLesson', 'teacher', 'scheduleSlotSubgroups.teacher'])
             ->whereDate('date', $date)
             ->orderBy('class_id')
             ->orderBy('period_number')
@@ -44,12 +44,15 @@ class GetTeacherDailyLogHandler
             ->get()
             ->keyBy('schedule_slot_id');
 
-        // Prefer teacher slot evaluations for QS/V/Nhan xet in section 1
+        // Prefer teacher slot evaluations for QS/V/Nhan xet in section 1.
+        // A slot chia to co the co nhieu danh gia (1 moi to), nen gom theo
+        // schedule_slot_id thay vi keyBy de tranh mat du lieu cua cac to khac.
         $slotEvaluations = SlotEvaluation::query()
+            ->with('scheduleSlotSubgroup')
             ->whereIn('schedule_slot_id', $slotIds)
             ->orderByDesc('updated_at')
             ->get()
-            ->keyBy('schedule_slot_id');
+            ->groupBy('schedule_slot_id');
 
         // Fetch the shared training-office summary for this date.
         $dailySummary = TeacherDailySummary::where('log_date', $date)

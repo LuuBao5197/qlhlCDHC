@@ -40,11 +40,22 @@ class GetTeacherSlotEvaluationHandler
 
         if ($teacher !== null) {
             $slots = ScheduleSlot::query()
-                ->with(['trainingClass', 'room', 'subjectModel', 'subjectLesson'])
-                ->where('teacher_id', $teacher->id)
+                ->with(['trainingClass', 'room', 'subjectModel', 'subjectLesson', 'scheduleSlotSubgroups'])
+                ->where(function ($query) use ($teacher): void {
+                    $query->where('teacher_id', $teacher->id)
+                        ->orWhereHas(
+                            'scheduleSlotSubgroups',
+                            fn ($subgroupQuery) => $subgroupQuery->where('teacher_id', $teacher->id)
+                        );
+                })
                 ->whereDate('date', $date)
                 ->orderBy('period_number')
-                ->get();
+                ->get()
+                ->each(function (ScheduleSlot $slot) use ($teacher): void {
+                    $subgroup = $slot->scheduleSlotSubgroups->firstWhere('teacher_id', $teacher->id);
+                    $slot->setAttribute('teacher_subgroup_id', $subgroup?->id);
+                    $slot->setAttribute('teacher_subgroup_label', $subgroup?->group_label);
+                });
 
             $evaluations = SlotEvaluation::query()
                 ->where('evaluator_id', $user?->id)

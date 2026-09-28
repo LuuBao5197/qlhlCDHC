@@ -258,7 +258,12 @@
                             @endphp
                             <tr>
                                 <td style="text-align:center;">{{ $periodLabels[$slot->period_number] ?? ('Tiết ' . $slot->period_number) }}</td>
-                                <td style="text-align:center;">{{ $slot->trainingClass?->code ?? '—' }}</td>
+                                <td style="text-align:center;">
+                                    {{ $slot->trainingClass?->code ?? '—' }}
+                                    @if ($slot->teacher_subgroup_label ?? null)
+                                        <br><span class="badge" style="background:#cfe2ff; color:#084298;">{{ $slot->teacher_subgroup_label }}</span>
+                                    @endif
+                                </td>
                                 <td>
                                     @if ($slot->subjectModel)
                                         <strong>{{ $slot->subjectModel->code }}</strong>

@@ -620,6 +620,14 @@
                                                                     $mergeGroupLabel = $isMerged
                                                                         ? 'Tiết ghép' . ($mergeGroupCount > 1 ? ' - ' . $mergeGroupCount . ' lớp' : '')
                                                                         : '';
+                                                                    $subgroups = $slot->scheduleSlotSubgroups ?? collect();
+                                                                    $isSplit = !$isEvent && $subgroups->isNotEmpty();
+                                                                    $canSplitSlot =
+                                                                        !$isEvent &&
+                                                                        !$isRowLocked &&
+                                                                        !$isMerged &&
+                                                                        $assignmentType !== \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY &&
+                                                                        ($slot->lesson_type ?? null) === \Modules\Schedule\Models\ScheduleSlot::LESSON_TYPE_PRACTICE;
                                                                     $hasClearSubjectLesson =
                                                                         !$isEvent &&
                                                                         $slot->subject_lesson_id !== null &&
@@ -631,7 +639,7 @@
                                                                     $isSpecialAssignment =
                                                                         $assignmentType === \Modules\Schedule\Models\ScheduleSlot::ASSIGNMENT_TYPE_SELF_STUDY;
                                                                     $lessonTypeDisabled =
-                                                                        $isEvent || $isSpecialAssignment || $isRegularTestLesson;
+                                                                        $isEvent || $isSpecialAssignment || $isRegularTestLesson || $isSplit;
                                                                     $selectedLessonType =
                                                                         $oldSlot['lesson_type'] ?? $slot->lesson_type ?? 'theory';
                                                                 @endphp
@@ -642,6 +650,7 @@
                                                                     data-source-cohort-id="{{ $slot->monthlySchedule?->plan?->training_batch_id ?? '' }}"
                                                                     data-merge-group-id="{{ $mergeGroupId ?? '' }}"
                                                                     data-merge-group-status="{{ $mergeGroupStatus }}"
+                                                                    data-has-subgroups="{{ $isSplit ? '1' : '0' }}"
                                                                     data-assignment-type="{{ $slot->assignment_type ?? '' }}"
                                                                     data-support-requestable="{{ $hasClearSubjectLesson ? '1' : '0' }}"
                                                                     data-class="{{ $slot->trainingClass?->code ?? '' }}"
@@ -693,6 +702,28 @@
                                                                                 {{ $mergeGroupLabel }}
                                                                             </span>
                                                                         @endif
+                                                                        @if ($isSplit && !$supportLocked)
+                                                                            <span class="badge badge-info split-subgroup-pill ml-1"
+                                                                                style="font-size: 10px; vertical-align: baseline;">
+                                                                                <i class="fas fa-code-branch mr-1"></i>
+                                                                                Đã chia {{ $subgroups->count() }} tổ
+                                                                            </span>
+                                                                            @if (!$isRowLocked && !$batchReadOnly)
+                                                                                <button type="button"
+                                                                                    class="btn btn-link btn-sm p-0 ml-1 clear-split-subgroup-btn"
+                                                                                    data-slot-id="{{ $slot->id }}"
+                                                                                    style="font-size: 10px; vertical-align: baseline;">
+                                                                                    Bỏ chia tổ
+                                                                                </button>
+                                                                            @endif
+                                                                        @elseif ($canSplitSlot && !$batchReadOnly && !$supportLocked)
+                                                                            <button type="button"
+                                                                                class="btn btn-link btn-sm p-0 ml-1 split-subgroup-btn"
+                                                                                data-slot-id="{{ $slot->id }}"
+                                                                                style="font-size: 10px; vertical-align: baseline;">
+                                                                                Chia tổ
+                                                                            </button>
+                                                                        @endif
                                                                         @if ($supportMeta)
                                                                             <div class="mt-1">
                                                                                 <span class="badge badge-warning support-status-pill">{{ $supportMeta['label'] ?? 'Hỗ trợ' }}</span>
@@ -727,6 +758,15 @@
                                                                                 <div class="small text-muted">
                                                                                     {{ $supportMeta['status'] === 'pending_pdt' ? 'Đang chờ PĐT duyệt' : ($supportMeta['status'] === 'assigned_to_department' ? 'PĐT đã giao khoa hỗ trợ' : ($supportMeta['status'] === 'department_assigning' ? 'Khoa hỗ trợ đang phân công' : 'GV hỗ trợ đã xác nhận')) }}
                                                                                 </div>
+                                                                            </div>
+                                                                        @elseif ($isSplit)
+                                                                            <div class="split-subgroup-summary small">
+                                                                                @foreach ($subgroups as $subgroup)
+                                                                                    <div>
+                                                                                        <strong>{{ $subgroup->group_label }}:</strong>
+                                                                                        {{ $subgroup->teacher?->name ?? '-' }}
+                                                                                    </div>
+                                                                                @endforeach
                                                                             </div>
                                                                         @else
                                                                             <select data-field="teacher_id"
@@ -881,6 +921,15 @@
                                                                     <td>
                                                                         @if ($isEvent)
                                                                             <span class="text-muted small">-</span>
+                                                                        @elseif ($isSplit)
+                                                                            <div class="split-subgroup-summary small">
+                                                                                @foreach ($subgroups as $subgroup)
+                                                                                    <div>
+                                                                                        <strong>{{ $subgroup->group_label }}:</strong>
+                                                                                        {{ $subgroup->room?->code ?? '-' }}
+                                                                                    </div>
+                                                                                @endforeach
+                                                                            </div>
                                                                         @else
                                                                             <select data-field="room_id"
                                                                                 class="form-control form-control-sm"
@@ -1764,6 +1813,35 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="splitSubgroupModal" tabindex="-1" role="dialog" aria-labelledby="splitSubgroupModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="splitSubgroupModalLabel">Chia tổ tiết thực hành</h6>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="splitSubgroupModalError"></div>
+                    <div class="mb-2 text-muted small" id="splitSubgroupModalInfo"></div>
+                    <div class="alert alert-info py-2 mb-2 small">
+                        Mỗi tổ cần chọn giảng viên riêng, phòng học có thể để trống nếu các tổ học chung khu vực.
+                    </div>
+                    <div id="splitSubgroupRowsWrap"></div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="addSplitSubgroupRowBtn">
+                        <i class="fas fa-plus mr-1"></i>Thêm tổ
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="confirmSplitSubgroupBtn">Xác nhận chia tổ</button>
+                </div>
+            </div>
+        </div>
+    </div>
     </style>
 
     <script>
@@ -1790,6 +1868,10 @@
             var mergeCandidatesUrlTemplate = @json(route('monthly-schedule.assignment.merge-candidates', ['id' => '__MONTHLY__', 'slotId' => '__SLOT__']));
             var mergeSlotUrlTemplate = @json(route('monthly-schedule.assignment.merge', ['id' => '__MONTHLY__', 'slotId' => '__SLOT__']));
             var splitMergeUrlTemplate = @json(route('monthly-schedule.assignment.split', ['id' => '__MONTHLY__', 'groupId' => '__GROUP__']));
+            var splitSubgroupUrlTemplate = @json(route('monthly-schedule.assignment.split-subgroups', ['id' => '__MONTHLY__', 'slotId' => '__SLOT__']));
+            var clearSplitSubgroupUrlTemplate = @json(route('monthly-schedule.assignment.split-subgroups.clear', ['id' => '__MONTHLY__', 'slotId' => '__SLOT__']));
+            var splitSubgroupTeacherOptions = @json($teachers->map(fn($teacher) => ['id' => $teacher->id, 'label' => $teacher->name . ($teacher->employee_code ? ' (' . $teacher->employee_code . ')' : '')])->values());
+            var splitSubgroupRoomOptions = @json($rooms->map(fn($room) => ['id' => $room->id, 'label' => $room->code])->values());
             var supportRequestStoreUrl = @json($supportRequestStoreUrl);
             var currentDepartmentId = @json($currentDepartmentId);
             var adminBackfillMode = @json($adminBackfillMode);
@@ -1821,6 +1903,14 @@
             var currentMergeBaseSlotId = null;
             var currentMergeBaseMonthlyScheduleId = null;
             var currentMergeCandidates = [];
+            var splitSubgroupModalEl = document.getElementById('splitSubgroupModal');
+            var splitSubgroupModalError = document.getElementById('splitSubgroupModalError');
+            var splitSubgroupModalInfo = document.getElementById('splitSubgroupModalInfo');
+            var splitSubgroupRowsWrap = document.getElementById('splitSubgroupRowsWrap');
+            var addSplitSubgroupRowBtn = document.getElementById('addSplitSubgroupRowBtn');
+            var confirmSplitSubgroupBtn = document.getElementById('confirmSplitSubgroupBtn');
+            var currentSplitSubgroupSlotId = null;
+            var splitSubgroupRowSeq = 0;
             var supportRequestInFlight = false;
             var dirtyRows = new Map();
             var isSavingAssignments = false;
@@ -1902,15 +1992,18 @@
                 var lessonTypeSelect = getLessonTypeSelect(row);
                 if (lessonTypeSelect) {
                     var isRegularTest = isSelectedLessonRegularTest(lessonSelect);
-                    var lessonTypeDisabled = isSpecialAssignment || isRegularTest;
+                    var hasSubgroups = row.getAttribute('data-has-subgroups') === '1';
+                    var lessonTypeDisabled = isSpecialAssignment || isRegularTest || hasSubgroups;
                     lessonTypeSelect.disabled = lessonTypeDisabled;
 
-                    if (lessonTypeDisabled && lessonTypeSelect.value !== '') {
-                        setSelectValue(lessonTypeSelect, '', false);
-                        changed = true;
-                    } else if (!lessonTypeDisabled && lessonTypeSelect.value === '') {
-                        setSelectValue(lessonTypeSelect, 'theory', false);
-                        changed = true;
+                    if (!hasSubgroups) {
+                        if (lessonTypeDisabled && lessonTypeSelect.value !== '') {
+                            setSelectValue(lessonTypeSelect, '', false);
+                            changed = true;
+                        } else if (!lessonTypeDisabled && lessonTypeSelect.value === '') {
+                            setSelectValue(lessonTypeSelect, 'theory', false);
+                            changed = true;
+                        }
                     }
                 }
 
@@ -3177,6 +3270,7 @@
             applyFilters();
             allRows.forEach(syncSubjectLessonState);
             allRows.forEach(markRowAssignedState);
+            allRows.forEach(updateSplitButtonState);
             refreshTeacherOptions();
             refreshRoomOptions();
 
@@ -3225,6 +3319,7 @@
                         getActiveMergeGroupRows(row).forEach(markRowAssignedState);
                         syncRowDirtyState(row);
                         syncRowsDirtyState(getActiveMergeGroupRows(row));
+                        updateSplitButtonState(row);
                     }
                     refreshTeacherOptions();
                 }
@@ -3254,6 +3349,7 @@
                         });
                         syncRowDirtyState(lessonRow);
                         syncRowsDirtyState(getActiveMergeGroupRows(lessonRow));
+                        updateSplitButtonState(lessonRow);
                     }
                     refreshSubjectLessonOptions();
                 }
@@ -3266,6 +3362,8 @@
                         });
                         syncRowDirtyState(lessonTypeRow);
                         syncRowsDirtyState(getActiveMergeGroupRows(lessonTypeRow));
+                        updateSplitButtonState(lessonTypeRow);
+                        getActiveMergeGroupRows(lessonTypeRow).forEach(updateSplitButtonState);
                     }
                 }
             });
@@ -3507,6 +3605,41 @@
                     .replace('__MONTHLY__', encodeURIComponent(monthlyScheduleId || currentMonthlyScheduleId || ''))
                     .replace('__SLOT__', encodeURIComponent(value || ''))
                     .replace('__GROUP__', encodeURIComponent(value || ''));
+            }
+
+            function updateSplitButtonState(row) {
+                if (!row || row.dataset.slotType === 'event') {
+                    return;
+                }
+
+                var actionCell = getMergeActionCell(row);
+                if (!actionCell) {
+                    return;
+                }
+
+                var lessonTypeSelect = getLessonTypeSelect(row);
+                var hasSubgroups = row.getAttribute('data-has-subgroups') === '1';
+                var isMergedActive = row.getAttribute('data-merge-group-status') === 'active';
+                var shouldShow = !hasSubgroups &&
+                    !isMergedActive &&
+                    !!lessonTypeSelect &&
+                    !lessonTypeSelect.disabled &&
+                    lessonTypeSelect.value === 'practice';
+
+                var existingBtn = actionCell.querySelector('.split-subgroup-btn');
+
+                if (shouldShow && !existingBtn) {
+                    var slotId = row.getAttribute('data-slot-id') || '';
+                    actionCell.insertAdjacentHTML('beforeend',
+                        '<button type="button" class="btn btn-link btn-sm p-0 ml-1 split-subgroup-btn"' +
+                        ' data-slot-id="' + escapeHtml(slotId) + '"' +
+                        ' style="font-size: 10px; vertical-align: baseline;">' +
+                        'Chia tổ' +
+                        '</button>'
+                    );
+                } else if (!shouldShow && existingBtn) {
+                    existingBtn.remove();
+                }
             }
 
             function getMergeActionCell(row) {
@@ -3855,6 +3988,208 @@
                 }
             }
 
+            function setSplitSubgroupModalError(message) {
+                if (!splitSubgroupModalError) {
+                    return;
+                }
+
+                if (!message) {
+                    splitSubgroupModalError.classList.add('d-none');
+                    splitSubgroupModalError.textContent = '';
+                    return;
+                }
+
+                splitSubgroupModalError.textContent = message;
+                splitSubgroupModalError.classList.remove('d-none');
+            }
+
+            function showSplitSubgroupModal() {
+                if (window.jQuery && splitSubgroupModalEl) {
+                    window.jQuery(splitSubgroupModalEl).modal('show');
+                    return;
+                }
+
+                if (splitSubgroupModalEl) {
+                    splitSubgroupModalEl.classList.add('show');
+                    splitSubgroupModalEl.style.display = 'block';
+                }
+            }
+
+            function hideSplitSubgroupModal() {
+                if (window.jQuery && splitSubgroupModalEl) {
+                    window.jQuery(splitSubgroupModalEl).modal('hide');
+                    return;
+                }
+
+                if (splitSubgroupModalEl) {
+                    splitSubgroupModalEl.classList.remove('show');
+                    splitSubgroupModalEl.style.display = 'none';
+                }
+            }
+
+            function buildSplitSubgroupOptions(options, selectedId) {
+                var html = '<option value="">-- Chọn --</option>';
+                (options || []).forEach(function(option) {
+                    html += '<option value="' + escapeHtml(option.id) + '"' +
+                        (String(selectedId || '') === String(option.id) ? ' selected' : '') + '>' +
+                        escapeHtml(option.label) + '</option>';
+                });
+                return html;
+            }
+
+            function addSplitSubgroupRow(prefill) {
+                if (!splitSubgroupRowsWrap) {
+                    return;
+                }
+
+                splitSubgroupRowSeq += 1;
+                var seq = splitSubgroupRowSeq;
+                var data = prefill || {};
+                var defaultLabel = data.group_label || ('Tổ ' + splitSubgroupRowsWrap.children.length + 1);
+
+                var html = '<div class="split-subgroup-row form-row align-items-center mb-2" data-row-seq="' +
+                    seq + '">';
+                html += '<div class="col-3"><input type="text" class="form-control form-control-sm" ' +
+                    'data-split-field="group_label" placeholder="Tên tổ" value="' + escapeHtml(defaultLabel) +
+                    '"></div>';
+                html += '<div class="col-4"><select class="form-control form-control-sm" data-split-field="teacher_id">' +
+                    buildSplitSubgroupOptions(splitSubgroupTeacherOptions, data.teacher_id) + '</select></div>';
+                html += '<div class="col-3"><select class="form-control form-control-sm" data-split-field="room_id">' +
+                    buildSplitSubgroupOptions(splitSubgroupRoomOptions, data.room_id) + '</select></div>';
+                html += '<div class="col-2 text-right">' +
+                    '<button type="button" class="btn btn-link btn-sm text-danger p-0 remove-split-subgroup-row-btn">Xóa</button>' +
+                    '</div>';
+                html += '</div>';
+
+                splitSubgroupRowsWrap.insertAdjacentHTML('beforeend', html);
+            }
+
+            function resetSplitSubgroupRows(prefillList) {
+                if (!splitSubgroupRowsWrap) {
+                    return;
+                }
+
+                splitSubgroupRowsWrap.innerHTML = '';
+                splitSubgroupRowSeq = 0;
+
+                if (prefillList && prefillList.length) {
+                    prefillList.forEach(function(item) {
+                        addSplitSubgroupRow(item);
+                    });
+                    return;
+                }
+
+                addSplitSubgroupRow({
+                    group_label: 'Tổ 1'
+                });
+                addSplitSubgroupRow({
+                    group_label: 'Tổ 2'
+                });
+            }
+
+            function collectSplitSubgroupPayload() {
+                if (!splitSubgroupRowsWrap) {
+                    return [];
+                }
+
+                return Array.prototype.slice.call(splitSubgroupRowsWrap.querySelectorAll('.split-subgroup-row'))
+                    .map(function(rowEl) {
+                        var labelInput = rowEl.querySelector('[data-split-field="group_label"]');
+                        var teacherSelect = rowEl.querySelector('[data-split-field="teacher_id"]');
+                        var roomSelect = rowEl.querySelector('[data-split-field="room_id"]');
+
+                        return {
+                            group_label: labelInput ? labelInput.value.trim() : '',
+                            teacher_id: teacherSelect && teacherSelect.value !== '' ? parseInt(teacherSelect
+                                .value, 10) : null,
+                            room_id: roomSelect && roomSelect.value !== '' ? parseInt(roomSelect.value, 10) :
+                                null
+                        };
+                    });
+            }
+
+            async function submitSplitSubgroup(slotId, monthlyScheduleId) {
+                var subgroups = collectSplitSubgroupPayload();
+
+                if (subgroups.length < 2) {
+                    setSplitSubgroupModalError('Cần chia thành tối thiểu 2 tổ.');
+                    return;
+                }
+
+                if (subgroups.some(function(subgroup) {
+                        return !subgroup.teacher_id;
+                    })) {
+                    setSplitSubgroupModalError('Vui lòng chọn giảng viên cho tất cả các tổ.');
+                    return;
+                }
+
+                setSplitSubgroupModalError('');
+
+                try {
+                    var response = await fetch(buildMergeUrl(splitSubgroupUrlTemplate, monthlyScheduleId,
+                        slotId), {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({
+                            department_id: currentDepartmentId,
+                            subgroups: subgroups
+                        })
+                    });
+                    var payload = await response.json().catch(function() {
+                        return {};
+                    });
+                    if (!response.ok || !payload.success) {
+                        throw new Error(getJsonErrorMessage(payload, 'Chia tổ thất bại.'));
+                    }
+                    hideSplitSubgroupModal();
+                    showToast(payload.message || 'Chia tổ thành công.');
+                    window.location.reload();
+                } catch (error) {
+                    setSplitSubgroupModalError(error.message || 'Chia tổ thất bại.');
+                }
+            }
+
+            async function clearSplitSubgroup(slotId, monthlyScheduleId) {
+                if (!slotId) {
+                    return;
+                }
+
+                if (!confirm('Bạn có chắc muốn bỏ chia tổ tiết này không?')) {
+                    return;
+                }
+
+                try {
+                    var response = await fetch(buildMergeUrl(clearSplitSubgroupUrlTemplate, monthlyScheduleId,
+                        slotId), {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({
+                            department_id: currentDepartmentId
+                        })
+                    });
+                    var payload = await response.json().catch(function() {
+                        return {};
+                    });
+                    if (!response.ok || !payload.success) {
+                        throw new Error(getJsonErrorMessage(payload, 'Bỏ chia tổ thất bại.'));
+                    }
+                    showToast(payload.message || 'Đã bỏ chia tổ.');
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message || 'Bỏ chia tổ thất bại.');
+                }
+            }
+
             document.addEventListener('click', async function(e) {
                 var confirmMergeBtn = e.target.closest('#confirmMergeSlotBtn');
                 if (confirmMergeBtn) {
@@ -3923,6 +4258,67 @@
                     var sourceMonthlyScheduleId = splitRow ? getRowSourceMonthlyScheduleId(splitRow) :
                         currentMonthlyScheduleId;
                     splitMergeGroup(groupId, sourceMonthlyScheduleId);
+                    return;
+                }
+
+                var confirmSplitSubgroupBtnEl = e.target.closest('#confirmSplitSubgroupBtn');
+                if (confirmSplitSubgroupBtnEl) {
+                    if (!currentSplitSubgroupSlotId) {
+                        return;
+                    }
+                    submitSplitSubgroup(currentSplitSubgroupSlotId, currentMonthlyScheduleId);
+                    return;
+                }
+
+                var addSplitRowBtnEl = e.target.closest('#addSplitSubgroupRowBtn');
+                if (addSplitRowBtnEl) {
+                    addSplitSubgroupRow({});
+                    return;
+                }
+
+                var removeSplitRowBtnEl = e.target.closest('.remove-split-subgroup-row-btn');
+                if (removeSplitRowBtnEl) {
+                    var rowsCount = splitSubgroupRowsWrap ? splitSubgroupRowsWrap.querySelectorAll(
+                        '.split-subgroup-row').length : 0;
+                    if (rowsCount <= 2) {
+                        alert('Cần giữ tối thiểu 2 tổ.');
+                        return;
+                    }
+                    removeSplitRowBtnEl.closest('.split-subgroup-row').remove();
+                    return;
+                }
+
+                var splitSubgroupBtn = e.target.closest('.split-subgroup-btn');
+                if (splitSubgroupBtn) {
+                    if (dirtyRows.size > 0) {
+                        var savedBeforeSplit = await saveAssignmentChanges({
+                            silentIfClean: true
+                        });
+
+                        if (!savedBeforeSplit) {
+                            return;
+                        }
+                    }
+
+                    var splitSubgroupSlotId = splitSubgroupBtn.getAttribute('data-slot-id');
+                    if (!splitSubgroupSlotId) {
+                        return;
+                    }
+
+                    currentSplitSubgroupSlotId = splitSubgroupSlotId;
+                    setSplitSubgroupModalError('');
+                    if (splitSubgroupModalInfo) {
+                        splitSubgroupModalInfo.textContent = '';
+                    }
+                    resetSplitSubgroupRows(null);
+                    showSplitSubgroupModal();
+                    return;
+                }
+
+                var clearSplitSubgroupBtn = e.target.closest('.clear-split-subgroup-btn');
+                if (clearSplitSubgroupBtn) {
+                    var clearSlotId = clearSplitSubgroupBtn.getAttribute('data-slot-id');
+                    clearSplitSubgroup(clearSlotId, currentMonthlyScheduleId);
                 }
             });
 
@@ -3934,6 +4330,16 @@
                     setMergeModalError('');
                     if (mergeModalInfo) {
                         mergeModalInfo.textContent = '';
+                    }
+                });
+            }
+
+            if (splitSubgroupModalEl) {
+                splitSubgroupModalEl.addEventListener('hidden.bs.modal', function() {
+                    currentSplitSubgroupSlotId = null;
+                    setSplitSubgroupModalError('');
+                    if (splitSubgroupModalInfo) {
+                        splitSubgroupModalInfo.textContent = '';
                     }
                 });
             }

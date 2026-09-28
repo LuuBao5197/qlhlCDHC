@@ -9,6 +9,7 @@ use Modules\Schedule\Application\UpdateSchedule\UpdateScheduleController;
 use Modules\Schedule\Application\DeleteSchedule\DeleteScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleMergeController;
+use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleSplitController;
 use Modules\Schedule\Application\AssignMonthlySchedule\MonthlyAssignmentDirectoryController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchReviewController;
@@ -86,6 +87,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('monthly-schedule.assignment.merge');
     Route::delete('/monthly-schedules/{id}/slot-groups/{groupId}/split', [AssignMonthlyScheduleMergeController::class, 'split'])
         ->name('monthly-schedule.assignment.split');
+    Route::post('/monthly-schedules/{id}/slots/{slotId}/split-subgroups', [AssignMonthlyScheduleSplitController::class, 'split'])
+        ->name('monthly-schedule.assignment.split-subgroups');
+    Route::delete('/monthly-schedules/{id}/slots/{slotId}/split-subgroups', [AssignMonthlyScheduleSplitController::class, 'clearSplit'])
+        ->name('monthly-schedule.assignment.split-subgroups.clear');
 
     // Aggregate department monthly assignment batch workflow
     Route::post('/monthly-schedules/{id}/department-monthly-assignment-batches/submit', [DepartmentMonthlyAssignmentBatchController::class, 'submit'])

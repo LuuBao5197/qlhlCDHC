@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Modules\Schedule\Models\ScheduleSlot;
+use Modules\Schedule\Models\ScheduleSlotSubgroup;
 
 class SlotEvaluation extends Model
 {
@@ -17,6 +18,7 @@ class SlotEvaluation extends Model
 
     protected $fillable = [
         'schedule_slot_id',
+        'schedule_slot_subgroup_id',
         'evaluator_id',
         'attendance_count',
         'absent_count',
@@ -27,6 +29,11 @@ class SlotEvaluation extends Model
     public function scheduleSlot(): BelongsTo
     {
         return $this->belongsTo(ScheduleSlot::class);
+    }
+
+    public function scheduleSlotSubgroup(): BelongsTo
+    {
+        return $this->belongsTo(ScheduleSlotSubgroup::class, 'schedule_slot_subgroup_id');
     }
 
     public function evaluator(): BelongsTo

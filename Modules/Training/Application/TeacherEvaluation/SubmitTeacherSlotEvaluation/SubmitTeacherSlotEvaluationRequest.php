@@ -105,7 +105,13 @@ class SubmitTeacherSlotEvaluationRequest extends FormRequest
             }
 
             $allowedCount = ScheduleSlot::query()
-                ->where('teacher_id', $teacher->id)
+                ->where(function ($query) use ($teacher): void {
+                    $query->where('teacher_id', $teacher->id)
+                        ->orWhereHas(
+                            'scheduleSlotSubgroups',
+                            fn ($subgroupQuery) => $subgroupQuery->where('teacher_id', $teacher->id)
+                        );
+                })
                 ->whereDate('date', (string) $this->input('date'))
                 ->whereIn('id', $slotIds)
                 ->count();

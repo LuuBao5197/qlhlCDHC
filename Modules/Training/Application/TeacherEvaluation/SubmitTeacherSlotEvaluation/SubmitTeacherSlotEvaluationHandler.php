@@ -35,7 +35,14 @@ class SubmitTeacherSlotEvaluationHandler
         }
 
         $allowedSlots = ScheduleSlot::query()
-            ->where('teacher_id', $teacher->id)
+            ->with('scheduleSlotSubgroups')
+            ->where(function ($query) use ($teacher): void {
+                $query->where('teacher_id', $teacher->id)
+                    ->orWhereHas(
+                        'scheduleSlotSubgroups',
+                        fn ($subgroupQuery) => $subgroupQuery->where('teacher_id', $teacher->id)
+                    );
+            })
             ->whereDate('date', $validated['date'])
             ->whereIn('id', $slotIds)
             ->get()
@@ -46,6 +53,8 @@ class SubmitTeacherSlotEvaluationHandler
             if ($slot === null) {
                 continue;
             }
+
+            $subgroupId = $slot->scheduleSlotSubgroups->firstWhere('teacher_id', $teacher->id)?->id;
 
             $slotData = $slotsInput[$slotId] ?? [];
             $attendanceCount = array_key_exists('attendance_count', $slotData) && $slotData['attendance_count'] !== ''
@@ -70,6 +79,7 @@ class SubmitTeacherSlotEvaluationHandler
                     'evaluator_id' => $evaluatorId,
                 ],
                 [
+                    'schedule_slot_subgroup_id' => $subgroupId,
                     'attendance_count' => $attendanceCount,
                     'absent_count' => $absentCount,
                     'rating_level' => $ratingLevel,
