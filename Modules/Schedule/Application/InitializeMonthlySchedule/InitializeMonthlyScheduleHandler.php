@@ -188,8 +188,7 @@ class InitializeMonthlyScheduleHandler
                 continue;
             }
 
-            $templateSlotCount = 0;
-
+            // Template chi cham dau/cuoi thang nhung khong trung thu hoc nao la hop le: chi bo qua template do.
             for ($date = $monthStart->copy(); $date->lte($monthEnd); $date->addDay()) {
                 if (($templateStart && $date->lt($templateStart)) || ($templateEnd && $date->gt($templateEnd))) {
                     continue;
@@ -224,12 +223,7 @@ class InitializeMonthlyScheduleHandler
                         'content' => '',
                         'slot_status' => 'planned',
                     ];
-                    $templateSlotCount++;
                 }
-            }
-
-            if ($templateSlotCount === 0) {
-                $errors[] = "Template #{$template->id} khong sinh ra ngay hoc nao trong thang.";
             }
         }
 
