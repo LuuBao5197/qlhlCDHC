@@ -11,6 +11,7 @@ use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleCont
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleMergeController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleSplitController;
 use Modules\Schedule\Application\AssignMonthlySchedule\MonthlyAssignmentDirectoryController;
+use Modules\Schedule\Application\ExportDepartmentSchedule\ExportDepartmentScheduleController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchController;
 use Modules\Schedule\Application\DepartmentMonthlyAssignmentBatch\DepartmentMonthlyAssignmentBatchReviewController;
 use Modules\Schedule\Application\TrainingOfficeReviewDepartmentMonthlyAssignmentBatch\TrainingOfficeReviewDepartmentMonthlyAssignmentBatchController;
@@ -81,6 +82,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('monthly-schedule.assignment');
     Route::post('/monthly-schedules/{id}/assignment', AssignMonthlyScheduleController::class)
         ->name('monthly-schedule.assignment.save');
+    Route::get('/monthly-schedules/{id}/assignment/export', ExportDepartmentScheduleController::class)
+        ->name('monthly-schedule.assignment.export');
     Route::get('/monthly-schedules/{id}/slots/{slotId}/merge-candidates', [AssignMonthlyScheduleMergeController::class, 'mergeCandidates'])
         ->name('monthly-schedule.assignment.merge-candidates');
     Route::post('/monthly-schedules/{id}/slots/{slotId}/merge', [AssignMonthlyScheduleMergeController::class, 'merge'])

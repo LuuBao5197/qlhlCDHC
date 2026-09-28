@@ -165,6 +165,11 @@
                             <i class="fas fa-list mr-1"></i>Xem yêu cầu hỗ trợ
                         </a>
 
+                        <button type="button" class="btn btn-outline-success btn-sm mr-2 mb-2"
+                            data-toggle="modal" data-target="#exportDepartmentScheduleModal">
+                            <i class="fas fa-file-excel mr-1"></i>Xuất Excel
+                        </button>
+
                     </div>
                 </div>
             </div>
@@ -1176,6 +1181,82 @@
             </div>
         </div>
     @endif
+
+    <div class="modal fade" id="exportDepartmentScheduleModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <form method="GET" action="{{ route('monthly-schedule.assignment.export', $monthlySchedule->id) }}"
+                class="modal-content" id="exportDepartmentScheduleForm">
+                <input type="hidden" name="department_id" value="{{ $currentDepartmentId }}">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold">
+                        <i class="fas fa-file-excel mr-2 text-success"></i>Xuất lịch phân công — {{ $departmentName }}
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="exportMode" class="font-weight-bold">Xuất theo</label>
+                            <select name="mode" id="exportMode" class="form-control" required>
+                                <option value="month" selected>Tháng</option>
+                                <option value="week">Tuần</option>
+                                <option value="day">Ngày</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="exportDate" class="font-weight-bold">Ngày trong kỳ</label>
+                            <input type="date" name="date" id="exportDate" class="form-control"
+                                value="{{ sprintf('%04d-%02d-01', $monthlySchedule->year, $monthlySchedule->month) }}" required>
+                            <small class="form-text text-muted" id="exportDateHint">Xuất cả tháng chứa ngày này.</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="exportDocumentNumber" class="font-weight-bold">Số văn bản</label>
+                            <input type="text" name="document_number" id="exportDocumentNumber" class="form-control"
+                                maxlength="50" placeholder="Mặc định: 01/KH-&lt;mã khoa&gt;">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="exportIssuedDate" class="font-weight-bold">Ngày lập</label>
+                            <input type="date" name="issued_date" id="exportIssuedDate" class="form-control"
+                                value="{{ now()->format('Y-m-d') }}">
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="exportSignerName" class="font-weight-bold">Người ký (Chủ nhiệm khoa)</label>
+                        <input type="text" name="signer_name" id="exportSignerName" class="form-control"
+                            maxlength="120" placeholder="Để trống: lấy tên chủ nhiệm khoa trong hệ thống">
+                        <small class="form-text text-muted">Có thể nhập kèm cấp bậc, ví dụ: Thượng tá Nguyễn Văn A.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-download mr-1"></i>Tải file Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        (function() {
+            var mode = document.getElementById('exportMode');
+            var hint = document.getElementById('exportDateHint');
+            if (!mode || !hint) {
+                return;
+            }
+            var hints = {
+                month: 'Xuất cả tháng chứa ngày này.',
+                week: 'Xuất tuần (Thứ Hai đến Chủ Nhật) chứa ngày này.',
+                day: 'Xuất đúng ngày này.'
+            };
+            mode.addEventListener('change', function() {
+                hint.textContent = hints[mode.value] || '';
+            });
+        })();
+    </script>
 
     @if ($supportCanManageAssignments || $canCreateSupportRequest)
         <div class="modal fade" id="supportRequestModal" tabindex="-1" role="dialog" aria-hidden="true">
