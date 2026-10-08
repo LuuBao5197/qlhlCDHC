@@ -4,12 +4,18 @@ namespace Modules\Schedule\Application\CreateScheduleSemester;
 
 use App\Support\AdminBackfillContext;
 use Carbon\Carbon;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Modules\Schedule\Application\Shared\ScheduleValidationReport;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\TrainingClass;
 
 class CreateScheduleSemesterRequest extends FormRequest
 {
+    /** @var array<string, array<int, string>> class key => messages, for flagging class tabs in the UI */
+    private array $classErrors = [];
+
     public function authorize(): bool
     {
         return $this->user() !== null && ($this->user()->isTrainingOffice() || $this->user()->isAdmin());
@@ -199,88 +205,149 @@ class CreateScheduleSemesterRequest extends FormRequest
             }
 
             foreach ($validClassKeys as $classKey) {
-                $classRules = $rulesByClass[$classKey] ?? [];
-                $label = $this->classLabel((string) $classKey);
-                $hasMeaningfulRule = false;
-                $hasImportFile = array_key_exists((string) $classKey, $importFiles)
-                    && $importFiles[(string) $classKey] !== null;
-
-                if (!is_array($classRules)) {
-                    $validator->errors()->add(
-                        'class_tab_rules',
-                        "Quy tac cua lop '{$label}' phai la mot danh sach."
-                    );
-                    continue;
-                }
-
-                foreach ($classRules as $index => $rule) {
-                    if (!is_array($rule)) {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #" . ($index + 1) . " cua lop '{$label}' khong hop le."
-                        );
-                        continue;
-                    }
-
-                    if (!$this->ruleHasInput($rule)) {
-                        continue;
-                    }
-
-                    $hasMeaningfulRule = true;
-                    $ruleNumber = $index + 1;
-
-                    if (trim((string) ($rule['subject'] ?? '')) === '') {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap mon hoc."
-                        );
-                    }
-
-                    $startDate = $rule['start_date'] ?? null;
-                    $endDate = $rule['end_date'] ?? null;
-                    if (!$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai co ngay bat dau va ngay ket thuc hop le."
-                        );
-                    } elseif (Carbon::parse($endDate)->lt(Carbon::parse($startDate))) {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' co ngay ket thuc nho hon ngay bat dau."
-                        );
-                    }
-
-                    $weekdays = $this->normalizeWeekdays($rule['weekdays'] ?? []);
-                    if ($weekdays === []) {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai chon it nhat mot thu hoc."
-                        );
-                    }
-
-                    $periodFrom = $this->parsePeriodValue($rule['period_from'] ?? null);
-                    $periodTo = $this->parsePeriodValue($rule['period_to'] ?? null);
-                    if ($periodFrom === null || $periodTo === null) {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap tiet tu 1 den 9."
-                        );
-                    } elseif ($periodTo < $periodFrom) {
-                        $validator->errors()->add(
-                            'class_tab_rules',
-                            "Dong quy tac #{$ruleNumber} cua lop '{$label}' co tiet ket thuc nho hon tiet bat dau."
-                        );
-                    }
-                }
-
-                if (!$hasMeaningfulRule && !$hasImportFile) {
-                    $validator->errors()->add(
-                        'class_tab_rules',
-                        "Lop '{$label}' can co it nhat mot quy tac hoac mot file CSV."
-                    );
-                }
+                $before = $validator->errors()->get('class_tab_rules');
+                $this->validateClassRules($validator, (string) $classKey, $rulesByClass[$classKey] ?? [], $importFiles);
+                $this->recordClassErrors($validator, (string) $classKey, $before);
             }
+
+            $this->runFullAnalysis($validator);
         });
+    }
+
+    private function validateClassRules($validator, string $classKey, mixed $classRules, array $importFiles): void
+    {
+        $label = $this->classLabel((string) $classKey);
+        $hasMeaningfulRule = false;
+        $hasImportFile = array_key_exists((string) $classKey, $importFiles)
+            && $importFiles[(string) $classKey] !== null;
+
+        if (!is_array($classRules)) {
+            $validator->errors()->add(
+                'class_tab_rules',
+                "Quy tac cua lop '{$label}' phai la mot danh sach."
+            );
+            return;
+        }
+
+        foreach ($classRules as $index => $rule) {
+            if (!is_array($rule)) {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #" . ($index + 1) . " cua lop '{$label}' khong hop le."
+                );
+                continue;
+            }
+
+            if (!$this->ruleHasInput($rule)) {
+                continue;
+            }
+
+            $hasMeaningfulRule = true;
+            $ruleNumber = $index + 1;
+
+            if (trim((string) ($rule['subject'] ?? '')) === '') {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap mon hoc."
+                );
+            }
+
+            $startDate = $rule['start_date'] ?? null;
+            $endDate = $rule['end_date'] ?? null;
+            if (!$this->isDateValue($startDate) || !$this->isDateValue($endDate)) {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai co ngay bat dau va ngay ket thuc hop le."
+                );
+            } elseif (Carbon::parse($endDate)->lt(Carbon::parse($startDate))) {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' co ngay ket thuc nho hon ngay bat dau."
+                );
+            }
+
+            $weekdays = $this->normalizeWeekdays($rule['weekdays'] ?? []);
+            if ($weekdays === []) {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai chon it nhat mot thu hoc."
+                );
+            }
+
+            $periodFrom = $this->parsePeriodValue($rule['period_from'] ?? null);
+            $periodTo = $this->parsePeriodValue($rule['period_to'] ?? null);
+            if ($periodFrom === null || $periodTo === null) {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' phai nhap tiet tu 1 den 9."
+                );
+            } elseif ($periodTo < $periodFrom) {
+                $validator->errors()->add(
+                    'class_tab_rules',
+                    "Dong quy tac #{$ruleNumber} cua lop '{$label}' co tiet ket thuc nho hon tiet bat dau."
+                );
+            }
+        }
+
+        if (!$hasMeaningfulRule && !$hasImportFile) {
+            $validator->errors()->add(
+                'class_tab_rules',
+                "Lop '{$label}' can co it nhat mot quy tac hoac mot file CSV."
+            );
+        }
+    }
+
+    /**
+     * Messages added to $validator for 'class_tab_rules' since $before was taken
+     * belong to $classKey; remember them so the UI can flag that class tab.
+     *
+     * @param array<int, string> $before
+     */
+    private function recordClassErrors($validator, string $classKey, array $before): void
+    {
+        $added = array_values(array_diff($validator->errors()->get('class_tab_rules'), $before));
+        if ($added !== []) {
+            $this->classErrors[$classKey] = array_values(array_unique(array_merge($this->classErrors[$classKey] ?? [], $added)));
+        }
+    }
+
+    /**
+     * Runs the full semester analysis (manual rules, import files, events,
+     * overlaps, month coverage) so all problems are returned in one response
+     * instead of the handler failing on the first one after validation passes.
+     */
+    private function runFullAnalysis($validator): void
+    {
+        $errors = $validator->errors();
+        if ($errors->has('training_batch_id') || $errors->has('start_date') || $errors->has('end_date')) {
+            return;
+        }
+
+        $report = new ScheduleValidationReport();
+        app(CreateScheduleSemesterHandler::class)->analyze($this, $report);
+
+        foreach ($report->messages() as $key => $messages) {
+            foreach ($messages as $message) {
+                $errors->add($key, $message);
+            }
+        }
+
+        foreach ($report->classMessages() as $classKey => $messages) {
+            $this->classErrors[$classKey] = array_values(array_unique(array_merge($this->classErrors[$classKey] ?? [], $messages)));
+        }
+    }
+
+    protected function failedValidation(Validator $validator): void
+    {
+        if (! $this->expectsJson()) {
+            parent::failedValidation($validator);
+        }
+
+        throw new HttpResponseException(response()->json([
+            'message' => 'Dữ liệu chưa hợp lệ. Vui lòng xem danh sách lỗi bên dưới.',
+            'errors' => $validator->errors()->toArray(),
+            'class_errors' => (object) $this->classErrors,
+        ], 422));
     }
 
     private function normalizeRulesPayload($validator): ?array

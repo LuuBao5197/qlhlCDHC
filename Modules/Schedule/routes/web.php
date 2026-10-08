@@ -64,6 +64,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/schedules/{id}/edit', [UpdateScheduleSemesterController::class, 'showForm'])
         ->name('schedule.edit');
     Route::put('/schedules/{id}', UpdateScheduleSemesterController::class)->name('schedule.update');
+    Route::get('/schedules/{id}/export', [UpdateScheduleSemesterController::class, 'exportAll'])
+        ->name('schedule.export-all');
+    Route::get('/schedules/{id}/export/{classId}', [UpdateScheduleSemesterController::class, 'exportClass'])
+        ->name('schedule.export-class');
 
     // Delete schedule semester
     Route::delete('/schedules/{id}', DeleteScheduleSemesterController::class)->name('schedule.destroy');

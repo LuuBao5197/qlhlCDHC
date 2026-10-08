@@ -2259,6 +2259,7 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     e.preventDefault();
                 }
             });
+            @include('schedule::ScheduleSemester.partials.ajax-submit-script')
 
             adminBackfillToggle?.addEventListener('change', applyAdminBackfillDateBounds);
             applyAdminBackfillDateBounds();

@@ -595,16 +595,16 @@
                                 </div>
                             </div>
                             <div class="quick-actions-body" id="quickActionsBody">
-                                <button type="button" class="btn btn-sm btn-primary" id="quickAddRuleBtn">
+                                <button type="button" class="btn btn-sm btn-primary" id="quickAddRuleBtn" hidden>
                                     Thêm rule
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddClassEventBtn">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddClassEventBtn" hidden>
                                     Thêm sự kiện
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddHolidayBtn">
                                     Thêm nghỉ lễ
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-info" id="quickPreviewBtn">
+                                <button type="button" class="btn btn-sm btn-outline-info" id="quickPreviewBtn" hidden>
                                     Xem trước
                                 </button>
                                 <button type="button" class="btn btn-sm btn-light border" id="quickScrollTopBtn">
@@ -698,14 +698,19 @@
 
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="mb-0">3. Cấu hình từng lớp</h5>
-                            <a href="{{ route('schedule.import-template') }}" class="btn btn-sm btn-outline-secondary">
-                                Tải file CSV mẫu
-                            </a>
+                            <div>
+                                <a href="{{ route('schedule.export-all', $plan->id) }}" class="btn btn-sm btn-outline-success">
+                                    Tải tất cả file Excel (ZIP)
+                                </a>
+                                <a href="{{ route('schedule.import-template') }}" class="btn btn-sm btn-outline-secondary">
+                                    Tải file CSV mẫu
+                                </a>
+                            </div>
                         </div>
                         <div id="classTabs" class="d-flex flex-wrap mb-3"></div>
                         <div id="classTabContent">
                             <div id="noClassSelectedMsg" class="alert alert-light border">
-                                Chọn ít nhất một lớp ở trên để thêm rule hoặc upload CSV.
+                                Chọn ít nhất một lớp ở trên để xem lịch hiện tại hoặc upload file Excel/CSV.
                             </div>
                         </div>
 
@@ -1016,8 +1021,14 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     btn.className =
                         `btn btn-sm mr-2 mb-2 ${btn.dataset.key === String(k) ? 'btn-primary' : 'btn-outline-primary'}`;
                 });
-                content.querySelectorAll('.class-pane').forEach((pane) => pane.classList.toggle('active', pane
-                    .dataset.key === String(k)));
+                content.querySelectorAll('.class-pane').forEach((pane) => {
+                    const isActive = pane.dataset.key === String(k);
+                    pane.classList.toggle('active', isActive);
+                    if (isActive && pane.dataset.pickersReady !== '1') {
+                        pane.dataset.pickersReady = '1';
+                        window.ScheduleDatePicker?.init(pane);
+                    }
+                });
                 syncQuickActions();
             };
 
@@ -1336,7 +1347,8 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     'Sự kiện lớp'
                 );
                 listEl.appendChild(card);
-                window.ScheduleDatePicker?.init(card);
+                // Hydrated cards get their pickers lazily when the class tab is opened (see activate).
+                if (!options.silent) window.ScheduleDatePicker?.init(card);
                 updateEventEmpty(listEl, 'Chưa có sự kiện nào trong lớp này.');
                 if (!options.silent) {
                     scrollToEl(card);
@@ -1953,23 +1965,57 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     <div class="mt-3"><label class="form-label d-block">Thứ học</label><div class="weekday-list">${weekdayHtml(k, i, data.weekdays || [])}</div></div>
                 `;
                 box.appendChild(div);
-                window.ScheduleDatePicker?.init(div);
+                if (!options.silent) window.ScheduleDatePicker?.init(div);
                 updateRuleEmpty(k);
-                validateRuleConflicts();
+                // Silent adds come from the initial hydrate; the full check runs once
+                // after loading instead of once per rule (it rescans every rule/day/period).
                 if (!options.silent) {
+                    validateRuleConflicts();
                     scrollToEl(div);
                     const firstInput = div.querySelector('input, select, textarea');
                     if (firstInput) firstInput.focus({ preventScroll: true });
                 }
             };
 
+            const storedId = (k) => `stored-${safe(k)}`;
+            const exportClassUrl = @json(route('schedule.export-class', ['id' => $plan->id, 'classId' => '__CLASS__']));
+            const fmtDate = (v) => {
+                const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ''));
+                return m ? `${m[3]}/${m[2]}/${m[1]}` : esc(v || '');
+            };
+            const weekdayText = (days) => (Array.isArray(days) ? days : [])
+                .map((d) => (Number(d) === 8 ? 'CN' : `T${d}`)).join(', ');
+            const eventTypeText = { review: 'Ôn thi', exam: 'Thi', other: 'Khác' };
+
+            // Read-only tables: thousands of editable inputs made this page freeze.
+            const renderStoredTables = (k) => {
+                const box = document.getElementById(storedId(k));
+                if (!box) return;
+                const rules = Array.isArray(oldRules[k]) ? oldRules[k] : [];
+                const events = Array.isArray(oldClassEvents[k]) ? oldClassEvents[k] : [];
+                const ruleRows = rules.map((r) => `<tr><td>${fmtDate(r.start_date)}</td><td>${fmtDate(r.end_date)}</td><td>${esc(weekdayText(r.weekdays))}</td><td>${esc(r.period_from ?? '')}-${esc(r.period_to ?? '')}</td><td>${esc(r.subject || '')}</td><td>${esc(r.content || '')}</td></tr>`).join('');
+                const eventRows = events.map((e) => `<tr><td>${esc(eventTypeText[e.event_type] || e.event_type || '')}</td><td>${esc(e.title || '')}</td><td>${fmtDate(e.start_date)}</td><td>${fmtDate(e.end_date)}</td><td>${e.period_from ? esc(e.period_from) + '-' + esc(e.period_to ?? '') : ''}</td><td>${esc(e.note || '')}</td></tr>`).join('');
+                box.innerHTML = `
+                    <h6 class="mt-2">Rule hiện tại (${rules.length})</h6>
+                    <div class="table-responsive" style="max-height:360px;overflow:auto;">
+                        <table class="table table-sm table-bordered mb-3">
+                            <thead class="thead-light"><tr><th>Từ ngày</th><th>Đến ngày</th><th>Thứ</th><th>Tiết</th><th>Môn học</th><th>Nội dung</th></tr></thead>
+                            <tbody>${ruleRows || '<tr><td colspan="6" class="text-muted">Chưa có rule.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                    <h6>Sự kiện của lớp (${events.length})</h6>
+                    <div class="table-responsive" style="max-height:300px;overflow:auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="thead-light"><tr><th>Loại</th><th>Tên</th><th>Từ ngày</th><th>Đến ngày</th><th>Tiết</th><th>Ghi chú</th></tr></thead>
+                            <tbody>${eventRows || '<tr><td colspan="6" class="text-muted">Chưa có sự kiện.</td></tr>'}</tbody>
+                        </table>
+                    </div>`;
+            };
+
             const hydrate = (k) => {
                 const pane = document.getElementById(paneId(k));
                 if (!pane || pane.dataset.hydrated === '1') return;
-                if (Array.isArray(oldRules[k])) oldRules[k].forEach((r) => addRule(k, r, { silent: true }));
-                if (Array.isArray(oldClassEvents[k])) {
-                    oldClassEvents[k].forEach((event) => addClassEvent(k, event, { silent: true }));
-                }
+                renderStoredTables(k);
                 pane.dataset.hydrated = '1';
             };
 
@@ -1987,38 +2033,27 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     pane.id = paneId(k);
                     pane.className = 'class-pane';
                     pane.dataset.key = String(k);
+                    const hasStored = (Array.isArray(oldRules[k]) && oldRules[k].length) || (Array.isArray(oldClassEvents[k]) && oldClassEvents[k].length);
+                    const exportLink = hasStored && /^\d+$/.test(String(k))
+                        ? `<a href="${esc(exportClassUrl.replace('__CLASS__', k))}" class="btn btn-sm btn-outline-success">Tải file Excel của lớp</a>`
+                        : `<a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tải template</a>`;
                     pane.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div>
                                 <h6 class="mb-1">${esc(labelOf(k))}</h6>
-                                <small class="text-muted">Thêm rule tay hoặc upload CSV riêng cho lớp này.</small>
+                                <small class="text-muted">Lịch hiện tại của lớp (chỉ xem). Muốn sửa: tải file Excel, chỉnh rồi chọn lại file bên dưới.</small>
                             </div>
                             <div class="pane-actions">
-                                <button type="button" class="btn btn-sm btn-primary add-rule" data-key="${esc(k)}">Thêm rule</button>
-                                <button type="button" class="btn btn-sm btn-outline-primary add-class-event" data-key="${esc(k)}">Thêm sự kiện</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary add-monthly-event" data-key="${esc(k)}" title="Tạo nhanh sự kiện lặp lại mỗi tháng, ví dụ Sinh hoạt lớp">Lặp hàng tháng</button>
-                                <button type="button" class="btn btn-sm btn-outline-info preview-schedule" data-key="${esc(k)}">Xem trước</button>
+                                ${exportLink}
+                                <button type="button" class="btn btn-sm btn-outline-info open-import-guide">Hướng dẫn</button>
                             </div>
                         </div>
                         <div class="border rounded p-3 mb-3 bg-light">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <strong>Sự kiện của lớp</strong>
-                            </div>
-                            <small class="text-muted d-block mb-2">Dùng cho ôn thi, thi hoặc sự kiện riêng của lớp này.</small>
-                            <div id="${classEventsId(k)}"></div>
+                            <strong>Import Excel/CSV thay thế</strong>
+                            <input type="file" name="import_file[${esc(k)}]" class="form-control form-control-sm mt-2" accept=".xlsx,.csv,.txt">
+                            <small class="text-muted d-block mt-1">Chọn file: toàn bộ rule và sự kiện hiện tại của lớp này sẽ được thay bằng nội dung file. Không chọn file: giữ nguyên lịch hiện tại.</small>
                         </div>
-                        <div class="border rounded p-3 mb-3 bg-light">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <strong title="Import lịch học/sự kiện cho lớp này bằng file Excel/CSV thay vì nhập tay từng rule">Import Excel/CSV</strong>
-                                <div>
-                                    <button type="button" class="btn btn-sm btn-outline-info open-import-guide">Hướng dẫn</button>
-                                    <a href="${esc(importUrl)}" class="btn btn-sm btn-outline-secondary">Tải template</a>
-                                </div>
-                            </div>
-                            <input type="file" name="import_file[${esc(k)}]" class="form-control form-control-sm" accept=".xlsx,.csv,.txt">
-                            <small class="text-muted">Cột chính: row_type, class_code, start_date, end_date, period_from, period_to. Dòng rule dùng thêm subject/content/weekdays; dòng event dùng event_type/title/note. Sự kiện lặp mỗi tháng (vd Sinh hoạt lớp): đặt recurrence=monthly_weekday, weekdays=1 thứ duy nhất, occurrence=1-4 hoặc last.</small>
-                        </div>
-                        <div id="${rulesId(k)}"></div>
+                        <div id="${storedId(k)}" class="stored-data"></div>
                     `;
                     content.appendChild(pane);
                     counters[k] = 0;
@@ -2037,6 +2072,7 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
             const removePane = (k) => {
                 const btn = document.getElementById(tabId(k));
                 const pane = document.getElementById(paneId(k));
+                if (!btn && !pane) return;
                 const active = btn && btn.classList.contains('btn-primary');
                 if (btn) btn.remove();
                 if (pane) pane.remove();
@@ -2185,6 +2221,7 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     e.preventDefault();
                 }
             });
+            @include('schedule::ScheduleSemester.partials.ajax-submit-script')
 
             const initialQuickActionsCollapsed = (() => {
                 try {

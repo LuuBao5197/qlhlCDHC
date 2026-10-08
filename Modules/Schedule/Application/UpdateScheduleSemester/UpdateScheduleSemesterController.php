@@ -4,15 +4,15 @@ namespace Modules\Schedule\Application\UpdateScheduleSemester;
 
 use App\Http\Controllers\Controller;
 use Modules\Schedule\Models\Plans;
-use Modules\Schedule\Models\PlanTemplates;
-use Modules\Schedule\Models\SemesterEvent;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingClass;
 
 class UpdateScheduleSemesterController extends Controller
 {
     public function __construct(
-        private UpdateScheduleSemesterHandler $handler
+        private UpdateScheduleSemesterHandler $handler,
+        private PlanRuleFormConverter $converter,
+        private PlanClassExportBuilder $exporter
     ) {}
 
     public function showForm($id)
@@ -20,6 +20,10 @@ class UpdateScheduleSemesterController extends Controller
         $plan = Plans::with('trainingBatch.trainingProgram', 'planTemplates.trainingClass', 'planTemplates.subjects')
             ->with(['semesterEvents.trainingClass'])
             ->findOrFail($id);
+
+        if (!PlanEditGuard::canEdit($plan, request()->user())) {
+            return redirect()->route('schedule.index')->with('error', PlanEditGuard::DENIED_MESSAGE);
+        }
 
         $classesQuery = TrainingClass::query()
             ->orderBy('code');
@@ -54,7 +58,7 @@ class UpdateScheduleSemesterController extends Controller
             ['value' => 8, 'label' => 'Chu nhat'],
         ];
 
-        $oldRules = $this->convertTemplatesToRules($plan->planTemplates);
+        $oldRules = $this->converter->templatesToRules($plan->planTemplates);
 
         $selectedClassIds = $plan->planTemplates
             ->pluck('class_id')
@@ -63,8 +67,8 @@ class UpdateScheduleSemesterController extends Controller
             ->values()
             ->toArray();
 
-        $oldGlobalEvents = $this->convertSemesterEventsToForm($plan->semesterEvents->whereNull('class_id'));
-        $oldClassEvents = $this->convertClassSemesterEventsToForm($plan->semesterEvents->whereNotNull('class_id'));
+        $oldGlobalEvents = $this->converter->globalEventsToForm($plan->semesterEvents->whereNull('class_id'));
+        $oldClassEvents = $this->converter->classEventsToForm($plan->semesterEvents->whereNotNull('class_id'));
 
         $existingPlanKeys = Plans::query()
             ->whereNotNull('training_batch_id')
@@ -103,108 +107,64 @@ class UpdateScheduleSemesterController extends Controller
         ]);
     }
 
+    public function exportClass($id, $classId)
+    {
+        $plan = Plans::with('planTemplates.subjects', 'semesterEvents')->findOrFail($id);
+        $this->authorizeExport($plan);
+        $class = TrainingClass::query()->findOrFail($classId);
+
+        $path = $this->exporter->writeXlsx($plan, $class);
+
+        return response()->download($path, $this->exportFileName($plan, $class), [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function exportAll($id)
+    {
+        $plan = Plans::with('planTemplates.subjects', 'semesterEvents')->findOrFail($id);
+        $this->authorizeExport($plan);
+
+        $classIds = $plan->planTemplates->pluck('class_id')
+            ->merge($plan->semesterEvents->pluck('class_id'))
+            ->filter()
+            ->unique()
+            ->values();
+        $classes = TrainingClass::query()->whereIn('id', $classIds)->orderBy('code')->get();
+
+        abort_if($classes->isEmpty(), 404, 'Kế hoạch chưa có dữ liệu lớp nào để xuất.');
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'plan_zip_') . '.zip';
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $tempFiles = [];
+        foreach ($classes as $class) {
+            $file = $this->exporter->writeXlsx($plan, $class);
+            $tempFiles[] = $file;
+            $zip->addFile($file, $this->exportFileName($plan, $class));
+        }
+        $zip->close();
+        foreach ($tempFiles as $file) {
+            @unlink($file);
+        }
+
+        return response()->download($zipPath, sprintf('ke-hoach-hk%d-%d-tat-ca-lop.zip', $plan->semester, $plan->year))
+            ->deleteFileAfterSend(true);
+    }
+
+    private function authorizeExport(Plans $plan): void
+    {
+        $user = request()->user();
+        abort_unless($user && ($user->isTrainingOffice() || $user->isAdmin()), 403);
+    }
+
+    private function exportFileName(Plans $plan, TrainingClass $class): string
+    {
+        return sprintf('%s-hk%d-%d.xlsx', preg_replace('/[^A-Za-z0-9_-]/', '_', $class->code), $plan->semester, $plan->year);
+    }
+
     public function __invoke(UpdateScheduleSemesterRequest $request, $id)
     {
         return $this->handler->handle($request, $id);
-    }
-
-    private function convertTemplatesToRules($templates)
-    {
-        $rulesByClass = [];
-
-        foreach ($templates as $template) {
-            $classId = (string) $template->class_id;
-            if (!isset($rulesByClass[$classId])) {
-                $rulesByClass[$classId] = [];
-            }
-
-            $weekdaysRaw = $template->days_of_week;
-
-            // days_of_week có thể là array cast sẵn, hoặc chuỗi JSON từ dữ liệu cũ
-            if (is_string($weekdaysRaw)) {
-                $decoded = json_decode($weekdaysRaw, true);
-                $weekdaysRaw = is_array($decoded) ? $decoded : [];
-            }
-
-            if (!is_array($weekdaysRaw)) {
-                $weekdaysRaw = [];
-            }
-
-            $weekdays = collect($weekdaysRaw)
-                ->filter(fn($day) => is_numeric($day))
-                ->map(fn($day) => (int) $day)
-                ->filter(fn(int $day) => $day >= 2 && $day <= 8)
-                ->unique()
-                ->sort()
-                ->values()
-                ->all();
-
-            // Fallback về day_of_week nếu days_of_week rỗng
-            if ($weekdays === [] && is_numeric($template->day_of_week)) {
-                $dow = (int) $template->day_of_week;
-                if ($dow >= 2 && $dow <= 8) {
-                    $weekdays = [$dow];
-                }
-            }
-
-            $rulesByClass[$classId][] = [
-                'start_date' => $template->start_date->toDateString(),
-                'end_date' => $template->end_date->toDateString(),
-                'period_from' => $this->getPeriodFrom($template->period_range),
-                'period_to' => $this->getPeriodTo($template->period_range),
-                'subject' => $template->subjects?->code ?? '',
-                'content' => $template->description ?? '',
-                'weekdays' => $weekdays,
-            ];
-        }
-
-        return $rulesByClass;
-    }
-
-    private function convertSemesterEventsToForm($events): array
-    {
-        return $events->map(fn (SemesterEvent $event) => [
-            'event_type' => $event->event_type,
-            'title' => $event->title,
-            'start_date' => optional($event->start_date)->toDateString() ?? '',
-            'end_date' => optional($event->end_date)->toDateString() ?? '',
-            'period_from' => $event->period_from,
-            'period_to' => $event->period_to,
-            'note' => $event->note,
-            'sort_order' => $event->sort_order,
-        ])->values()->all();
-    }
-
-    private function convertClassSemesterEventsToForm($events): array
-    {
-        return $events
-            ->groupBy(fn (SemesterEvent $event) => (string) $event->class_id)
-            ->map(fn ($group) => $group->map(fn (SemesterEvent $event) => [
-                'event_type' => $event->event_type,
-                'title' => $event->title,
-                'start_date' => optional($event->start_date)->toDateString() ?? '',
-                'end_date' => optional($event->end_date)->toDateString() ?? '',
-                'period_from' => $event->period_from,
-                'period_to' => $event->period_to,
-                'note' => $event->note,
-                'sort_order' => $event->sort_order,
-            ])->values()->all())
-            ->all();
-    }
-
-    private function getPeriodFrom($periodRange): ?int
-    {
-        if (preg_match('/^(\d+)\s*-\s*(\d+)$/', trim((string) $periodRange), $matches)) {
-            return (int) $matches[1];
-        }
-        return null;
-    }
-
-    private function getPeriodTo($periodRange): ?int
-    {
-        if (preg_match('/^(\d+)\s*-\s*(\d+)$/', trim((string) $periodRange), $matches)) {
-            return (int) $matches[2];
-        }
-        return null;
     }
 }
