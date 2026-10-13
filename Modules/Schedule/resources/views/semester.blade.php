@@ -55,21 +55,51 @@
     .schedule-modal.show { display: block; }
     .schedule-modal-content { position: relative; width: min(98%, 1600px); margin: 2rem auto; background: #ffffff; border-radius: 18px; box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24); padding: 16px; min-height: 80vh; max-height: calc(100vh - 4rem); }
     .schedule-modal-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border: none; border-radius: 50%; background: rgba(15, 23, 42, 0.06); color: #0f172a; font-size: 1.5rem; cursor: pointer; }
-    .modal-table-scroll { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 120px); padding-top: 12px; }
+    .modal-table-scroll { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 230px); padding-top: 12px; }
+    .schedule-page-title { flex: 1 1 520px; padding: 16px 20px; border-radius: 14px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff; box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3); }
+    .schedule-page-title-sub { font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #bfdbfe; }
+    .schedule-page-title-main { margin: 4px 0 0; font-size: 1.9rem; font-weight: 800; color: #fff; line-height: 1.25; }
+    .schedule-page-title-main .title-sep { margin: 0 8px; opacity: 0.5; font-weight: 400; }
+    .schedule-page-title .meta-chip { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.35); color: #fff; padding: 5px 14px; border-radius: 999px; font-size: 0.95rem; }
+    .schedule-modal-title { padding: 8px 56px 14px 8px; border-bottom: 3px solid #2563eb; margin-bottom: 4px; }
+    .schedule-modal-title-main { margin: 0 0 10px; font-size: 1.6rem; font-weight: 800; color: #1e3a8a; letter-spacing: 0.3px; }
+    .schedule-modal-title-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .schedule-modal-title-meta .meta-chip { padding: 6px 14px; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e293b; font-size: 0.95rem; }
+    .schedule-modal-title-meta .meta-chip.meta-class { background: #1e3a8a; border-color: #1e3a8a; color: #fff; font-size: 1.05rem; }
 </style>
 
 <div class="schedule-wrapper">
     <div class="schedule-card">
         <div style="padding: 20px; border-bottom: 1px solid #e2e8f0;">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                <div>
+                @if ($plan)
+                    @php
+                        $pageClass = $classOptions->firstWhere('code', $className);
+                        $pageClassLabel = $className
+                            ? $className . ($pageClass?->name ? ' - ' . $pageClass->name : '')
+                            : 'Tất cả các lớp';
+                    @endphp
+                    <div class="schedule-page-title">
+                        <div class="schedule-page-title-sub">Lịch học kỳ</div>
+                        <h2 class="schedule-page-title-main">
+                            <i class="fas fa-graduation-cap"></i>
+                            {{ $pageClassLabel }}
+                            <span class="title-sep">|</span>
+                            HỌC KỲ {{ $plan->semester }} &ndash; NĂM HỌC {{ $plan->year }}
+                        </h2>
+                        <div class="schedule-modal-title-meta mt-2">
+                            @if ($plan->trainingBatch)
+                                <span class="meta-chip">Khóa: <strong>{{ $plan->trainingBatch->code }}</strong></span>
+                            @endif
+                            @if ($dates->isNotEmpty())
+                                <span class="meta-chip">Bắt đầu: <strong>{{ $dates->first()->format('d/m/Y') }}</strong></span>
+                                <span class="meta-chip">Kết thúc: <strong>{{ $dates->last()->format('d/m/Y') }}</strong></span>
+                            @endif
+                        </div>
+                    </div>
+                @else
                     <h2 style="margin: 0; font-weight: 800; color: #1e293b;">Lịch học kỳ</h2>
-                    <p style="margin: 5px 0 0; color: #64748b;">
-                        Học kỳ: {{ $plan->semester ?? '-' }} | Năm học: {{ $plan->year ?? '-' }}
-                        @if($plan?->trainingBatch) | Khóa: <strong>{{ $plan->trainingBatch->code }}</strong> @endif
-                        @if($className) | Lớp: <strong>{{ $className }}</strong> @endif
-                    </p>
-                </div>
+                @endif
                 @auth
                     @if($plan && (auth()->user()->isTrainingOffice() || auth()->user()->isAdmin()))
                         <a href="{{ route('schedule.semester-events.index', $plan->id) }}" class="btn btn-sm btn-outline-primary">
@@ -201,6 +231,28 @@
 <div id="scheduleModal" class="schedule-modal" onclick="closeScheduleModal()" aria-hidden="true">
     <div class="schedule-modal-content" onclick="event.stopPropagation()">
         <button type="button" class="schedule-modal-close" aria-label="Dong" onclick="closeScheduleModal()">&times;</button>
+        @if ($plan && $dates->isNotEmpty())
+            @php
+                $selectedClass = $classOptions->firstWhere('code', $className);
+                $modalClassLabel = $className
+                    ? $className . ($selectedClass?->name ? ' - ' . $selectedClass->name : '')
+                    : 'Tất cả các lớp';
+            @endphp
+            <div class="schedule-modal-title">
+                <h3 class="schedule-modal-title-main">
+                    LỊCH HỌC KỲ {{ $plan->semester }} &ndash; NĂM HỌC {{ $plan->year }}
+                </h3>
+                <div class="schedule-modal-title-meta">
+                    <span class="meta-chip meta-class">Lớp: <strong>{{ $modalClassLabel }}</strong></span>
+                    @if ($plan->trainingBatch)
+                        <span class="meta-chip">Khóa: <strong>{{ $plan->trainingBatch->code }}</strong></span>
+                    @endif
+                    <span class="meta-chip">Học kỳ: <strong>{{ $plan->semester }}</strong></span>
+                    <span class="meta-chip">Bắt đầu: <strong>{{ $dates->first()->format('d/m/Y') }}</strong></span>
+                    <span class="meta-chip">Kết thúc: <strong>{{ $dates->last()->format('d/m/Y') }}</strong></span>
+                </div>
+            </div>
+        @endif
         <div class="modal-table-scroll" id="modalTableScroll"></div>
     </div>
 </div>
