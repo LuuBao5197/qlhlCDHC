@@ -9,7 +9,9 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Modules\Schedule\Application\Shared\ScheduleValidationReport;
 use Modules\Schedule\Models\Plans;
+use Modules\Training\Models\TrainingBatch;
 use Modules\Training\Models\TrainingClass;
+use Modules\Training\Models\TrainingProgram;
 
 class CreateScheduleSemesterRequest extends FormRequest
 {
@@ -29,7 +31,7 @@ class CreateScheduleSemesterRequest extends FormRequest
                 'integer',
                 'exists:training_batches,id',
             ],
-            'semester' => 'required|integer|min:1|max:2',
+            'semester' => 'required|integer|min:1|max:' . TrainingProgram::MAX_SEMESTER_COUNT,
             'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
@@ -104,6 +106,18 @@ class CreateScheduleSemesterRequest extends FormRequest
             $semester = $this->input('semester');
             $year = $this->input('year');
             $minAllowedDate = $this->minimumAllowedPlanDate();
+
+            if (is_numeric($trainingBatchId) && is_numeric($semester)) {
+                $semesterCount = TrainingBatch::query()->with('trainingProgram:id,semester_count')->find((int) $trainingBatchId)
+                    ?->trainingProgram?->semester_count ?? TrainingProgram::DEFAULT_SEMESTER_COUNT;
+
+                if ((int) $semester > $semesterCount) {
+                    $validator->errors()->add(
+                        'semester',
+                        'Chuong trinh dao tao cua khoa nay chi co ' . $semesterCount . ' hoc ky.'
+                    );
+                }
+            }
 
             if (is_numeric($trainingBatchId) && is_numeric($semester) && is_numeric($year)) {
                 $duplicatePlanExists = Plans::query()

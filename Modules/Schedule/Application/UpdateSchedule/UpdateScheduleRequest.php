@@ -22,7 +22,7 @@ class UpdateScheduleRequest extends FormRequest
         $scheduleId = $this->route('id');
 
         return [
-            'semester' => 'required|integer|min:1|max:2',
+            'semester' => 'required|integer|min:1|max:6',
             'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
             'description' => 'nullable|string|max:500',
         ];

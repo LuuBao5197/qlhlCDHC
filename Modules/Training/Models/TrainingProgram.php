@@ -16,10 +16,16 @@ class TrainingProgram extends Model
     protected $fillable = [
         'code',
         'name',
+        'semester_count',
         'status',
     ];
 
+    public const DEFAULT_SEMESTER_COUNT = 2;
+
+    public const MAX_SEMESTER_COUNT = 6;
+
     protected $casts = [
+        'semester_count' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

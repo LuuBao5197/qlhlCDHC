@@ -20,7 +20,7 @@ class GetScheduleSemesterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'semester' => 'nullable|integer|min:1|max:2',
+            'semester' => 'nullable|integer|min:1|max:6',
             'year' => 'nullable|integer|min:2000',
             'training_batch_id' => 'nullable|integer|exists:training_batches,id',
             'className' => 'nullable|string|max:50',

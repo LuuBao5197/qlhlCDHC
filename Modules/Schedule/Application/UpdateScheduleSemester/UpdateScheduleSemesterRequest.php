@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Modules\Schedule\Application\Shared\ScheduleValidationReport;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\TrainingClass;
+use Modules\Training\Models\TrainingProgram;
 
 class UpdateScheduleSemesterRequest extends FormRequest
 {
@@ -26,7 +27,7 @@ class UpdateScheduleSemesterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'semester' => 'required|integer|min:1|max:2',
+            'semester' => 'required|integer|min:1|max:' . TrainingProgram::MAX_SEMESTER_COUNT,
             'year' => 'required|integer|min:2000|max:' . (date('Y') + 10),
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
@@ -139,6 +140,17 @@ class UpdateScheduleSemesterRequest extends FormRequest
             $year = $this->input('year');
 
             if ($trainingBatchId) {
+                if (is_numeric($semester)) {
+                    $semesterCount = $plan->trainingBatch?->trainingProgram?->semester_count ?? TrainingProgram::DEFAULT_SEMESTER_COUNT;
+
+                    if ((int) $semester > $semesterCount) {
+                        $validator->errors()->add(
+                            'semester',
+                            'Chuong trinh dao tao cua khoa nay chi co ' . $semesterCount . ' hoc ky.'
+                        );
+                    }
+                }
+
                 if (is_numeric($semester) && is_numeric($year)) {
                     $duplicatePlanExists = Plans::query()
                         ->where('training_batch_id', (int) $trainingBatchId)

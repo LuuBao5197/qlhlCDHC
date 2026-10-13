@@ -19,6 +19,10 @@
                             label: 'Tên chương trình'
                         },
                         {
+                            key: 'semester_count',
+                            label: 'Số học kỳ'
+                        },
+                        {
                             key: 'status',
                             label: 'Trạng thái'
                         }
@@ -50,6 +54,12 @@
                             key: 'name',
                             label: 'Tên chương trình đào tạo',
                             type: 'text',
+                            required: true
+                        },
+                        {
+                            key: 'semester_count',
+                            label: 'Số học kỳ (1-6)',
+                            type: 'number',
                             required: true
                         },
                         {

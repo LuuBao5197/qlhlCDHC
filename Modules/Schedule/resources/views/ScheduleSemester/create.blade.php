@@ -649,8 +649,14 @@
                             <div class="col-md-3">
                                 <label class="form-label">Học kỳ</label>
                                 <select name="semester" class="form-control" required>
-                                    <option value="1" {{ old('semester') == 1 ? 'selected' : '' }}>Học kỳ 1</option>
-                                    <option value="2" {{ old('semester') == 2 ? 'selected' : '' }}>Học kỳ 2</option>
+                                    @php
+                                        $initialSemesterCount = $batchSemesterCountMap[$selectedTrainingBatchId] ?? 2;
+                                    @endphp
+                                    @for ($semesterOption = 1; $semesterOption <= $initialSemesterCount; $semesterOption++)
+                                        <option value="{{ $semesterOption }}"
+                                            {{ (int) old('semester') === $semesterOption ? 'selected' : '' }}>
+                                            Học kỳ {{ $semesterOption }}</option>
+                                    @endfor
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -2021,8 +2027,28 @@ event,CDHC01,other,Sinh hoạt lớp,2026-09-07,2026-12-20,2,1,2,monthly_weekday
                     .join('');
             };
 
+            const batchSemesterCountMap = @json($batchSemesterCountMap);
+            const refreshSemesterOptions = () => {
+                if (!semesterInput || !batchSelect) {
+                    return;
+                }
+
+                const count = Number(batchSemesterCountMap[String(batchSelect.value || '')] || 2);
+                const previous = Number(semesterInput.value || 1);
+
+                if (semesterInput.options.length === count) {
+                    return;
+                }
+
+                semesterInput.innerHTML = Array.from({ length: count }, (_, i) =>
+                    `<option value="${i + 1}">Học kỳ ${i + 1}</option>`).join('');
+                semesterInput.value = String(Math.min(previous, count));
+                semesterInput.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
             if (batchSelect) {
                 batchSelect.addEventListener('change', function() {
+                    refreshSemesterOptions();
                     applyClassFilters();
                     syncChecks();
                     validateRuleConflicts();

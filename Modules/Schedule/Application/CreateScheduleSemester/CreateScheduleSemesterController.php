@@ -8,6 +8,7 @@ use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingBatch;
 use Modules\Training\Models\TrainingClass;
+use Modules\Training\Models\TrainingProgram;
 
 class CreateScheduleSemesterController extends Controller
 {
@@ -19,7 +20,7 @@ class CreateScheduleSemesterController extends Controller
     public function showForm()
     {
         $trainingBatches = TrainingBatch::query()
-            ->with('trainingProgram:id,code,name')
+            ->with('trainingProgram:id,code,name,semester_count')
             ->withCount('classes')
             ->where('status', 'active')
             ->orderBy('code')
@@ -62,6 +63,12 @@ class CreateScheduleSemesterController extends Controller
             ->map(fn ($rows) => $rows->pluck('code')->values())
             ->all();
 
+        $batchSemesterCountMap = $trainingBatches
+            ->mapWithKeys(fn (TrainingBatch $batch) => [
+                (string) $batch->id => (int) ($batch->trainingProgram?->semester_count ?? TrainingProgram::DEFAULT_SEMESTER_COUNT),
+            ])
+            ->all();
+
         $weekdayOptions = [
             ['value' => 2, 'label' => 'Thu 2'],
             ['value' => 3, 'label' => 'Thu 3'],
@@ -90,6 +97,7 @@ class CreateScheduleSemesterController extends Controller
             'subjectSuggestions' => $subjectSuggestions,
             'batchProgramMap' => $batchProgramMap,
             'programSubjectCodes' => $programSubjectCodes,
+            'batchSemesterCountMap' => $batchSemesterCountMap,
             'weekdayOptions' => $weekdayOptions,
             'globalEventTypes' => $globalEventTypes,
             'classEventTypes' => $classEventTypes,

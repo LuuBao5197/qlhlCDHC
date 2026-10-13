@@ -627,10 +627,11 @@
                             <div class="col-md-3">
                                 <label class="form-label">Học kỳ</label>
                                 <select name="semester" class="form-control" required>
-                                    <option value="1" {{ old('semester', $plan->semester) == 1 ? 'selected' : '' }}>Học
-                                        kỳ 1</option>
-                                    <option value="2" {{ old('semester', $plan->semester) == 2 ? 'selected' : '' }}>Học
-                                        kỳ 2</option>
+                                    @for ($semesterOption = 1; $semesterOption <= $semesterCount; $semesterOption++)
+                                        <option value="{{ $semesterOption }}"
+                                            {{ (int) old('semester', $plan->semester) === $semesterOption ? 'selected' : '' }}>
+                                            Học kỳ {{ $semesterOption }}</option>
+                                    @endfor
                                 </select>
                             </div>
                             <div class="col-md-3">

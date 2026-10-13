@@ -35,6 +35,7 @@ class ManageTrainingProgramsHandler extends CrudHandler
         return [
             'code' => ['required', 'string', 'max:255', Rule::unique('training_programs', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:255'],
+            'semester_count' => ['required', 'integer', 'min:1', 'max:' . TrainingProgram::MAX_SEMESTER_COUNT],
             'status' => ['required', 'string', Rule::in(['active', 'inactive', 'archived'])],
             'subject_ids' => ['nullable', 'array'],
             'subject_ids.*' => ['integer', 'exists:subjects,id'],

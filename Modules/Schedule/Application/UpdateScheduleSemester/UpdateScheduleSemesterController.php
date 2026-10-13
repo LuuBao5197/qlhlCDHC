@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Modules\Schedule\Models\Plans;
 use Modules\Training\Models\Subject;
 use Modules\Training\Models\TrainingClass;
+use Modules\Training\Models\TrainingProgram;
 
 class UpdateScheduleSemesterController extends Controller
 {
@@ -97,6 +98,10 @@ class UpdateScheduleSemesterController extends Controller
             'subjects' => $subjects,
             'subjectSuggestions' => $subjectSuggestions,
             'weekdayOptions' => $weekdayOptions,
+            'semesterCount' => max(
+                (int) ($trainingProgram?->semester_count ?? TrainingProgram::DEFAULT_SEMESTER_COUNT),
+                (int) $plan->semester
+            ),
             'oldRules' => $oldRules,
             'oldGlobalEvents' => $oldGlobalEvents,
             'oldClassEvents' => $oldClassEvents,
