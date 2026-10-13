@@ -179,6 +179,11 @@ class User extends Authenticatable
         return $this->hasRole(Role::STUDENT);
     }
 
+    public function isClassAccount(): bool
+    {
+        return $this->hasRole(Role::CLASS_ACCOUNT);
+    }
+
     public function isAdmin(): bool
     {
         return $this->hasRole(Role::ADMIN);

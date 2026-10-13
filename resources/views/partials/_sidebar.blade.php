@@ -21,10 +21,19 @@
       </a>
     </li>
 
+    @if($activeRoleSlug !== 'class_account')
+      <li class="nav-item menu-items">
+        <a class="nav-link" href="{{ route('schedule.index') }}">
+          <span class="menu-icon"><i class="mdi mdi-calendar-clock"></i></span>
+          <span class="menu-title">Lịch huấn luyện</span>
+        </a>
+      </li>
+    @endif
+
     <li class="nav-item menu-items">
-      <a class="nav-link" href="{{ route('schedule.index') }}">
-        <span class="menu-icon"><i class="mdi mdi-calendar-clock"></i></span>
-        <span class="menu-title">Lịch huấn luyện</span>
+      <a class="nav-link" href="{{ route('schedule.calendar') }}">
+        <span class="menu-icon"><i class="mdi mdi-calendar-text"></i></span>
+        <span class="menu-title">Xem lịch ngày/tuần</span>
       </a>
     </li>
 

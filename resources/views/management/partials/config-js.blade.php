@@ -353,6 +353,11 @@
                             lookup: 'rooms'
                         },
                         {
+                            key: 'account_email',
+                            label: 'Email tài khoản xem lịch của lớp (để trống nếu chưa cấp; mật khẩu mặc định, bắt buộc đổi ở lần đăng nhập đầu)',
+                            type: 'email'
+                        },
+                        {
                             key: 'status',
                             label: 'Trạng thái',
                             type: 'select',

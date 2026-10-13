@@ -40,6 +40,10 @@ Route::middleware('auth')->get('/home', function () {
         return redirect()->route('teacher-slot-evaluations.index');
     }
 
+    if ($user->isClassAccount()) {
+        return redirect()->route('schedule.calendar');
+    }
+
     return redirect()->route('schedule.index');
 });
 

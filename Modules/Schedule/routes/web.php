@@ -5,6 +5,7 @@ use Modules\Schedule\Application\GetSchedule\GetScheduleController;
 use Modules\Schedule\Application\GetScheduleSemester\GetScheduleSemesterController;
 use Modules\Schedule\Application\CreateScheduleSemester\CreateScheduleSemesterController;
 use Modules\Schedule\Application\CreateScheduleSemester\PreviewScheduleSemesterController;
+use Modules\Schedule\Application\ViewScheduleCalendar\ViewScheduleCalendarController;
 use Modules\Schedule\Application\UpdateSchedule\UpdateScheduleController;
 use Modules\Schedule\Application\DeleteSchedule\DeleteScheduleController;
 use Modules\Schedule\Application\AssignMonthlySchedule\AssignMonthlyScheduleController;
@@ -42,6 +43,9 @@ use Modules\Schedule\Models\MonthlySchedule;
 Route::middleware(['auth', 'verified'])->group(function () {
     // List schedules
     Route::get('/schedules', GetScheduleController::class)->name('schedule.index');
+
+    // Xem lich toan truong / khoa / lop / ca nhan theo ngay, tuan
+    Route::get('/schedule-calendar', ViewScheduleCalendarController::class)->name('schedule.calendar');
 
     // Create schedule
     Route::get('/schedules/create', [CreateScheduleSemesterController::class, 'showForm'])

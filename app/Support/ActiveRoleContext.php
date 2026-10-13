@@ -27,6 +27,7 @@ class ActiveRoleContext
         Role::DEPARTMENT_STAFF,
         Role::TEACHER,
         Role::STUDENT,
+        Role::CLASS_ACCOUNT,
     ];
 
     public static function current(User $user): ?Role

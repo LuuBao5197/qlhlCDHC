@@ -2,6 +2,7 @@
 
 namespace Modules\Training\Models;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,8 @@ class TrainingClass extends Model
     use HasFactory;
 
     protected $table = 'classes';
+
+    protected $appends = ['account_email'];
 
     protected $fillable = [
         'code',
@@ -34,6 +37,17 @@ class TrainingClass extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function accountUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'account_user_id');
+    }
+
+    public function getAccountEmailAttribute(): ?string
+    {
+        // Chi tra ve khi relation da duoc eager load (man hinh quan ly lop), tranh N+1 va lo email o noi khac.
+        return $this->relationLoaded('accountUser') ? $this->accountUser?->email : null;
     }
 
     public function defaultRoom(): BelongsTo

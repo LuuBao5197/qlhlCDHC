@@ -16,6 +16,7 @@ class Role extends Model
     public const TRAINING_OFFICE = 'training_office';
     public const TRAINING_OFFICE_HEAD = 'training_office_head';
     public const LEADERSHIP = 'leadership';
+    public const CLASS_ACCOUNT = 'class_account';
 
     protected $fillable = [
         'slug',
