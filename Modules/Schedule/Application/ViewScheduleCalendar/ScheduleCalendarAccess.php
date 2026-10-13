@@ -5,6 +5,7 @@ namespace Modules\Schedule\Application\ViewScheduleCalendar;
 use App\Models\Role;
 use App\Models\User;
 use Modules\Schedule\Models\ScheduleSlot;
+use Modules\Training\Models\TrainingClass;
 
 /**
  * Quyen xem lich: toan truong (admin, PDT, BGH), theo khoa (lanh dao/giao vu khoa, giao vien),
