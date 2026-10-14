@@ -9,7 +9,11 @@ use Modules\Schedule\Application\ExportDepartmentSchedule\DepartmentScheduleExpo
 
 class ViewScheduleCalendarRequest extends FormRequest
 {
-    public const MODES = [DepartmentScheduleExportPeriod::MODE_DAY, DepartmentScheduleExportPeriod::MODE_WEEK];
+    public const GROUP_PERIOD = 'period';
+
+    public const GROUP_CLASS = 'class';
+
+    public const MODES =[DepartmentScheduleExportPeriod::MODE_DAY, DepartmentScheduleExportPeriod::MODE_WEEK];
 
     public function authorize(): bool
     {
@@ -30,7 +34,29 @@ class ViewScheduleCalendarRequest extends FormRequest
             'date' => ['nullable', 'date'],
             'scope' => ['nullable', Rule::in(ScheduleCalendarAccess::SCOPES)],
             'id' => ['nullable', 'integer'],
+            'group' => ['nullable', Rule::in([self::GROUP_PERIOD, self::GROUP_CLASS])],
         ];
+    }
+
+    /**
+     * Cach nhom khi xem tuan: theo tiet (mac dinh) hoac theo lop (hang = lop, cot = ngay).
+     * Chi co hieu luc voi xem tuan o pham vi toan truong/khoa.
+     */
+    public function group(): string
+    {
+        [$scope] = $this->resolvedScope();
+        $canGroup = $this->mode() === DepartmentScheduleExportPeriod::MODE_WEEK
+            && in_array($scope, [ScheduleCalendarAccess::SCOPE_SCHOOL, ScheduleCalendarAccess::SCOPE_DEPARTMENT], true);
+
+        return $canGroup && $this->input('group') === self::GROUP_CLASS ? self::GROUP_CLASS : self::GROUP_PERIOD;
+    }
+
+    public function canGroup(): bool
+    {
+        [$scope] = $this->resolvedScope();
+
+        return $this->mode() === DepartmentScheduleExportPeriod::MODE_WEEK
+            && in_array($scope, [ScheduleCalendarAccess::SCOPE_SCHOOL, ScheduleCalendarAccess::SCOPE_DEPARTMENT], true);
     }
 
     public function mode(): string

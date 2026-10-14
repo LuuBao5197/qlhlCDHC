@@ -35,6 +35,8 @@ class ViewScheduleCalendarController extends Controller
             'calendar' => $calendar,
             'period' => $period,
             'mode' => $mode,
+            'group' => $request->group(),
+            'canGroup' => $request->canGroup(),
             'scope' => $scope,
             'scopeId' => $scopeId,
             'selectedDate' => $anchor->toDateString(),

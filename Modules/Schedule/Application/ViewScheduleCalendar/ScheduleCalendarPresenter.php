@@ -16,7 +16,12 @@ use Modules\Schedule\Models\ScheduleSlotGroup;
  */
 class ScheduleCalendarPresenter
 {
-    public const MIN_PERIODS = 10;
+    public const SESSION_MORNING = 'morning';
+
+    public const SESSION_AFTERNOON = 'afternoon';
+
+    /** Tiet 1-5 la buoi sang, tu tiet 6 la buoi chieu (khop InitializeMonthlyScheduleHandler). */
+    private const LAST_MORNING_PERIOD = 5;
 
     private const LESSON_TYPE_LABELS = [
         ScheduleSlot::LESSON_TYPE_THEORY => 'Lý thuyết',
@@ -31,17 +36,24 @@ class ScheduleCalendarPresenter
     ];
 
     /**
+     * Moi ngay co:
+     *  - cells: tiet => cac muc (dung cho xem theo ngay);
+     *  - blocks: cac muc da gop tiet lien tiep cung buoi (dung cho xem theo tuan).
+     * "periods" chi gom cac tiet co du lieu; ngay Thu 7/Chu nhat khong co tiet bi an khi xem theo tuan.
+     * "matrix": hang = lop, cot = ngay, moi o chia buoi sang/chieu (xem theo tuan nhom theo lop).
+     *
      * @param Collection<int, ScheduleSlot> $slots
-     * @return array{days: array<int, array{date: CarbonImmutable, cells: array<int, array<int, array<string, mixed>>>}>, periods: array<int, int>}
+     * @return array{days: array<int, array<string, mixed>>, periods: array<int, int>, matrix: array<int, array<string, mixed>>, hasItems: bool}
      */
     public function present(Collection $slots, DepartmentScheduleExportPeriod $period): array
     {
         $days = [];
         for ($date = $period->start; $date->lte($period->end); $date = $date->addDay()) {
-            $days[$date->format('Y-m-d')] = ['date' => $date, 'cells' => []];
+            $days[$date->format('Y-m-d')] = ['date' => $date, 'cells' => [], 'blocks' => []];
         }
 
-        $maxPeriod = self::MIN_PERIODS;
+        $entries = [];
+        $usedPeriods = [];
         foreach ($this->buildUnits($slots) as $unit) {
             $dayKey = $unit['date']->format('Y-m-d');
             if (! isset($days[$dayKey])) {
@@ -50,11 +62,117 @@ class ScheduleCalendarPresenter
 
             foreach ($this->itemsForUnit($unit['slots']) as $item) {
                 $days[$dayKey]['cells'][$unit['period']][] = $item;
+                $entries[$dayKey][] = ['period' => $unit['period'], 'item' => $item];
             }
-            $maxPeriod = max($maxPeriod, $unit['period']);
+            $usedPeriods[$unit['period']] = true;
         }
 
-        return ['days' => array_values($days), 'periods' => range(1, $maxPeriod)];
+        foreach ($entries as $dayKey => $dayEntries) {
+            $days[$dayKey]['blocks'] = $this->mergeBlocks($dayEntries);
+        }
+
+        if ($period->mode === DepartmentScheduleExportPeriod::MODE_WEEK) {
+            $days = array_filter(
+                $days,
+                static fn (array $day): bool => $day['date']->isoWeekday() <= 5 || $day['blocks'] !== []
+            );
+        }
+
+        $periods = array_keys($usedPeriods);
+        sort($periods);
+
+        return [
+            'days' => array_values($days),
+            'periods' => $periods,
+            'matrix' => $this->buildClassMatrix($days),
+            'hasItems' => $usedPeriods !== [],
+        ];
+    }
+
+    /**
+     * Gop cac tiet lien tiep cung buoi co noi dung giong het nhau thanh mot khoi "Tiet a-b".
+     *
+     * @param array<int, array{period: int, item: array<string, mixed>}> $entries
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeBlocks(array $entries): array
+    {
+        $buckets = [];
+        foreach ($entries as $entry) {
+            $buckets[serialize($entry['item'])]['item'] = $entry['item'];
+            $buckets[serialize($entry['item'])]['periods'][$entry['period']] = true;
+        }
+
+        $blocks = [];
+        foreach ($buckets as $bucket) {
+            $periods = array_keys($bucket['periods']);
+            sort($periods);
+
+            $from = $to = null;
+            foreach ($periods as $periodNumber) {
+                $continues = $to !== null
+                    && $periodNumber === $to + 1
+                    && $this->sessionOf($periodNumber) === $this->sessionOf($from);
+
+                if ($continues) {
+                    $to = $periodNumber;
+
+                    continue;
+                }
+
+                if ($from !== null) {
+                    $blocks[] = $this->makeBlock($bucket['item'], $from, $to);
+                }
+                $from = $to = $periodNumber;
+            }
+            if ($from !== null) {
+                $blocks[] = $this->makeBlock($bucket['item'], $from, $to);
+            }
+        }
+
+        usort($blocks, static fn (array $a, array $b): int => [$a['from'], $a['classes'], $a['subject']] <=> [$b['from'], $b['classes'], $b['subject']]);
+
+        return $blocks;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, mixed>
+     */
+    private function makeBlock(array $item, int $from, int $to): array
+    {
+        return $item + ['from' => $from, 'to' => $to, 'session' => $this->sessionOf($from)];
+    }
+
+    private function sessionOf(int $period): string
+    {
+        return $period <= self::LAST_MORNING_PERIOD ? self::SESSION_MORNING : self::SESSION_AFTERNOON;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $days
+     * @return array<int, array{label: string, cells: array<string, array<string, array<int, array<string, mixed>>>>}>
+     */
+    private function buildClassMatrix(array $days): array
+    {
+        $rows = [];
+        foreach ($days as $dayKey => $day) {
+            foreach ($day['blocks'] as $block) {
+                $labels = $block['classList'] !== [] ? $block['classList'] : ['—'];
+                foreach ($labels as $label) {
+                    $rows[$label][$dayKey][$block['session']][] = $block;
+                }
+            }
+        }
+
+        uksort($rows, static fn (string $a, string $b): int => strnatcasecmp($a, $b));
+
+        $matrix = [];
+        foreach ($rows as $label => $cells) {
+            $matrix[] = ['label' => (string) $label, 'cells' => $cells];
+        }
+
+        return $matrix;
     }
 
     /**
@@ -91,12 +209,14 @@ class ScheduleCalendarPresenter
     {
         $base = $unitSlots[0];
         $group = $base->scheduleSlotGroup;
-        $classes = implode(', ', array_values(array_unique(array_filter(
+        $classList = array_values(array_unique(array_filter(
             array_map(static fn (ScheduleSlot $s) => ScheduleSlotLabels::classLabel($s), $unitSlots)
-        ))));
+        )));
+        $classes = implode(', ', $classList);
 
         $common = [
             'classes' => $classes,
+            'classList' => $classList,
             'subject' => (string) ($base->subjectModel?->name ?? $base->subject ?? ''),
             'lesson' => '',
             'teacher' => '',

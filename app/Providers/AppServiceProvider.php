@@ -113,7 +113,23 @@ class AppServiceProvider extends ServiceProvider
             return implode('/', $parts);
         };
 
-        $resourceInlineCss = static function (string $relativePath) use ($assetPath, $resourceAsset, $normalizeAssetPath): string {
+        // CSS duoc nhung thang vao HTML (base64) nen moi dinh dang font du (eot/woff/ttf) deu lam trang nang them
+        // hang MB. Voi @font-face da co woff2 (moi trinh duyet hien dai deu ho tro) chi giu lai woff2.
+        $stripLegacyFontFormats = static function (string $css): string {
+            return preg_replace_callback('/@font-face\s*\{[^}]*\}/i', static function (array $matches): string {
+                $block = $matches[0];
+
+                if (! preg_match('/url\(\s*([^)]+?)\s*\)\s*format\(\s*["\']woff2["\']\s*\)/i', $block, $woff2)) {
+                    return $block;
+                }
+
+                $block = preg_replace('/\bsrc\s*:[^;}]*;?/i', '', $block);
+
+                return preg_replace('/\}\s*$/', ';src:url('.$woff2[1].') format("woff2")}', $block);
+            }, $css) ?? $css;
+        };
+
+        $resourceInlineCss = static function (string $relativePath) use ($assetPath, $resourceAsset, $normalizeAssetPath, $stripLegacyFontFormats): string {
             $path = $assetPath($relativePath);
 
             if (! $path || ! is_file($path)) {
@@ -122,6 +138,7 @@ class AppServiceProvider extends ServiceProvider
 
             $css = file_get_contents($path);
             $css = preg_replace('/\/\*# sourceMappingURL=.*?\*\//', '', $css);
+            $css = $stripLegacyFontFormats($css);
             $cssDirectory = str_replace('\\', '/', dirname($relativePath));
 
             return preg_replace_callback('/url\((["\']?)(?!data:|https?:|\/\/|#)([^)\'"]+)\1\)/i', static function (array $matches) use ($cssDirectory, $resourceAsset, $normalizeAssetPath): string {
@@ -150,6 +167,7 @@ class AppServiceProvider extends ServiceProvider
         View::share('resourceCoreStyles', [
             'vendors/mdi/css/materialdesignicons.min.css',
             'vendors/css/vendor.bundle.base.css',
+            'css/inter.css',
             'css/style.css',
         ]);
         View::share('resourceCoreScripts', [
@@ -164,6 +182,7 @@ class AppServiceProvider extends ServiceProvider
             'vendors/mdi/css/materialdesignicons.min.css',
             'vendors/css/vendor.bundle.base.css',
             'vendors/bootstrap-datepicker/css/bootstrap-datepicker3.min.css',
+            'css/inter.css',
             'css/style.css',
             'css/schedule-date-picker.css',
         ]);
