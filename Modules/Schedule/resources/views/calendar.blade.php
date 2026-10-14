@@ -64,6 +64,9 @@
 
         .cal-item { margin-bottom: 6px; padding: 7px 9px; border-radius: 6px; border-left: 5px solid var(--k); background: var(--bg); color: var(--cal-ink); font-size: .9rem; line-height: 1.35; }
         .cal-item:last-child { margin-bottom: 0; }
+        /* Xem theo ngay: cac muc trong cung tiet xep luoi nhieu cot (4-5 cot tren man hinh rong) de bot cuon. */
+        .cal-cell-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; align-items: start; }
+        .cal-cell-grid .cal-item { margin-bottom: 0; height: 100%; }
         .cal-item .cal-class { font-size: .75rem; font-weight: 700; color: var(--k); text-transform: uppercase; letter-spacing: .02em; }
         .cal-item .cal-subject { font-weight: 700; font-size: .95rem; }
         .cal-item .cal-lesson { font-weight: 500; }
@@ -98,8 +101,8 @@
                     <div class="cal-field">
                         <label>Xem theo</label>
                         <div class="cal-seg">
-                            <a href="{{ route('schedule.calendar', $baseQuery + ['mode' => 'week', 'date' => $selectedDate]) }}" class="{{ $mode === 'week' ? 'active' : '' }}">Tuần</a>
-                            <a href="{{ route('schedule.calendar', $baseQuery + ['mode' => 'day', 'date' => $selectedDate]) }}" class="{{ $mode === 'day' ? 'active' : '' }}">Ngày</a>
+                            <a href="{{ route('schedule.calendar', array_merge($baseQuery, ['mode' => 'week', 'date' => $selectedDate])) }}" class="{{ $mode === 'week' ? 'active' : '' }}">Tuần</a>
+                            <a href="{{ route('schedule.calendar', array_merge($baseQuery, ['mode' => 'day', 'date' => $selectedDate])) }}" class="{{ $mode === 'day' ? 'active' : '' }}">Ngày</a>
                         </div>
                     </div>
 
@@ -180,6 +183,7 @@
                                     </td>
                                     @foreach($calendar['days'] as $day)
                                         <td class="{{ $day['date']->toDateString() === $today ? 'cal-today' : ($day['date']->isoWeekday() >= 6 ? 'cal-weekend' : '') }}">
+                                            <div class="cal-cell {{ $mode === 'day' ? 'cal-cell-grid' : '' }}">
                                             @foreach($day['cells'][$periodNumber] ?? [] as $item)
                                                 <div class="cal-item k-{{ $item['kind'] }}" title="{{ $kindLabels[$item['kind']] ?? '' }}">
                                                     @if($item['classes'] !== '')
@@ -203,6 +207,7 @@
                                                     @endif
                                                 </div>
                                             @endforeach
+                                            </div>
                                         </td>
                                     @endforeach
                                 </tr>
