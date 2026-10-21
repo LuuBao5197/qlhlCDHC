@@ -18,7 +18,7 @@
                 <div class="card-body">
                     <h4 class="card-title mb-1">Điều hướng phân công giảng dạy</h4>
                     <p class="text-muted mb-0">
-                        Khoa đi vào phân công tổng hợp theo tháng; PDT và quản trị viên đi vào hộp chờ phê duyệt batch.
+                        Khoa đi vào phân công tổng hợp theo tháng; Phòng đào tạo và quản trị viên đi vào hộp chờ phê duyệt đợt.
                     </p>
                 </div>
             </div>
@@ -39,8 +39,7 @@
 
     @if (!$canReviewWorkflow && !$canManageSemesterPlan && !$canDepartmentAssign)
         <div class="alert alert-warning">
-            Tai khoan cua ban chi co quyen xem. Chuc nang nghiep vu chi danh cho vai tro `department_staff`,
-            `training_office` hoac `admin`.
+            Tài khoản của bạn chỉ có quyền xem thông tin phân công giảng dạy, không thể thực hiện các thao tác quản lý.
         </div>
     @endif
 
@@ -117,9 +116,9 @@
         <div class="col-lg-6 mb-3">
             <div class="card h-100 border-left-success shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title mb-2">Hộp chờ phê duyệt batch phân công</h5>
+                    <h5 class="card-title mb-2">Hộp chờ phê duyệt đợt phân công</h5>
                     <p class="text-muted mb-3">
-                        Lãnh đạo Khoa duyệt batch của Khoa mình; Phòng Đào tạo duyệt batch đã qua Lãnh đạo Khoa.
+                        Lãnh đạo Khoa duyệt phân công đợt của Khoa mình; Phòng Đào tạo duyệt đợt đã qua Lãnh đạo Khoa.
                     </p>
                     @if ($canDepartmentAssign || $canReviewWorkflow)
                         <a href="{{ route('department-monthly-assignment-batches.index') }}" class="btn btn-success btn-sm">
@@ -137,7 +136,7 @@
                 <div class="card-body">
                     <h5 class="card-title mb-2">Hồ sơ phân công tháng tổng hợp</h5>
                     <p class="text-muted mb-3">
-                        PĐT tổng hợp các batch đã đủ 2 vòng duyệt của tất cả Khoa bắt buộc, gửi Lãnh đạo PĐT rồi Ban Giám hiệu phê duyệt.
+                        PĐT tổng hợp các đợt phân công đã đủ 2 vòng duyệt của tất cả Khoa bắt buộc, gửi Lãnh đạo PĐT rồi Ban Giám hiệu phê duyệt.
                     </p>
                     @if ($canManageSemesterPlan || $canReviewWorkflow || $canLeadershipReview)
                         <a href="{{ route('monthly-assignment-dossiers.index') }}" class="btn btn-warning btn-sm">

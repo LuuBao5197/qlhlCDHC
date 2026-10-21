@@ -44,7 +44,7 @@
                         <i class="fas fa-folder-open mr-2"></i>Hồ sơ phân công tháng tổng hợp
                     </h4>
                     <p class="mb-0 text-muted">
-                        PĐT tổng hợp các batch phân công đã được Lãnh đạo Khoa và PĐT duyệt, gửi Lãnh đạo PĐT rồi BGH phê duyệt.
+                        PĐT tổng hợp các đợt phân công đã được Lãnh đạo Khoa và PĐT duyệt, gửi Lãnh đạo PĐT rồi BGH phê duyệt.
                     </p>
 
                     <form method="GET" action="{{ route('monthly-assignment-dossiers.index') }}" class="mt-3">
