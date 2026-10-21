@@ -40,7 +40,7 @@
                                 <i class="fas fa-inbox mr-2"></i>Hộp chờ phê duyệt phân công giảng dạy
                             </h4>
                             <p class="mb-0 text-muted">
-                                Dành cho Phòng Đào tạo và quản trị viên để rà soát các batch phân công tổng hợp theo khoa.
+                                Dành cho Phòng Đào tạo và quản trị viên để rà soát các đợt phân công tổng hợp theo khoa.
                             </p>
                         </div>
                         <div class="mt-2 mt-lg-0">
@@ -90,7 +90,7 @@
                                     <i class="fas fa-filter mr-1"></i>Lọc danh sách
                                 </button>
                                 <a href="{{ route('department-monthly-assignment-batches.index', ['status' => $currentStatus]) }}"
-                                    class="btn btn-outline-secondary">
+                                    class="btn btn-primary">
                                     Xóa lọc
                                 </a>
                             </div>
@@ -123,7 +123,7 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0 text-dark font-weight-bold">
-                    <i class="fas fa-list mr-1 text-primary"></i>Danh sách batch chờ duyệt
+                    <i class="fas fa-list mr-1 text-primary"></i>Danh sách đợt chờ duyệt
                 </h5>
                 <span class="badge badge-primary px-2 py-1">{{ $batches->total() }} kết quả</span>
             </div>
@@ -140,7 +140,7 @@
                             <th style="min-width: 150px;">Thời gian gửi</th>
                             <th style="min-width: 160px;">Lãnh đạo Khoa duyệt</th>
                             <th style="min-width: 160px;">PĐT duyệt</th>
-                            <th style="min-width: 90px;">Số slot</th>
+                            <th style="min-width: 90px;">Số tiết</th>
                             <th style="min-width: 170px;">Nguồn</th>
                             <th style="min-width: 160px;">Hành động</th>
                         </tr>

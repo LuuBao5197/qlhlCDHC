@@ -140,6 +140,48 @@
             border-radius: var(--qlhl-radius);
         }
 
+        /* Inputs keep the template's dark background; only make the text brighter */
+        /* Excludes submit/button/reset/image/file so action buttons keep their own colors */
+        input.form-control:not([type=submit]):not([type=button]):not([type=reset]):not([type=image]),
+        select.form-control,
+        textarea.form-control,
+        input.asColorPicker-input:not([type=submit]):not([type=button]):not([type=reset]),
+        .dataTables_wrapper select,
+        .select2-container--default .select2-selection--single .select2-selection__rendered,
+        .input-group-text {
+            color: #ffffff;
+        }
+
+        input.form-control:not([type=submit]):not([type=button]):not([type=reset]):not([type=image]):focus,
+        input.form-control:not([type=submit]):not([type=button]):not([type=reset]):not([type=image]):active,
+        select.form-control:focus,
+        select.form-control:active,
+        textarea.form-control:focus,
+        textarea.form-control:active,
+        .dataTables_wrapper select:focus {
+            color: #ffffff;
+        }
+
+        select.form-control option {
+            background-color: #2A3038;
+            color: #ffffff;
+        }
+
+        input.form-control:not([type=submit]):not([type=button]):not([type=reset])::placeholder,
+        textarea.form-control::placeholder {
+            color: #b8bdd6;
+            opacity: 1;
+        }
+
+        input.form-control:not([type=submit]):not([type=button]):not([type=reset]):disabled,
+        input.form-control[readonly],
+        select.form-control:disabled,
+        textarea.form-control:disabled,
+        textarea.form-control[readonly] {
+            color: #d5d8e8;
+            opacity: 1;
+        }
+
         .card {
             border: 1px solid var(--qlhl-border);
             box-shadow: 0 1px 2px rgba(59, 83, 62, 0.06);

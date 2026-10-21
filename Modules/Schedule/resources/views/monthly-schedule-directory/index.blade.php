@@ -14,10 +14,10 @@
             'returned' => 'Bị trả về',
         ];
         $batchStatusClasses = [
-            'draft' => 'badge-secondary',
-            'submitted' => 'badge-info',
-            'approved' => 'badge-success',
-            'returned' => 'badge-warning',
+            'draft' => 'badge-dark text-white',
+            'submitted' => 'badge-primary text-white',
+            'approved' => 'badge-success text-white',
+            'returned' => 'badge-danger text-white',
         ];
     @endphp
 
@@ -69,7 +69,7 @@
                                 <button type="submit" class="btn btn-primary mr-2">
                                     <i class="fas fa-filter mr-1"></i>Lọc danh sách
                                 </button>
-                                <a href="{{ route('monthly-schedule.directory') }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('monthly-schedule.directory') }}" class="btn  btn-primary">
                                     Xóa lọc
                                 </a>
                             </div>
@@ -96,7 +96,7 @@
                             <th style="min-width: 220px;">Khoa</th>
                             <th style="min-width: 110px;">Tháng/Năm</th>
                             <th style="min-width: 90px;">Số tiết</th>
-                            <th style="min-width: 160px;">Trạng thái batch</th>
+                            <th style="min-width: 160px;">Trạng thái đợt</th>
                             <th style="min-width: 160px;">Hành động</th>
                         </tr>
                     </thead>
@@ -112,11 +112,12 @@
                                 <td>{{ $row['slot_count'] }}</td>
                                 <td>
                                     @if ($row['batch_status'])
-                                        <span class="badge {{ $batchStatusClasses[$row['batch_status']] ?? 'badge-secondary' }}">
+                                        <span class="badge {{ $batchStatusClasses[$row['batch_status']] ?? 'badge-dark' }} px-2 py-1"
+                                            style="font-size: 0.85rem; white-space: normal;">
                                             {{ $batchStatusLabels[$row['batch_status']] ?? $row['batch_status'] }}
                                         </span>
                                     @else
-                                        <span class="badge badge-light border">Chưa tạo batch</span>
+                                        <span class="badge px-2 py-1" style="font-size: 0.85rem; background: #6c757d; color: #fff;">Chưa gửi</span>
                                     @endif
                                 </td>
                                 <td>
@@ -127,7 +128,7 @@
                                     @if ($row['batch_id'])
                                         <a href="{{ route('department-monthly-assignment-batches.show', $row['batch_id']) }}"
                                             class="btn btn-outline-secondary btn-sm">
-                                            <i class="fas fa-eye mr-1"></i>Xem batch
+                                            <i class="fas fa-eye mr-1"></i>Xem đợt
                                         </a>
                                     @endif
                                 </td>

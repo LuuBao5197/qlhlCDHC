@@ -5,8 +5,8 @@
     $strictRollingWindow = (bool) config('schedule.initialize_monthly_schedule.strict_next_month_only', true);
     $allowCurrentMonthForTest = (bool) config('schedule.initialize_monthly_schedule.allow_current_month_in_test', false);
 @endphp
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+<div class="w-100">
+    <div class="card card-body shadow-sm">
         <h1 class="text-3xl font-bold mb-6">Khởi Tạo Lịch Tháng</h1>
 
         @if ($errors->any())
@@ -76,10 +76,9 @@
                 </div>
             @endif
 
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+            <button type="submit" class="btn btn-primary btn-block font-weight-bold py-2 px-4">
                 Khởi Tạo Lịch Tháng
             </button>
-            <a href="{{ route('monthly-schedule.initialize') }}" class="block text-center mt-4 text-gray-600 hover:text-gray-800">Quay lại</a>
         </form>
     </div>
 </div>

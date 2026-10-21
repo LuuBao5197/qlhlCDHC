@@ -16010,7 +16010,7 @@ code {
   color: #ffffff; }
 
 .badge-secondary {
-  background: #e4eaec;
+  background: #6c757d;
   color: #ffffff; }
 
 .badge-success, .preview-list .preview-item .preview-thumbnail .badge.badge-online {
@@ -16030,8 +16030,8 @@ code {
   color: #ffffff; }
 
 .badge-light {
-  background: #ffffff;
-  color: #ffffff; }
+  background: #f1f3f5;
+  color: #343a40; }
 
 .badge-dark {
   background: #0d0d0d;
