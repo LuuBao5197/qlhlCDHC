@@ -99,7 +99,7 @@
                 </h5>
                 @if ($canBuild)
                     <form method="POST" action="{{ route('monthly-assignment-dossiers.store') }}"
-                        onsubmit="return confirm({{ $adminBackfillMode ? "'Bo sung du lieu cu: tao ho so va DUYET NGAY qua ca PDT va BGH, khong can cho duyet thu cong?'" : "'Tạo/làm mới bản nháp hồ sơ tổng hợp cho tháng {{ $month }}/{{ $year }}?'" }});">
+                        onsubmit="return confirm(@js($adminBackfillMode ? 'Bổ sung dữ liệu cũ: tạo hồ sơ và DUYỆT NGAY qua cả PDT và BGH, không cần chờ duyệt thủ công?' : 'Tạo/làm mới bản nháp hồ sơ tổng hợp cho tháng '.$month.'/'.$year.'?'));">
                         @csrf
                         <input type="hidden" name="month" value="{{ $month }}">
                         <input type="hidden" name="year" value="{{ $year }}">
