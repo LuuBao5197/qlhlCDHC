@@ -19,5 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', \App\Http\Middleware\SetActiveRole::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Phiên đăng nhập đã hết hạn hoặc tài khoản được đăng nhập ở nơi khác. Vui lòng đăng nhập lại.',
+            ]);
+        });
     })->create();
