@@ -33,5 +33,5 @@ package-lock.json
 Report/Diagrams/Mindmap/java_roadmap.puml
 Report/Progress/BanGiamHieu-Workflow-Analysis.md
 .gitignore
-
+/docs
 project_auth_ui_context.md
