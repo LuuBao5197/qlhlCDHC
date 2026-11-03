@@ -1332,6 +1332,29 @@
     @endif
 
     <style>
+        /* Quick-assign toolbar stays visible while scrolling (below the 70px fixed navbar) */
+        /* Theme sets overflow:hidden on .container-scroller, which disables sticky for descendants */
+        /* html/body also have overflow-x:hidden -> body becomes a scroll container; use clip instead */
+        html,
+        body {
+            overflow-x: clip !important;
+            overflow-y: visible !important;
+        }
+
+        .container-scroller,
+        .container-scroller .page-body-wrapper,
+        .container-scroller .main-panel {
+            overflow: visible !important;
+        }
+
+        #assignToolbar {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 70px;
+            z-index: 1020;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
+        }
+
         /* Tabs */
         .nav-tabs {
             border-bottom: 2px solid #4e73df;
