@@ -355,6 +355,35 @@
             {!! $resourceInlineJs($dashboardScript) !!}
         @endforeach
     </script>
+    <script>
+        // Chặn chọn file quá lớn ngay ở trình duyệt (tránh lỗi 413 từ máy chủ).
+        // Mặc định 2MB; có thể đổi riêng từng ô bằng thuộc tính data-max-mb="5".
+        (function () {
+            var DEFAULT_MAX_MB = 2;
+            function check(input) {
+                var max = parseFloat(input.getAttribute('data-max-mb')) || DEFAULT_MAX_MB;
+                var files = input.files || [];
+                for (var i = 0; i < files.length; i++) {
+                    if (files[i].size > max * 1024 * 1024) {
+                        var mb = (files[i].size / 1024 / 1024).toFixed(2);
+                        alert('File "' + files[i].name + '" có dung lượng ' + mb + 'MB, vượt quá giới hạn ' + max + 'MB. Vui lòng chọn file nhỏ hơn.');
+                        input.value = '';
+                        return false;
+                    }
+                }
+                return true;
+            }
+            document.addEventListener('change', function (e) {
+                if (e.target && e.target.type === 'file') check(e.target);
+            }, true);
+            document.addEventListener('submit', function (e) {
+                var inputs = e.target.querySelectorAll ? e.target.querySelectorAll('input[type="file"]') : [];
+                for (var i = 0; i < inputs.length; i++) {
+                    if (!check(inputs[i])) { e.preventDefault(); return; }
+                }
+            }, true);
+        })();
+    </script>
     @stack('scripts')
 </body>
 
